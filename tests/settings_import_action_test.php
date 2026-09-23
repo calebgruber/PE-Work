@@ -229,9 +229,10 @@ $freshDb = new PDO('sqlite:' . $testDbPath, null, null, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
 ]);
-$resourceStmt = $freshDb->prepare('SELECT stored_name FROM resources WHERE title = ? ORDER BY id DESC LIMIT 1');
+$resourceStmt = $freshDb->prepare('SELECT * FROM resources WHERE title = ? ORDER BY id DESC LIMIT 1');
 $resourceStmt->execute(['Shop Resource']);
-$storedName = (string) $resourceStmt->fetchColumn();
+$resourceRow = $resourceStmt->fetch() ?: [];
+$storedName = (string) ($resourceRow['stored_name'] ?? '');
 if ($storedName !== '') {
     $testPaths[] = $repoRoot . '/storage/uploads/resources/' . $storedName;
 }
@@ -241,6 +242,37 @@ settings_assert($resourcePageStatus === 0 && $resourceCsrfToken !== '', 'Expecte
 settings_assert(str_contains($resourceHeaders, 'Location: /settings?tab=resources'), 'Expected resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($storedName !== '', 'Expected resource upload action to persist the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($resourceBody, 'Resource uploaded.'), 'Expected redirected resources page to show the upload success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+
+$resourceFetchHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-fetch-headers-');
+$resourceFetchPath = tempnam(sys_get_temp_dir(), 'pew-resource-fetch-');
+$resourceForbiddenHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-forbidden-headers-');
+$resourceForbiddenPath = tempnam(sys_get_temp_dir(), 'pew-resource-forbidden-');
+$testPaths[] = $resourceFetchHeadersPath;
+$testPaths[] = $resourceFetchPath;
+$testPaths[] = $resourceForbiddenHeadersPath;
+$testPaths[] = $resourceForbiddenPath;
+$resourceUrl = $baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0) . '&token=' . rawurlencode(resource_access_token($resourceRow));
+exec(sprintf(
+    "curl -fsS -o %s -D %s %s",
+    escapeshellarg($resourceFetchPath),
+    escapeshellarg($resourceFetchHeadersPath),
+    escapeshellarg($resourceUrl)
+), $resourceFetchOutput, $resourceFetchStatus);
+exec(sprintf(
+    "curl -sS -o %s -D %s %s",
+    escapeshellarg($resourceForbiddenPath),
+    escapeshellarg($resourceForbiddenHeadersPath),
+    escapeshellarg($baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0))
+), $resourceForbiddenOutput, $resourceForbiddenStatus);
+$resourceFetchHeaders = is_file($resourceFetchHeadersPath) ? file_get_contents($resourceFetchHeadersPath) : '';
+$resourceForbiddenHeaders = is_file($resourceForbiddenHeadersPath) ? file_get_contents($resourceForbiddenHeadersPath) : '';
+$resourceFetchBody = is_file($resourceFetchPath) ? file_get_contents($resourceFetchPath) : '';
+
+settings_assert($resourceFetchStatus === 0, 'Expected signed resource URL to be fetchable.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceFetchHeaders, 'Content-Type: application/pdf'), 'Expected signed resource URL to return a PDF response.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_starts_with($resourceFetchBody, '%PDF-'), 'Expected signed resource URL to stream the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($resourceForbiddenStatus === 0, 'Expected unsigned resource request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceForbiddenHeaders, '403 Forbidden'), 'Expected missing token resource request to be rejected.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
 $textPath = tempnam(sys_get_temp_dir(), 'pew-resource-text-');
 file_put_contents($textPath, "not a pdf");

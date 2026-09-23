@@ -1169,6 +1169,7 @@ function store_resource_upload(array $file, string $title = ''): array
     if (!$isUploadedFile) {
         return ['ok' => false, 'message' => 'Choose a valid uploaded PDF file.'];
     }
+    $allowLocalTestUpload = !is_uploaded_file((string) $file['tmp_name']) && $isUploadedFile;
 
     $originalName = (string) ($file['name'] ?? 'resource.pdf');
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
@@ -1192,7 +1193,7 @@ function store_resource_upload(array $file, string $title = ''): array
     if (!move_uploaded_file($file['tmp_name'], $destination)) {
         $tmpPath = (string) $file['tmp_name'];
         $moved = false;
-        if (is_file($tmpPath)) {
+        if ($allowLocalTestUpload && is_file($tmpPath)) {
             $moved = @rename($tmpPath, $destination) || @copy($tmpPath, $destination);
         }
         if (!$moved) {

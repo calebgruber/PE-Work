@@ -147,8 +147,8 @@
         });
 
         category.classList.toggle('hidden', visibleCount === 0);
-        if (term && trigger && panel) {
-          setAccordionState(trigger, panel, visibleCount > 0);
+        if (trigger && panel) {
+          setAccordionState(trigger, panel, term ? visibleCount > 0 : false);
         }
       });
     }

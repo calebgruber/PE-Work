@@ -12,17 +12,12 @@ function app_secret_value(): string
         return trim($configured);
     }
 
-    $secretPaths = [
-        __DIR__ . '/../storage/.app_secret',
-        rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . '/pe-work-app-secret-' . sha1(__DIR__),
-    ];
+    $secretPath = __DIR__ . '/../storage/.app_secret';
 
-    foreach ($secretPaths as $path) {
-        if (is_file($path)) {
-            $value = trim((string) @file_get_contents($path));
-            if ($value !== '') {
-                return $value;
-            }
+    if (is_file($secretPath)) {
+        $value = trim((string) @file_get_contents($secretPath));
+        if ($value !== '') {
+            return $value;
         }
     }
 
@@ -32,14 +27,12 @@ function app_secret_value(): string
         $secret = hash('sha256', uniqid((string) mt_rand(), true));
     }
 
-    foreach ($secretPaths as $path) {
-        $directory = dirname($path);
-        if (!is_dir($directory)) {
-            @mkdir($directory, 0775, true);
-        }
-        if (is_dir($directory) && @file_put_contents($path, $secret, LOCK_EX) !== false) {
-            return $secret;
-        }
+    $directory = dirname($secretPath);
+    if (!is_dir($directory)) {
+        @mkdir($directory, 0775, true);
+    }
+    if (is_dir($directory) && @file_put_contents($secretPath, $secret, LOCK_EX) !== false) {
+        return $secret;
     }
 
     return $secret;
