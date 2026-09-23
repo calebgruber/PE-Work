@@ -346,8 +346,17 @@ assert_true(count($syntheticPages[0]) === 2 && count($syntheticPages[1]) === 2 &
 $syntheticMinOnlyLayout = export_layout_settings();
 $syntheticMinOnlyLayout['layout.equipment_min_rows_per_page'] = '4';
 $syntheticMinOnlyLayout['layout.equipment_max_rows_per_page'] = '0';
-$syntheticMinPages = export_equipment_pages($syntheticRows, $syntheticMinOnlyLayout);
-assert_true(count($syntheticMinPages) === 2, 'Expected configured minimum rows per page to delay page breaks.');
+$tallSyntheticRows = [];
+for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
+    $tallSyntheticRows[] = [
+        'category' => 'Very Long Category Label ' . str_repeat('Alpha ', 30),
+        'item' => ['name' => 'Tall Synthetic Item ' . $syntheticIndex, 'default_note' => ''],
+        'line' => ['line_note' => str_repeat('This is a very long export note to force wrapping. ', 20), 'pickup_date' => null, 'return_date' => null],
+    ];
+}
+$syntheticAutoPages = export_equipment_pages($tallSyntheticRows, export_layout_settings());
+$syntheticMinPages = export_equipment_pages($tallSyntheticRows, $syntheticMinOnlyLayout);
+assert_true(count($syntheticAutoPages[0]) < 4, 'Expected automatic pagination to break tall rows before four items.');
 assert_true(count($syntheticMinPages[0]) === 4 && count($syntheticMinPages[1]) === 1, 'Expected configured minimum rows per page to keep at least the minimum rows together when possible.');
 
 $thirdRevisionId = create_next_revision($showId);
