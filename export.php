@@ -1236,7 +1236,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
             <td class="col-line">LINE</td>
             <td class="col-item">ITEM</td>
             <td class="col-description">DESCRIPTION</td>
-            <td class="col-total">LAST TOTAL</td>
+            <td class="col-total">PREV.</td>
             <td class="col-total">TOTAL</td>
             <td class="col-action">ACTION</td>
             <td class="col-notes">NOTES</td>
