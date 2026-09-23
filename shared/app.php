@@ -84,6 +84,14 @@ function sanitize_local_asset_path(?string $value): ?string
     return ltrim($value, '/');
 }
 
+function normalize_csv_header(string $value): string
+{
+    $value = preg_replace('/^\xEF\xBB\xBF/', '', $value) ?? $value;
+    $value = strtolower(trim($value));
+
+    return str_replace([' ', '-'], '_', $value);
+}
+
 function blank_show(): array
 {
     return [
@@ -659,7 +667,7 @@ function create_category(string $name): array
         return ['ok' => false, 'message' => 'Category name is required.'];
     }
 
-    $stmt = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE name = ?');
+    $stmt = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE LOWER(name) = LOWER(?)');
     $stmt->execute([$name]);
     if ((int) $stmt->fetchColumn() > 0) {
         return ['ok' => false, 'message' => 'That category already exists.'];
@@ -704,7 +712,7 @@ function update_category(array $input): array
         return ['ok' => false, 'message' => 'Category not found.'];
     }
 
-    $dup = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE name = ? AND id != ?');
+    $dup = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE LOWER(name) = LOWER(?) AND id != ?');
     $dup->execute([$name, $categoryId]);
     if ((int) $dup->fetchColumn() > 0) {
         return ['ok' => false, 'message' => 'Another category already uses that name.'];
@@ -772,7 +780,7 @@ function create_inventory_item(array $input): array
 function category_id_for_name(string $name): int
 {
     $trimmed = trim($name);
-    $stmt = db()->prepare('SELECT id FROM inventory_categories WHERE name = ?');
+    $stmt = db()->prepare('SELECT id FROM inventory_categories WHERE LOWER(name) = LOWER(?)');
     $stmt->execute([$trimmed]);
     $id = $stmt->fetchColumn();
     if ($id) {
@@ -809,7 +817,7 @@ function import_inventory_csv(string $tmpPath): array
     $headerMap = [];
     $allowedHeaders = ['category', 'name', 'shop_quantity', 'unit', 'default_note', 'description'];
     foreach ($header as $index => $column) {
-        $normalized = strtolower(trim((string) $column));
+        $normalized = normalize_csv_header((string) $column);
         if ($normalized === '') {
             continue;
         }

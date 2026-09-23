@@ -53,6 +53,19 @@ assert_true($dynamicUpdateResult['ok'] === true, 'Expected dynamic category reim
 $stmt->execute(['Lamp Cart']);
 assert_true((int) $stmt->fetchColumn() === 4, 'Expected dynamic-category item to update on reimport.');
 
+$excelCsv = tempnam(sys_get_temp_dir(), 'pew-excel-');
+file_put_contents($excelCsv, "\xEF\xBB\xBFcategory,name,shop_quantity,unit,default_note,description\nFIXTURES,HES Solaframe Theatre,12,ea,,\nFIXTURES,GLP Impression S350 Wash,10,ea,,\nFIXTURES,GLP Impression Wash One,6,ea,,\nFIXTURES,GLP Impression Spot One,6,ea,,\n");
+$excelResult = import_inventory_csv($excelCsv);
+assert_true($excelResult['ok'] === true, 'Expected Excel-style CSV import with BOM and uppercase categories to succeed.');
+
+$stmt->execute(['HES Solaframe Theatre']);
+assert_true((int) $stmt->fetchColumn() === 12, 'Expected Excel-style CSV import to store HES Solaframe Theatre quantity.');
+$stmt->execute(['GLP Impression S350 Wash']);
+assert_true((int) $stmt->fetchColumn() === 10, 'Expected Excel-style CSV import to store GLP Impression S350 Wash quantity.');
+
+$fixtureCategoryCount = (int) db()->query("SELECT COUNT(*) FROM inventory_categories WHERE LOWER(name) = 'fixtures'")->fetchColumn();
+assert_true($fixtureCategoryCount === 1, 'Expected uppercase spreadsheet categories to reuse the existing Fixtures category.');
+
 $showResult = save_show_record([
     'show_name' => 'Revision Clone Test',
     'theatre_name' => 'Mainstage',
@@ -135,6 +148,7 @@ assert_true(str_contains($missingPathResult['message'], 'Unable to read'), 'Expe
 @unlink($validCsv);
 @unlink($invalidCsv);
 @unlink($dynamicCsv);
+@unlink($excelCsv);
 @unlink($emptyCsv);
 @unlink(DB_SQLITE_PATH);
 if (file_exists($localBackup)) {
