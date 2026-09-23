@@ -257,20 +257,20 @@ function export_equipment_row_units(array $row): int
     $noteLength = strlen($note);
     $units = 1;
 
-    if ($nameLength > 28 || $descriptionLength > 20) {
+    if ($nameLength > 24 || $descriptionLength > 18) {
         $units++;
     }
-    if ($noteLength > 42) {
+    if ($nameLength > 38 || $descriptionLength > 26 || $noteLength > 30) {
         $units++;
     }
-    if ($noteLength > 84) {
+    if ($noteLength > 60) {
         $units++;
     }
 
     return min(4, $units);
 }
 
-function export_equipment_pages(array $rows, int $pageCapacity = 38): array
+function export_equipment_pages(array $rows, int $pageCapacity = 26): array
 {
     if (!$rows) {
         return [[]];
@@ -364,13 +364,17 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
     }
     .page {
-      position: relative;
       min-height: 11in;
       padding: 0.55in 0.7in 0.6in;
       box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
       page-break-after: always;
     }
     .page:last-child { page-break-after: auto; }
+    .page-content {
+      flex: 1 1 auto;
+    }
     .top-rule {
       border-bottom: 1px solid #000;
       padding-bottom: 0.1in;
@@ -538,27 +542,32 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table th:first-child,
     table.word-table td:first-child {
-      padding-left: 0.12in;
+      padding-left: 0.08in;
     }
     table.word-table thead th {
       border-bottom: 1px solid #666;
       text-decoration: underline;
       font-weight: 700;
     }
-    .col-line { width: 9%; }
-    .col-item { width: 30%; }
-    .col-description { width: 20%; }
+    .col-line { width: 6%; }
+    .col-item { width: 31%; }
+    .col-description { width: 21%; }
     .col-action { width: 18%; }
     .col-qty { width: 13%; }
     .col-used,
-    .col-spare { width: 8%; }
+    .col-spare { width: 7%; }
     .col-total { width: 10%; }
-    .col-notes { width: 15%; }
+    .col-notes { width: 18%; }
     .notes-cell {
       white-space: normal;
       overflow-wrap: anywhere;
     }
-    .line-cell { text-align: right; font-weight: 700; }
+    .line-cell {
+      text-align: right;
+      font-weight: 700;
+      font-size: 8pt;
+      padding-right: 0.04in;
+    }
     .delta {
       margin-left: 0.12rem;
       font-size: 8pt;
@@ -581,14 +590,13 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       }
     }
     .footer {
-      position: absolute;
-      left: 0.7in;
-      right: 0.7in;
-      bottom: 0.28in;
       display: flex;
       justify-content: flex-end;
+      margin-top: auto;
+      padding-top: 0.2in;
       font-size: 9pt;
       color: #374151;
+      page-break-inside: avoid;
     }
     @media print {
       body { background: #fff; }
@@ -605,6 +613,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
   </div>
   <div class="document">
     <section class="page">
+      <div class="page-content">
       <div class="top-rule">
         <div class="page-header-bar">
           <div class="page-header-title">
@@ -720,6 +729,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
         <li><?= h($note) ?></li>
         <?php endforeach; ?>
       </ol>
+      </div>
 
       <div class="footer">
         <span><?= h($layout['layout.footer_text']) ?></span>
@@ -728,6 +738,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
 
     <?php if ($renderSummaryPage): ?>
     <section class="page">
+      <div class="page-content">
       <div class="top-rule">
         <div class="page-header-bar">
           <div class="page-header-title">
@@ -764,6 +775,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           <?php endforeach; ?>
         </tbody>
       </table>
+      </div>
       <div class="footer">
         <span><?= h($layout['layout.footer_text']) ?></span>
       </div>
@@ -773,6 +785,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     <?php $lineNumber = 1; ?>
     <?php foreach ($equipmentPages as $equipmentPageIndex => $equipmentPageRows): ?>
     <section class="page">
+      <div class="page-content">
       <div class="top-rule">
         <div class="page-header-bar">
           <div class="page-header-title">
@@ -817,6 +830,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           <?php endforeach; ?>
         </tbody>
       </table>
+      </div>
       </div>
       <div class="footer">
         <span><?= h($layout['layout.footer_text']) ?></span>
