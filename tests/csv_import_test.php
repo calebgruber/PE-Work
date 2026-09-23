@@ -1,5 +1,12 @@
 <?php
 
+$repoRoot = dirname(__DIR__);
+$localConfig = $repoRoot . '/config.local.php';
+$localBackup = $repoRoot . '/config.local.php.test-backup';
+if (file_exists($localConfig)) {
+    rename($localConfig, $localBackup);
+}
+
 define('DB_DRIVER', 'sqlite');
 define('DB_SQLITE_PATH', '/tmp/pe-work-test-' . uniqid('', true) . '.sqlite');
 
@@ -52,9 +59,23 @@ $invalidResult = import_inventory_csv($invalidCsv);
 assert_true($invalidResult['ok'] === false, 'Expected invalid CSV import to fail.');
 assert_true(str_contains($invalidResult['message'], 'category and name columns'), 'Expected missing-header message.');
 
+$emptyCsv = tempnam(sys_get_temp_dir(), 'pew-empty-');
+file_put_contents($emptyCsv, '');
+$emptyResult = import_inventory_csv($emptyCsv);
+assert_true($emptyResult['ok'] === false, 'Expected empty CSV import to fail.');
+assert_true(str_contains($emptyResult['message'], 'empty'), 'Expected empty CSV message.');
+
+$missingPathResult = import_inventory_csv('/tmp/does-not-exist-' . uniqid('', true) . '.csv');
+assert_true($missingPathResult['ok'] === false, 'Expected unreadable CSV import to fail.');
+assert_true(str_contains($missingPathResult['message'], 'Unable to read'), 'Expected unreadable-file message.');
+
 @unlink($validCsv);
 @unlink($invalidCsv);
 @unlink($dynamicCsv);
+@unlink($emptyCsv);
 @unlink(DB_SQLITE_PATH);
+if (file_exists($localBackup)) {
+    rename($localBackup, $localConfig);
+}
 
 echo "csv import tests passed\n";

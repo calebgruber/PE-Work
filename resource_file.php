@@ -24,5 +24,7 @@ if (!is_file($path)) {
 
 header('Content-Type: application/pdf');
 header('Content-Length: ' . (string) filesize($path));
-header('Content-Disposition: inline; filename="' . rawurlencode($resource['original_name']) . '"');
+$filename = (string) $resource['original_name'];
+$asciiFilename = preg_replace('/[^A-Za-z0-9.\-_ ]/', '_', $filename) ?: 'resource.pdf';
+header('Content-Disposition: inline; filename="' . str_replace('"', '', $asciiFilename) . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
 readfile($path);

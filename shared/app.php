@@ -691,6 +691,12 @@ function create_inventory_item(array $input): array
         'INSERT INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
          VALUES (?, ?, ?, ?, ?, ?)'
     );
+    $duplicate = db()->prepare('SELECT COUNT(*) FROM inventory_items WHERE category_id = ? AND name = ? AND is_active = 1');
+    $duplicate->execute([$categoryId, $name]);
+    if ((int) $duplicate->fetchColumn() > 0) {
+        return ['ok' => false, 'message' => 'That category already has an item with this name.'];
+    }
+
     $stmt->execute([
         $categoryId,
         $name,
@@ -720,7 +726,7 @@ function category_id_for_name(string $name): int
 
 function import_inventory_csv(string $tmpPath): array
 {
-    $handle = fopen($tmpPath, 'rb');
+    $handle = @fopen($tmpPath, 'rb');
     if (!$handle) {
         return ['ok' => false, 'message' => 'Unable to read uploaded CSV.'];
     }
@@ -890,7 +896,7 @@ function store_resource_upload(array $file, string $title = ''): array
     $storedName = date('YmdHis') . '-' . bin2hex(random_bytes(6)) . '.pdf';
     $destination = upload_dir('resources') . '/' . $storedName;
 
-    if (!move_uploaded_file($file['tmp_name'], $destination) && !rename($file['tmp_name'], $destination)) {
+    if (!move_uploaded_file($file['tmp_name'], $destination)) {
         return ['ok' => false, 'message' => 'Unable to store the uploaded PDF.'];
     }
 

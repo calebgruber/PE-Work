@@ -156,10 +156,6 @@
           const haystack = item.getAttribute('data-item-name') || '';
           const match = (!searchTerm && categoryMatches) || (categoryMatches && (haystack.indexOf(searchTerm) !== -1 || categoryName.indexOf(searchTerm) !== -1));
           item.classList.toggle('hidden', !match);
-          const deleteForm = item.nextElementSibling;
-          if (deleteForm && deleteForm.classList.contains('inventory-item-delete')) {
-            deleteForm.classList.toggle('hidden', !match);
-          }
           if (match) visibleItems += 1;
         });
 

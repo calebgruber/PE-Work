@@ -196,6 +196,11 @@
   gap: 1rem;
 }
 
+.inventory-item-wrap {
+  display: grid;
+  gap: 0.5rem;
+}
+
 .inventory-item-card,
 .resource-card,
 .category-editor {
