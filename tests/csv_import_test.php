@@ -109,6 +109,7 @@ foreach ($orderingCatalog as $category) {
 assert_true(count($orderingItems) === 2, 'Expected ordering category to include both test inventory items.');
 assert_true(($orderingItems[0]['name'] ?? '') === 'Spacer Break', 'Expected lower sort order item to render first.');
 assert_true((int) ($orderingItems[0]['is_spacer'] ?? 0) === 1, 'Expected spacer item flag to persist.');
+$orderingSpacerId = (int) ($orderingItems[0]['id'] ?? 0);
 
 $validCsv = tempnam(sys_get_temp_dir(), 'pew-valid-');
 file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nFixtures,Source Four,10,ea,Ellipsoidal,Test import\n");
@@ -225,6 +226,11 @@ save_revision_lines($initialRevisionId, [
         'pickup_date' => '2026-10-01',
         'return_date' => '2026-10-15',
     ],
+    $orderingSpacerId => [
+        'rent_quantity' => 9,
+        'spare_quantity' => 0,
+        'action' => 'add',
+    ],
 ]);
 
 $nextRevisionId = create_next_revision($showId);
@@ -254,7 +260,31 @@ save_revision_lines($nextRevisionId, [
         'pickup_date' => '2026-10-02',
         'return_date' => '2026-10-16',
     ],
+    $orderingSpacerId => [
+        'rent_quantity' => 4,
+        'spare_quantity' => 0,
+        'action' => 'add',
+    ],
 ]);
+$previousGet = $_GET;
+$_GET = [
+    'show_id' => $showId,
+    'revision_id' => $nextRevisionId,
+    'type' => 'order',
+];
+ob_start();
+require $repoRoot . '/export.php';
+$exportHtml = ob_get_clean();
+$_GET = $previousGet;
+assert_true(!str_contains($exportHtml, 'Spacer Break'), 'Expected spacer rows to stay out of final paperwork.');
+assert_true(!str_contains($exportHtml, 'col-summary-notes'), 'Expected revision summary export to omit the notes column.');
+assert_true(str_contains($exportHtml, 'Pull 2026-10-02'), 'Expected equipment breakdown notes to include item-specific pull dates.');
+assert_true(str_contains($exportHtml, 'Return 2026-10-16'), 'Expected equipment breakdown notes to include item-specific return dates.');
+assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
+assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
+assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
+assert_true(str_contains($exportHtml, 'background:#CCCCCC;'), 'Expected export zebra striping to use the darker gray.');
+
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);
 assert_true(($thirdRevision['revision_code'] ?? '') === '1.2', 'Expected second follow-up revision code to increment to 1.2.');

@@ -62,7 +62,6 @@ function export_equipment_rows(array $catalog, string $type): array
         $visibleItems = [];
         foreach ($category['items'] as $item) {
             if (!empty($item['is_spacer'])) {
-                $visibleItems[] = $item;
                 continue;
             }
 
@@ -159,21 +158,12 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
             if (!empty($item['description'])) {
                 $descriptionBits[] = $item['description'];
             }
-            $dateNotes = [];
-            if (!empty($line['pickup_date'])) {
-                $dateNotes[] = 'Pull ' . $line['pickup_date'];
-            }
-            if (!empty($line['return_date'])) {
-                $dateNotes[] = 'Return ' . $line['return_date'];
-            }
-
             $rows[] = [
                 'category' => $category['name'],
                 'item' => $item,
                 'line' => $line,
                 'quantity' => $quantity,
                 'description' => implode(' · ', array_filter($descriptionBits, static fn ($value) => trim((string) $value) !== '')),
-                'notes' => implode(' · ', $dateNotes),
             ];
         }
     }
@@ -207,7 +197,7 @@ function export_row_style(int $rowIndex, array $revision, array $item, array $li
         return $actionBackground;
     }
 
-    return $rowIndex % 2 === 0 ? 'background:#E0E0E0;' : 'background:#FFFFFF;';
+    return $rowIndex % 2 === 0 ? 'background:#CCCCCC;' : 'background:#FFFFFF;';
 }
 
 function export_line_delta(array $revision, int $itemId, array $line, string $field): string
@@ -237,6 +227,26 @@ function export_value(string $value, string $fallback = '—'): string
 {
     $value = trim($value);
     return $value !== '' ? $value : $fallback;
+}
+
+function export_equipment_note(array $item, array $line): string
+{
+    $parts = [];
+    $lineNote = trim((string) ($line['line_note'] ?? ''));
+    $defaultNote = trim((string) ($item['default_note'] ?? ''));
+    if ($lineNote !== '') {
+        $parts[] = $lineNote;
+    } elseif ($defaultNote !== '') {
+        $parts[] = $defaultNote;
+    }
+    if (!empty($line['pickup_date'])) {
+        $parts[] = 'Pull ' . $line['pickup_date'];
+    }
+    if (!empty($line['return_date'])) {
+        $parts[] = 'Return ' . $line['return_date'];
+    }
+
+    return implode(' · ', $parts);
 }
 
 $type = $_GET['type'] ?? 'order';
@@ -446,9 +456,10 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       margin-left: 0.12rem;
       font-size: 8pt;
       font-weight: 700;
+      color: #000;
     }
-    .delta-positive { color: #166534; }
-    .delta-negative { color: #991b1b; }
+    .delta-positive { color: #000; }
+    .delta-negative { color: #000; }
     .spacer-row td {
       text-align: left;
       font-weight: 700;
@@ -556,8 +567,8 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       <div class="top-rule">
         <div class="page-header-bar">
           <div class="page-header-title">
-            <strong><?= h($layout['layout.header_text']) ?></strong>
-            <div><?= h($show['show_name']) ?></div>
+            <strong><?= h($show['show_name']) ?></strong>
+            <div class="page-header-subtitle">Electrical Equipment List</div>
           </div>
           <div class="page-header-meta">
             <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
@@ -565,7 +576,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           </div>
         </div>
       </div>
-      <p class="page-heading">REVISION SUMMARY · <?= h($revisionCode) ?></p>
+      <p class="page-heading">REVISION SUMMARY</p>
       <p class="page-note">NOTE: Not everything is included here; see full revision for complete accessories, etc.</p>
       <table class="word-table">
         <thead>
@@ -575,7 +586,6 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
             <th class="col-description">DESCRIPTION</th>
             <th class="col-action">ACTION</th>
             <th class="col-qty">QTY.</th>
-            <th class="col-summary-notes">NOTES</th>
           </tr>
         </thead>
         <tbody>
@@ -586,7 +596,6 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
             <td><?= h($row['description']) ?></td>
             <td><?= h(strtoupper((string) ($row['line']['action'] ?: 'change'))) ?></td>
             <td><?= h((string) $row['quantity']) ?></td>
-            <td><?= h($row['notes'] !== '' ? $row['notes'] : '—') ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
@@ -601,8 +610,8 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       <div class="top-rule">
         <div class="page-header-bar">
           <div class="page-header-title">
-            <strong><?= h($layout['layout.header_text']) ?></strong>
-            <div><?= h($show['show_name']) ?></div>
+            <strong><?= h($show['show_name']) ?></strong>
+            <div class="page-header-subtitle">Electrical Equipment List</div>
           </div>
           <div class="page-header-meta">
             <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
@@ -610,7 +619,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           </div>
         </div>
       </div>
-      <p class="page-heading"><?= h($labels['equipment_heading']) ?> · <?= h($revisionCode) ?></p>
+      <p class="page-heading"><?= h($labels['equipment_heading']) ?></p>
       <table class="word-table">
         <thead>
           <tr>
@@ -626,11 +635,6 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
         <tbody>
           <?php $lineNumber = 1; ?>
           <?php foreach ($equipmentRows as $row): ?>
-          <?php if (!empty($row['item']['is_spacer'])): ?>
-          <tr class="spacer-row">
-            <td colspan="7"><?= h($row['item']['name']) ?><?php if (!empty($row['item']['description'])): ?> · <?= h($row['item']['description']) ?><?php endif; ?></td>
-          </tr>
-          <?php continue; endif; ?>
           <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'rent_quantity'); ?>
           <tr style="<?= h(export_row_style($lineNumber - 1, $revision, $row['item'], $row['line'])) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
@@ -642,7 +646,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
               <?= $type === 'returns' ? '__________' : h((string) ($row['line']['total_quantity'] ?? 0)) ?>
               <?php if ($delta !== ''): ?><span class="delta <?= str_starts_with($delta, '-') ? 'delta-negative' : 'delta-positive' ?>"><?= h($delta) ?></span><?php endif; ?>
             </td>
-            <td><?= h((string) (($row['line']['line_note'] ?: ($row['item']['default_note'] ?? '')) ?: '')) ?></td>
+            <td><?= h(export_equipment_note($row['item'], $row['line'])) ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>

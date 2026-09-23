@@ -385,10 +385,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
                       data-shop-quantity="0"
                     >
                       <td colspan="9">
-                        <div class="revision-spacer-copy">
-                          <strong><?= h($item['name']) ?></strong>
-                          <?php if (!empty($item['description'])): ?><span><?= h($item['description']) ?></span><?php endif; ?>
-                        </div>
+                        <div class="revision-spacer-copy">&nbsp;</div>
                       </td>
                     </tr>
                     <?php continue; endif; ?>

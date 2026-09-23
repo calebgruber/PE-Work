@@ -237,9 +237,9 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                   <section class="inventory-item-accordion">
                     <button type="button" class="inventory-accordion-trigger inventory-item-trigger" data-accordion-trigger aria-expanded="false">
                       <span class="inventory-item-trigger-copy">
-                        <strong><?= h($item['name']) ?></strong>
+                        <strong><?= !empty($item['is_spacer']) ? '&nbsp;' : h($item['name']) ?></strong>
                         <span class="muted">
-                          <?= !empty($item['is_spacer']) ? 'Spacer row' : ('Shop has ' . h((string) $item['shop_quantity']) . (!empty($item['unit']) ? ' ' . h($item['unit']) : '')) ?>
+                          <?= !empty($item['is_spacer']) ? '&nbsp;' : ('Shop has ' . h((string) $item['shop_quantity']) . (!empty($item['unit']) ? ' ' . h($item['unit']) : '')) ?>
                         </span>
                       </span>
                       <span class="material-symbols-outlined">expand_more</span>
@@ -250,9 +250,8 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                         <input type="hidden" name="action" value="save_inventory_item">
                         <div class="inventory-item-header">
                           <div>
-                            <h3><?= h($item['name']) ?></h3>
+                            <h3><?= !empty($item['is_spacer']) ? '&nbsp;' : h($item['name']) ?></h3>
                             <?php if (!empty($item['description'])): ?><div class="muted"><?= h($item['description']) ?></div><?php endif; ?>
-                            <?php if (!empty($item['is_spacer'])): ?><div class="helper-text">Spacer row</div><?php endif; ?>
                           </div>
                           <div class="inventory-item-actions">
                             <?php if (!empty($item['default_note'])): ?>
