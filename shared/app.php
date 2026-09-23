@@ -8,16 +8,16 @@ function h(?string $value): string
 function app_base_url(): string
 {
     if (APP_BASE_URL !== '') {
-        return APP_BASE_URL;
+        return APP_BASE_URL === '/' ? '' : rtrim(APP_BASE_URL, '/');
     }
 
     $script = $_SERVER['SCRIPT_NAME'] ?? '';
-    $dir = str_replace('\\', '/', dirname($script));
-    if ($dir === '/' || $dir === '\\' || $dir === '.') {
+    $dir = trim(str_replace('\\', '/', dirname($script)), '/');
+    if ($dir === '' || $dir === '.') {
         return '';
     }
 
-    return rtrim($dir, '/');
+    return '/' . $dir;
 }
 
 function url_for(string $path = ''): string

@@ -35,33 +35,59 @@ ui_page_header('Shop Order Dashboard', 'Manage shows, inventory, revisions, expo
     <?php ui_card_close(); ?>
   <?php else: ?>
 
-  <div class="card-grid">
-    <?php ui_card_open('dashboard', 'At a Glance'); ?>
-      <div class="stats-grid">
-        <div class="stat-tile"><div class="stat-label">Shows</div><div class="stat-value"><?= h((string) $stats['shows']) ?></div><div class="stat-subtext">Tracked productions</div></div>
-        <div class="stat-tile"><div class="stat-label">Inventory Items</div><div class="stat-value"><?= h((string) $stats['items']) ?></div><div class="stat-subtext">Available for orders</div></div>
-        <div class="stat-tile"><div class="stat-label">Revisions</div><div class="stat-value"><?= h((string) $stats['revisions']) ?></div><div class="stat-subtext">Initials + change sets</div></div>
-        <div class="stat-tile"><div class="stat-label">Global Rules</div><div class="stat-value"><?= h((string) $stats['rules']) ?></div><div class="stat-subtext">Auto-pull reminders</div></div>
+  <div class="card-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));margin-bottom:1.5rem;">
+    <div class="stat-card">
+      <div class="stat-icon"><span class="material-symbols-outlined">theater_comedy</span></div>
+      <div class="stat-label">Shows</div>
+      <div class="stat-value"><?= h((string) $stats['shows']) ?></div>
+      <div class="stat-sub">Tracked productions</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(245,158,11,.12);color:var(--warning)">
+        <span class="material-symbols-outlined">inventory_2</span>
       </div>
-    <?php ui_card_close(); ?>
-
-    <?php ui_card_open('print', 'Paperwork Workflow'); ?>
-      <div class="stack">
-        <div class="summary-block">
-          <strong>Revision-friendly ordering</strong>
-          Each show keeps the initial order plus every saved revision so you can track what changed from first pull through strike.
-        </div>
-        <div class="summary-block">
-          <strong>PDF-ready export views</strong>
-          Use the Order, Spare List, and Return Checklist print layouts, then save to PDF from the browser for shop distribution.
-        </div>
-        <div class="summary-block">
-          <strong>Starter layout settings</strong>
-          The layout tab stores export header/footer toggles now so future drag-and-drop paperwork editing has a migration-backed home.
-        </div>
+      <div class="stat-label">Inventory</div>
+      <div class="stat-value"><?= h((string) $stats['items']) ?></div>
+      <div class="stat-sub">Available in shop</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(16,185,129,.12);color:var(--success)">
+        <span class="material-symbols-outlined">history</span>
       </div>
-    <?php ui_card_close(); ?>
+      <div class="stat-label">Revisions</div>
+      <div class="stat-value"><?= h((string) $stats['revisions']) ?></div>
+      <div class="stat-sub">Initials + updates</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(239,68,68,.12);color:var(--danger)">
+        <span class="material-symbols-outlined">rule</span>
+      </div>
+      <div class="stat-label">Rules</div>
+      <div class="stat-value"><?= h((string) $stats['rules']) ?></div>
+      <div class="stat-sub">Auto-pull reminders</div>
+    </div>
   </div>
+
+  <?php ui_card_open('print', 'Paperwork Workflow'); ?>
+    <div class="apps-grid">
+      <a href="<?= h(url_for('show')) ?>" class="app-tile">
+        <span class="material-symbols-outlined">playlist_add</span>
+        <span class="app-tile-name">Initial Orders</span>
+      </a>
+      <a href="<?= h(url_for('show')) ?>" class="app-tile">
+        <span class="material-symbols-outlined">history</span>
+        <span class="app-tile-name">Revisions</span>
+      </a>
+      <a href="<?= h(url_for('show')) ?>" class="app-tile">
+        <span class="material-symbols-outlined">picture_as_pdf</span>
+        <span class="app-tile-name">PDF Exports</span>
+      </a>
+      <a href="<?= h(url_for('settings?tab=layout')) ?>" class="app-tile">
+        <span class="material-symbols-outlined">dashboard_customize</span>
+        <span class="app-tile-name">Layout Editor</span>
+      </a>
+    </div>
+  <?php ui_card_close(); ?>
 
   <?php ui_card_open('checklist', 'Shows'); ?>
     <?php if ($shows): ?>
