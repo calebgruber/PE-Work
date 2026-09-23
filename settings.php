@@ -832,6 +832,10 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <input class="form-control" id="equipment_font_size" type="number" min="6.5" max="10" step="0.01" name="equipment_font_size" value="<?= h($layout['layout.equipment_font_size'] ?? '7.35') ?>">
           </div>
           <div class="form-group">
+            <label for="equipment_line_height">Line Height</label>
+            <input class="form-control" id="equipment_line_height" type="number" min="0.9" max="2.2" step="0.01" name="equipment_line_height" value="<?= h($layout['layout.equipment_line_height'] ?? '1.1') ?>">
+          </div>
+          <div class="form-group">
             <label for="equipment_col_item">Item Width</label>
             <input class="form-control" id="equipment_col_item" type="number" min="20" max="70" step="0.1" name="equipment_col_item" value="<?= h($layout['layout.equipment_col_item'] ?? '45') ?>">
           </div>

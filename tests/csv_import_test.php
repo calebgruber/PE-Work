@@ -300,6 +300,7 @@ assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY<
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
+assert_true(str_contains($exportHtml, 'line-height: 1.30;'), 'Expected export stylesheet to use the saved equipment line height.');
 assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => '']) === 'background:#CCCCCC;', 'Expected export zebra striping to use the darker gray.');
 assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cover to remove the extra shop info box above the show title.');
 assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
@@ -435,6 +436,7 @@ $layoutDefaults = export_layout_settings();
 assert_true(array_key_exists('layout.organization_text', $layoutDefaults), 'Expected export layout defaults to include organization text.');
 assert_true(array_key_exists('layout.export_notes', $layoutDefaults), 'Expected export layout defaults to include export notes.');
 assert_true(array_key_exists('layout.equipment_table_width', $layoutDefaults), 'Expected export layout defaults to include equipment table sizing.');
+assert_true(array_key_exists('layout.equipment_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment line height.');
 save_export_layout([
     'header_text' => 'Custom Header',
     'organization_text' => 'Top Right Copy',
@@ -445,6 +447,7 @@ save_export_layout([
     'equipment_table_width' => '96',
     'equipment_row_padding' => '0.02',
     'equipment_font_size' => '7.8',
+    'equipment_line_height' => '1.3',
     'equipment_col_item' => '48',
     'equipment_col_description' => '22',
     'equipment_col_used' => '5',
@@ -456,6 +459,7 @@ $savedLayout = export_layout_settings();
 assert_true(($savedLayout['layout.organization_text'] ?? '') === 'Top Right Copy', 'Expected organization text to persist in export layout settings.');
 assert_true(($savedLayout['layout.export_notes'] ?? '') === "One\nTwo", 'Expected export notes to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_table_width'] ?? '') === '96', 'Expected equipment table width to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_line_height'] ?? '') === '1.3', 'Expected equipment line height to persist in export layout settings.');
 
 $deleteItemResult = delete_inventory_item($adapterItemId);
 assert_true($deleteItemResult['ok'] === true, 'Expected inventory delete to hard-delete the row.');

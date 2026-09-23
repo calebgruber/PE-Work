@@ -249,22 +249,109 @@ function export_equipment_note(array $item, array $line): string
     return implode(' · ', $parts);
 }
 
-function export_equipment_pages(array $rows, int $rowsPerPage = 30): array
+function export_equipment_layout_metrics(array $layout): array
+{
+    $tableWidth = max(70.0, min(100.0, (float) ($layout['layout.equipment_table_width'] ?? 100)));
+    $rowPadding = max(0.008, min(0.04, (float) ($layout['layout.equipment_row_padding'] ?? 0.016)));
+    $fontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
+    $lineHeight = max(0.9, min(2.2, (float) ($layout['layout.equipment_line_height'] ?? 1.1)));
+    $lineWidth = 4.0;
+    $rawColumns = [
+        'item' => max(1.0, (float) ($layout['layout.equipment_col_item'] ?? 45)),
+        'description' => max(1.0, (float) ($layout['layout.equipment_col_description'] ?? 23)),
+        'used' => max(1.0, (float) ($layout['layout.equipment_col_used'] ?? 5)),
+        'spare' => max(1.0, (float) ($layout['layout.equipment_col_spare'] ?? 5)),
+        'total' => max(1.0, (float) ($layout['layout.equipment_col_total'] ?? 6)),
+        'notes' => max(1.0, (float) ($layout['layout.equipment_col_notes'] ?? 12)),
+    ];
+    $scale = 96.0 / (array_sum($rawColumns) ?: 96.0);
+    $columns = [];
+    foreach ($rawColumns as $key => $value) {
+        $columns[$key] = round($value * $scale, 3);
+    }
+
+    return [
+        'table_width' => $tableWidth,
+        'row_padding' => $rowPadding,
+        'font_size' => $fontSize,
+        'line_height' => $lineHeight,
+        'line_width' => $lineWidth,
+        'columns' => $columns,
+    ];
+}
+
+function export_estimated_line_count(string $text, float $columnWidthPercent, array $metrics): int
+{
+    $text = trim($text);
+    if ($text === '') {
+        return 1;
+    }
+
+    $tableWidthInches = (8.5 - 0.18 - 0.18) * ($metrics['table_width'] / 100);
+    $columnWidthInches = max(0.6, $tableWidthInches * ($columnWidthPercent / 100));
+    $usableWidth = max(0.45, $columnWidthInches - 0.08);
+    $averageCharacterWidth = max(0.055, ($metrics['font_size'] / 72) * 0.52);
+    $charactersPerLine = max(8, (int) floor($usableWidth / $averageCharacterWidth));
+    $segments = preg_split('/\R/u', $text) ?: [''];
+    $lines = 0;
+    foreach ($segments as $segment) {
+        $length = function_exists('mb_strlen') ? mb_strlen($segment) : strlen($segment);
+        $lines += max(1, (int) ceil($length / $charactersPerLine));
+    }
+
+    return max(1, $lines);
+}
+
+function export_equipment_page_row_height(array $row, array $metrics): float
+{
+    $itemLines = export_estimated_line_count((string) ($row['item']['name'] ?? ''), $metrics['columns']['item'], $metrics);
+    $descriptionLines = export_estimated_line_count((string) ($row['category'] ?? ''), $metrics['columns']['description'], $metrics);
+    $notesLines = export_estimated_line_count(export_equipment_note($row['item'], $row['line']), $metrics['columns']['notes'], $metrics);
+    $lineCount = max($itemLines, $descriptionLines, $notesLines);
+    $baseHeight = (($metrics['font_size'] / 72) * $metrics['line_height']) + ($metrics['row_padding'] * 2) + 0.08;
+
+    return max(0.18, $baseHeight * $lineCount);
+}
+
+function export_equipment_pages(array $rows, array $layout): array
 {
     if (!$rows) {
         return [[]];
     }
 
-    return array_chunk($rows, max(1, $rowsPerPage));
+    $metrics = export_equipment_layout_metrics($layout);
+    $availableHeight = 7.55;
+    $pages = [];
+    $currentPage = [];
+    $currentHeight = 0.0;
+
+    foreach ($rows as $row) {
+        $rowHeight = export_equipment_page_row_height($row, $metrics);
+        if ($currentPage !== [] && ($currentHeight + $rowHeight) > $availableHeight) {
+            $pages[] = $currentPage;
+            $currentPage = [];
+            $currentHeight = 0.0;
+        }
+
+        $currentPage[] = $row;
+        $currentHeight += $rowHeight;
+    }
+
+    if ($currentPage !== []) {
+        $pages[] = $currentPage;
+    }
+
+    return $pages;
 }
 
 $type = $_GET['type'] ?? 'order';
 $labels = export_type_labels($type);
 $layout = export_layout_settings();
+$equipmentMetrics = export_equipment_layout_metrics($layout);
 $catalog = catalog_for_revision((int) $revision['id']);
 $revisionCode = revision_display_code($revision);
 $equipmentRows = export_equipment_rows($catalog, $type);
-$equipmentPages = export_equipment_pages($equipmentRows);
+$equipmentPages = export_equipment_pages($equipmentRows, $layout);
 $summaryRows = (($layout['layout.show_revision_summary'] ?? '1') === '1') ? export_summary_rows($catalog, $revision, $type) : [];
 $notes = export_notes_list($layout, $show);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
@@ -281,23 +368,6 @@ foreach ($equipmentPages as $_equipmentPage) {
 $totalPages = $nextPageNumber - 1;
 $headerOrganization = export_value((string) ($layout['layout.organization_text'] ?? ''), (string) ($show['theatre_name'] ?? ''));
 $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
-$equipmentTableWidth = max(70.0, min(100.0, (float) ($layout['layout.equipment_table_width'] ?? 100)));
-$equipmentRowPadding = max(0.008, min(0.04, (float) ($layout['layout.equipment_row_padding'] ?? 0.016)));
-$equipmentFontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
-$equipmentLineWidth = 4.0;
-$rawEquipmentColumnWidths = [
-    'item' => max(1.0, (float) ($layout['layout.equipment_col_item'] ?? 45)),
-    'description' => max(1.0, (float) ($layout['layout.equipment_col_description'] ?? 23)),
-    'used' => max(1.0, (float) ($layout['layout.equipment_col_used'] ?? 5)),
-    'spare' => max(1.0, (float) ($layout['layout.equipment_col_spare'] ?? 5)),
-    'total' => max(1.0, (float) ($layout['layout.equipment_col_total'] ?? 6)),
-    'notes' => max(1.0, (float) ($layout['layout.equipment_col_notes'] ?? 12)),
-];
-$equipmentWidthScale = 96.0 / (array_sum($rawEquipmentColumnWidths) ?: 96.0);
-$equipmentColumnWidths = [];
-foreach ($rawEquipmentColumnWidths as $key => $value) {
-    $equipmentColumnWidths[$key] = round($value * $equipmentWidthScale, 3);
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -488,11 +558,11 @@ foreach ($rawEquipmentColumnWidths as $key => $value) {
       font-size: 9pt;
     }
     table.word-table.equipment-table {
-      width: <?= h(number_format($equipmentTableWidth, 1, '.', '')) ?>%;
+      width: <?= h(number_format($equipmentMetrics['table_width'], 1, '.', '')) ?>%;
       max-width: 100%;
       margin: 0 auto;
-      font-size: <?= h(number_format($equipmentFontSize, 2, '.', '')) ?>pt;
-      line-height: 1.05;
+      font-size: <?= h(number_format($equipmentMetrics['font_size'], 2, '.', '')) ?>pt;
+      line-height: <?= h(number_format($equipmentMetrics['line_height'], 2, '.', '')) ?>;
     }
     .equipment-table-wrap {
       display: flex;
@@ -502,7 +572,7 @@ foreach ($rawEquipmentColumnWidths as $key => $value) {
     }
     table.word-table th,
     table.word-table td {
-      padding: <?= h(number_format($equipmentRowPadding, 3, '.', '')) ?>in 0.03in;
+      padding: <?= h(number_format($equipmentMetrics['row_padding'], 3, '.', '')) ?>in 0.03in;
       vertical-align: middle;
       text-align: left;
       white-space: nowrap;
@@ -516,15 +586,15 @@ foreach ($rawEquipmentColumnWidths as $key => $value) {
       text-decoration: underline;
       font-weight: 700;
     }
-    .col-line { width: <?= h(number_format($equipmentLineWidth, 3, '.', '')) ?>%; }
-    .col-item { width: <?= h(number_format($equipmentColumnWidths['item'], 3, '.', '')) ?>%; }
-    .col-description { width: <?= h(number_format($equipmentColumnWidths['description'], 3, '.', '')) ?>%; }
+    .col-line { width: <?= h(number_format($equipmentMetrics['line_width'], 3, '.', '')) ?>%; }
+    .col-item { width: <?= h(number_format($equipmentMetrics['columns']['item'], 3, '.', '')) ?>%; }
+    .col-description { width: <?= h(number_format($equipmentMetrics['columns']['description'], 3, '.', '')) ?>%; }
     .col-action { width: 7%; }
     .col-qty { width: 13%; }
-    .col-used { width: <?= h(number_format($equipmentColumnWidths['used'], 3, '.', '')) ?>%; }
-    .col-spare { width: <?= h(number_format($equipmentColumnWidths['spare'], 3, '.', '')) ?>%; }
-    .col-total { width: <?= h(number_format($equipmentColumnWidths['total'], 3, '.', '')) ?>%; }
-    .col-notes { width: <?= h(number_format($equipmentColumnWidths['notes'], 3, '.', '')) ?>%; }
+    .col-used { width: <?= h(number_format($equipmentMetrics['columns']['used'], 3, '.', '')) ?>%; }
+    .col-spare { width: <?= h(number_format($equipmentMetrics['columns']['spare'], 3, '.', '')) ?>%; }
+    .col-total { width: <?= h(number_format($equipmentMetrics['columns']['total'], 3, '.', '')) ?>%; }
+    .col-notes { width: <?= h(number_format($equipmentMetrics['columns']['notes'], 3, '.', '')) ?>%; }
     .item-cell,
     .description-cell,
     .notes-cell {
