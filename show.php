@@ -16,6 +16,7 @@ function render_show_form(array $show): void
     ];
     ?>
       <form method="post" class="stack">
+        <?= csrf_input() ?>
         <input type="hidden" name="action" value="save_show">
 
         <div class="section-label">Required</div>
@@ -135,6 +136,12 @@ $mode = ($_GET['mode'] ?? '') === 'edit' ? 'edit' : 'view';
 $show = $showId ? find_show($showId) : blank_show();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
+        flash('danger', 'Your session expired. Refresh the page and try again.');
+        header('Location: ' . url_for($showId ? ('show?show_id=' . $showId . '&tab=' . $tab) : 'show'));
+        exit;
+    }
+
     $action = $_POST['action'] ?? '';
 
     if ($action === 'save_show') {
@@ -292,6 +299,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
         </div>
       <?php else: ?>
       <form method="post" data-revision-editor>
+        <?= csrf_input() ?>
         <input type="hidden" name="action" value="save_revision">
         <input type="hidden" name="revision_id" value="<?= h((string) $currentRevision['id']) ?>">
         <script id="revision-rules-data" type="application/json"><?= h(json_encode($editorRules, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '[]') ?></script>
@@ -431,6 +439,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
           </div>
           <div class="form-actions">
             <form method="post">
+              <?= csrf_input() ?>
               <input type="hidden" name="action" value="create_initial_revision">
               <button type="submit" class="btn btn-primary">
                 <span class="material-symbols-outlined">playlist_add</span>
@@ -471,6 +480,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
         <?php else: ?>
           <div class="form-actions">
             <form method="post">
+              <?= csrf_input() ?>
               <input type="hidden" name="action" value="create_revision">
               <button type="submit" class="btn btn-primary">
                 <span class="material-symbols-outlined">add_circle</span>

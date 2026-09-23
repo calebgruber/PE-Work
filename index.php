@@ -24,7 +24,7 @@ ui_page_header('Shop Order Dashboard', 'Manage shows, inventory, revisions, expo
       <div class="empty-state">
         <span class="material-symbols-outlined">construction</span>
         <h3>Run the starter migration first</h3>
-        <p>This repository now includes a migration system, seeded inventory, and starter settings. Apply the migration before using the dashboard.</p>
+        <p>This repository now includes a migration system and starter settings. Apply the migration before using the dashboard.</p>
       </div>
       <div class="form-actions">
         <a class="btn btn-primary" href="<?= h(url_for('setup')) ?>">

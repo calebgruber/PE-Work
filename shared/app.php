@@ -1230,7 +1230,12 @@ function find_resource(int $resourceId): ?array
 
 function resource_path(array $resource): string
 {
-    return upload_dir('resources') . '/' . $resource['stored_name'];
+    $storedName = (string) ($resource['stored_name'] ?? '');
+    if (!preg_match('/^[0-9]{14}-[a-f0-9]{12}\.pdf$/', $storedName)) {
+        throw new RuntimeException('Invalid resource path.');
+    }
+
+    return upload_dir('resources') . '/' . $storedName;
 }
 
 function resource_access_token(array $resource): string
@@ -1272,7 +1277,11 @@ function delete_resource(int $resourceId): array
         return ['ok' => false, 'message' => 'Resource not found.'];
     }
 
-    $path = resource_path($resource);
+    try {
+        $path = resource_path($resource);
+    } catch (RuntimeException $e) {
+        $path = '';
+    }
     if (is_file($path)) {
         @unlink($path);
     }

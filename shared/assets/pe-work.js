@@ -331,6 +331,24 @@
     });
   }
 
+  function initSimpleConfirms() {
+    document.querySelectorAll('[data-confirm-message]').forEach(function (button) {
+      const form = button.closest('form');
+      function confirmAction(event) {
+        if (!window.confirm(button.getAttribute('data-confirm-message') || 'Are you sure?')) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }
+
+      if (form) {
+        form.addEventListener('submit', confirmAction);
+      } else {
+        button.addEventListener('click', confirmAction);
+      }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     initRevisionRows();
     initRevisionEditor();
@@ -339,5 +357,6 @@
     initAccordion();
     initInventoryFilters();
     initConfirmCodes();
+    initSimpleConfirms();
   });
 })();

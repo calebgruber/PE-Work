@@ -308,7 +308,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <?= csrf_input() ?>
               <input type="hidden" name="action" value="delete_category">
               <input type="hidden" name="category_id" value="<?= h((string) $category['id']) ?>">
-              <button type="submit" class="btn btn-danger btn-sm">
+              <button type="submit" class="btn btn-danger btn-sm" data-confirm-message="Delete this category?">
                 <span class="material-symbols-outlined">delete</span>
                 Remove Category
               </button>

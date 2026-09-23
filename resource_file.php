@@ -22,7 +22,13 @@ if ($providedToken === '' || !hash_equals(resource_access_token($resource), $pro
     exit('Forbidden');
 }
 
-$path = resource_path($resource);
+$path = '';
+try {
+    $path = resource_path($resource);
+} catch (RuntimeException $e) {
+    http_response_code(404);
+    exit('Not found');
+}
 if (!is_file($path)) {
     http_response_code(404);
     exit('Not found');

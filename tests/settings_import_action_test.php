@@ -6,6 +6,10 @@ $localBackup = $repoRoot . '/config.local.php.test-backup-' . uniqid('', true);
 $movedLocalConfig = false;
 if (file_exists($localConfig)) {
     $movedLocalConfig = rename($localConfig, $localBackup);
+    if (!$movedLocalConfig) {
+        fwrite(STDERR, "Unable to isolate config.local.php for settings_import_action_test.\n");
+        exit(1);
+    }
 }
 
 $testDbPath = '/tmp/pe-work-settings-test-' . uniqid('', true) . '.sqlite';
