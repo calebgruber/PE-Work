@@ -2,6 +2,7 @@
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $fullPath = __DIR__ . $path;
+$publicAssetPrefixes = ['/shared/assets/'];
 
 if (preg_match('#^/(db|storage)(/|$)#', $path)) {
     http_response_code(404);
@@ -10,7 +11,15 @@ if (preg_match('#^/(db|storage)(/|$)#', $path)) {
 }
 
 if ($path !== '/' && file_exists($fullPath) && !is_dir($fullPath)) {
-    return false;
+    foreach ($publicAssetPrefixes as $prefix) {
+        if (str_starts_with($path, $prefix)) {
+            return false;
+        }
+    }
+
+    http_response_code(404);
+    echo 'Not Found';
+    return true;
 }
 
 if ($path === '/') {

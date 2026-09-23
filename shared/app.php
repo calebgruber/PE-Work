@@ -1239,6 +1239,11 @@ function pdf_signature_is_valid(string $path): bool
     return $signature === '%PDF-';
 }
 
+function is_allowed_pdf_mime_type(string $mimeType): bool
+{
+    return in_array($mimeType, ['application/pdf', 'application/x-pdf'], true);
+}
+
 function upload_dir(string $subdir = ''): string
 {
     $path = realpath(__DIR__ . '/../storage/uploads') ?: (__DIR__ . '/../storage/uploads');
@@ -1309,7 +1314,7 @@ function store_resource_upload(array $file, string $title = ''): array
         }
     }
 
-    if ($extension !== 'pdf' || ($mimeType !== '' && $mimeType !== 'application/pdf') || !pdf_signature_is_valid((string) $file['tmp_name'])) {
+    if ($extension !== 'pdf' || ($mimeType !== '' && !is_allowed_pdf_mime_type($mimeType)) || !pdf_signature_is_valid((string) $file['tmp_name'])) {
         return ['ok' => false, 'message' => 'Only PDF resources are supported.'];
     }
 
