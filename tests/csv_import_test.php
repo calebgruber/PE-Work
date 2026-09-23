@@ -57,6 +57,39 @@ function ensure_catalog_item(string $category, string $name, int $shopQuantity, 
 run_pending_migrations();
 assert_true((int) db()->query('SELECT COUNT(*) FROM inventory_items')->fetchColumn() === 0, 'Expected fresh migrations to leave inventory empty.');
 
+$orderingCategory = create_category('Ordering');
+assert_true($orderingCategory['ok'] === true, 'Expected ordering category creation to succeed.');
+$orderingCategoryId = category_id_for_name('Ordering');
+$sortItemResult = create_inventory_item([
+    'category_id' => $orderingCategoryId,
+    'name' => 'Second Item',
+    'sort_order' => 20,
+    'shop_quantity' => 1,
+    'unit' => 'ea',
+]);
+assert_true($sortItemResult['ok'] === true, 'Expected sorted inventory item creation to succeed.');
+$spacerItemResult = create_inventory_item([
+    'category_id' => $orderingCategoryId,
+    'name' => 'Spacer Break',
+    'sort_order' => 10,
+    'shop_quantity' => 0,
+    'unit' => '',
+    'is_spacer' => 1,
+    'description' => 'Act break',
+]);
+assert_true($spacerItemResult['ok'] === true, 'Expected spacer inventory item creation to succeed.');
+$orderingCatalog = fetch_inventory_catalog();
+$orderingItems = [];
+foreach ($orderingCatalog as $category) {
+    if (($category['name'] ?? '') === 'Ordering') {
+        $orderingItems = $category['items'];
+        break;
+    }
+}
+assert_true(count($orderingItems) === 2, 'Expected ordering category to include both test inventory items.');
+assert_true(($orderingItems[0]['name'] ?? '') === 'Spacer Break', 'Expected lower sort order item to render first.');
+assert_true((int) ($orderingItems[0]['is_spacer'] ?? 0) === 1, 'Expected spacer item flag to persist.');
+
 $validCsv = tempnam(sys_get_temp_dir(), 'pew-valid-');
 file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nFixtures,Source Four,10,ea,Ellipsoidal,Test import\n");
 $validResult = import_inventory_csv($validCsv);
@@ -178,6 +211,9 @@ assert_true(($clonedLine['action'] ?? '') === 'add', 'Expected next revision to 
 assert_true(($clonedLine['line_note'] ?? '') === 'Clone this into the next revision.', 'Expected next revision to clone notes.');
 assert_true(($clonedLine['pickup_date'] ?? '') === '2026-10-01', 'Expected next revision to clone pickup date.');
 assert_true(($clonedLine['return_date'] ?? '') === '2026-10-15', 'Expected next revision to clone return date.');
+assert_true(export_row_action_class($nextRevision, ['is_spacer' => 0], $clonedLine) === 'export-row-add', 'Expected revised add lines to get the pale green export class.');
+assert_true(export_row_action_class(find_revision($initialRevisionId) ?: [], ['is_spacer' => 0], ['action' => 'add']) === '', 'Expected initial revision lines to avoid revised export coloring.');
+assert_true(export_row_action_class($nextRevision, ['is_spacer' => 1], ['action' => 'add']) === '', 'Expected spacer rows to avoid revised export coloring.');
 
 $createRuleResult = save_rule([
     'trigger_item_id' => $fixtureItemId,

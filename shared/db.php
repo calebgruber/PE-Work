@@ -69,6 +69,34 @@ function table_exists(string $table): bool
     }
 }
 
+function table_column_exists(string $table, string $column): bool
+{
+    try {
+        if (!table_exists($table)) {
+            return false;
+        }
+
+        if (db_driver() === 'mysql') {
+            $stmt = db()->prepare(
+                'SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = ? AND table_name = ? AND column_name = ?'
+            );
+            $stmt->execute([DB_NAME, $table, $column]);
+            return (int) $stmt->fetchColumn() > 0;
+        }
+
+        $stmt = db()->query('PRAGMA table_info(' . preg_replace('/[^A-Za-z0-9_]/', '', $table) . ')');
+        foreach ($stmt->fetchAll() as $row) {
+            if (($row['name'] ?? '') === $column) {
+                return true;
+            }
+        }
+    } catch (Throwable $e) {
+        return false;
+    }
+
+    return false;
+}
+
 function ensure_migration_tracking_table(): void
 {
     if (table_exists('schema_migrations')) {

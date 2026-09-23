@@ -36,6 +36,12 @@ function export_rows(array $catalog, string $type): array
     foreach ($catalog as $category) {
         foreach ($category['items'] as $item) {
             $line = $item['line'];
+            if (!empty($item['is_spacer'])) {
+                if ($type === 'order') {
+                    $rows[] = ['category' => $category['name'], 'item' => $item, 'line' => $line, 'is_spacer' => true];
+                }
+                continue;
+            }
             if ($type === 'order' && (int) $line['total_quantity'] <= 0) {
                 continue;
             }
@@ -45,7 +51,7 @@ function export_rows(array $catalog, string $type): array
             if ($type === 'returns' && (($line['action'] ?? '') !== 'return' || (int) ($line['total_quantity'] ?? 0) <= 0)) {
                 continue;
             }
-            $rows[] = ['category' => $category['name'], 'item' => $item, 'line' => $line];
+            $rows[] = ['category' => $category['name'], 'item' => $item, 'line' => $line, 'is_spacer' => false];
         }
     }
     return $rows;
@@ -133,7 +139,18 @@ $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
         </thead>
         <tbody>
           <?php foreach ($rows as $row): ?>
-          <tr>
+          <?php if (!empty($row['is_spacer'])): ?>
+          <tr class="print-spacer-row">
+            <td><?= h($row['category']) ?></td>
+            <td colspan="<?= $type === 'returns' ? '6' : '8' ?>">
+              <strong><?= h($row['item']['name']) ?></strong>
+              <?php if (!empty($row['item']['description'])): ?>
+                <span class="muted"> · <?= h($row['item']['description']) ?></span>
+              <?php endif; ?>
+            </td>
+          </tr>
+          <?php continue; endif; ?>
+          <tr class="<?= h(export_row_action_class($revision, $row['item'], $row['line'])) ?>">
             <td><?= h($row['category']) ?></td>
             <td><?= h($row['item']['name']) ?></td>
             <?php if ($type !== 'returns'): ?><td><?= h((string) $row['line']['rent_quantity']) ?></td><?php endif; ?>

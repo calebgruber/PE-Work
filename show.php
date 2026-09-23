@@ -352,6 +352,23 @@ if ($mode === 'edit' && $showId && $currentRevision) {
                   <tbody>
                     <?php foreach ($category['items'] as $item): ?>
                     <?php $line = $item['line']; $currentTotal = (int) ($line['total_quantity'] ?? 0); $shopQuantity = (int) ($item['shop_quantity'] ?? 0); ?>
+                    <?php if (!empty($item['is_spacer'])): ?>
+                    <tr
+                      class="revision-spacer-row"
+                      data-revision-item
+                      data-item-id="<?= h((string) $item['id']) ?>"
+                      data-item-name="<?= h(strtolower($item['name'] . ' ' . ($item['description'] ?? '') . ' ' . ($item['default_note'] ?? ''))) ?>"
+                      data-item-label="<?= h($item['name']) ?>"
+                      data-shop-quantity="0"
+                    >
+                      <td colspan="9">
+                        <div class="revision-spacer-copy">
+                          <strong><?= h($item['name']) ?></strong>
+                          <?php if (!empty($item['description'])): ?><span><?= h($item['description']) ?></span><?php endif; ?>
+                        </div>
+                      </td>
+                    </tr>
+                    <?php continue; endif; ?>
                     <tr
                       class="revision-row"
                       data-action-row

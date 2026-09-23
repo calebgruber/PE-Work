@@ -451,6 +451,18 @@
   resize: vertical;
 }
 
+.revision-spacer-row td {
+  background: var(--surface-raised);
+  font-weight: 700;
+}
+
+.revision-spacer-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .revision-list-card {
   display: grid;
   gap: 0.875rem;
@@ -506,6 +518,47 @@
 .inline-list {
   display: grid;
   gap: 0.375rem;
+}
+
+.print-spacer-row td {
+  background: rgba(15, 23, 42, 0.06);
+  font-weight: 700;
+}
+
+.export-row-add td {
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.export-row-return td {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.export-row-exchange td {
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.export-row-note td {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.export-row-add:hover td {
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.export-row-return:hover td {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.export-row-exchange:hover td {
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.export-row-note:hover td {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.print-spacer-row:hover td {
+  background: rgba(15, 23, 42, 0.06);
 }
 
 @media print {

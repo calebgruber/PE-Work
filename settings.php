@@ -227,6 +227,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                       <div>
                         <h3><?= h($item['name']) ?></h3>
                         <?php if (!empty($item['description'])): ?><div class="muted"><?= h($item['description']) ?></div><?php endif; ?>
+                        <?php if (!empty($item['is_spacer'])): ?><div class="helper-text">Spacer row</div><?php endif; ?>
                       </div>
                       <div class="inventory-item-actions">
                         <?php if (!empty($item['default_note'])): ?>
@@ -242,9 +243,20 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                         <input class="form-control compact-input" type="number" min="0" name="items[<?= h((string) $item['id']) ?>][shop_quantity]" value="<?= h((string) $item['shop_quantity']) ?>">
                       </div>
                       <div class="form-group">
+                        <label>Order</label>
+                        <input class="form-control compact-input" type="number" min="0" name="items[<?= h((string) $item['id']) ?>][sort_order]" value="<?= h((string) ($item['sort_order'] ?? 0)) ?>">
+                      </div>
+                      <div class="form-group">
                         <label>Unit</label>
                         <input class="form-control compact-input" name="items[<?= h((string) $item['id']) ?>][unit]" value="<?= h($item['unit'] ?? '') ?>">
                       </div>
+                    </div>
+                    <div class="form-group">
+                      <input type="hidden" name="items[<?= h((string) $item['id']) ?>][is_spacer]" value="0">
+                      <label class="check-label">
+                        <input type="checkbox" name="items[<?= h((string) $item['id']) ?>][is_spacer]" value="1" <?= !empty($item['is_spacer']) ? 'checked' : '' ?>>
+                        Spacer row
+                      </label>
                     </div>
                     <div class="form-group">
                       <label>Item Note</label>
@@ -353,6 +365,10 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             </div>
             <div class="card-grid">
               <div class="form-group">
+                <label for="sort_order">Order</label>
+                <input class="form-control" type="number" min="0" id="sort_order" name="sort_order" placeholder="Auto">
+              </div>
+              <div class="form-group">
                 <label for="shop_quantity">Shop Has</label>
                 <input class="form-control" type="number" min="0" id="shop_quantity" name="shop_quantity" value="0">
               </div>
@@ -360,6 +376,13 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                 <label for="unit">Unit</label>
                 <input class="form-control" id="unit" name="unit" value="ea">
               </div>
+            </div>
+            <div class="form-group">
+              <label class="check-label">
+                <input type="checkbox" name="is_spacer" value="1">
+                Create as spacer row
+              </label>
+              <div class="helper-text">Spacer rows show up in the editor/export as visual separators.</div>
             </div>
             <div class="form-group">
               <label for="default_note">Item Note</label>

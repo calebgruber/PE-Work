@@ -238,9 +238,20 @@ function import_inventory_csv_from_handle($handle): array
          SET shop_quantity = ?, unit = ?, default_note = ?, description = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?'
     );
+    $supportsSortOrder = table_column_exists('inventory_items', 'sort_order');
+    $supportsSpacer = table_column_exists('inventory_items', 'is_spacer');
+    $insertColumns = ['category_id', 'name'];
+    if ($supportsSortOrder) {
+        $insertColumns[] = 'sort_order';
+    }
+    array_push($insertColumns, 'shop_quantity', 'unit', 'default_note', 'description');
+    if ($supportsSpacer) {
+        $insertColumns[] = 'is_spacer';
+    }
+    $insertPlaceholders = array_fill(0, count($insertColumns), '?');
     $insertItem = db()->prepare(
-        'INSERT INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
-         VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO inventory_items (' . implode(', ', $insertColumns) . ')
+         VALUES (' . implode(', ', $insertPlaceholders) . ')'
     );
     while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
         $category = normalize_csv_value($row[$headerMap['category']] ?? '');
@@ -272,7 +283,15 @@ function import_inventory_csv_from_handle($handle): array
             $updateItem->execute([$shopQuantity, $unit, $defaultNote, $description, $itemId]);
             $updated++;
         } else {
-            $insertItem->execute([$categoryId, $name, $shopQuantity, $unit, $defaultNote, $description]);
+            $insertParams = [$categoryId, $name];
+            if ($supportsSortOrder) {
+                $insertParams[] = next_inventory_item_sort_order($categoryId);
+            }
+            $insertParams = array_merge($insertParams, [$shopQuantity, $unit, $defaultNote, $description]);
+            if ($supportsSpacer) {
+                $insertParams[] = 0;
+            }
+            $insertItem->execute($insertParams);
             $created++;
         }
     }
@@ -473,13 +492,22 @@ function fetch_categories(): array
 function fetch_inventory_catalog(): array
 {
     $categories = fetch_categories();
+    $itemOrderSql = table_column_exists('inventory_items', 'sort_order') ? 'COALESCE(i.sort_order, 0), ' : '';
+    $extraSelect = [];
+    if (!table_column_exists('inventory_items', 'sort_order')) {
+        $extraSelect[] = '0 AS sort_order';
+    }
+    if (!table_column_exists('inventory_items', 'is_spacer')) {
+        $extraSelect[] = '0 AS is_spacer';
+    }
+    $selectSuffix = $extraSelect ? ', ' . implode(', ', $extraSelect) : '';
     $items = table_exists('inventory_items')
         ? db()->query(
-            'SELECT i.*, c.name AS category_name
+            'SELECT i.*' . $selectSuffix . ', c.name AS category_name
              FROM inventory_items i
              LEFT JOIN inventory_categories c ON c.id = i.category_id
              WHERE i.is_active = 1
-             ORDER BY COALESCE(c.sort_order, 9999), COALESCE(c.name, "Uncategorized"), i.name'
+             ORDER BY COALESCE(c.sort_order, 9999), COALESCE(c.name, "Uncategorized"), ' . $itemOrderSql . ' i.name, i.id'
         )->fetchAll()
         : [];
 
@@ -808,11 +836,17 @@ function save_inventory_batch(array $items): void
         $allowedIds[(int) $row['id']] = true;
     }
 
-    $stmt = db()->prepare(
-        'UPDATE inventory_items
-         SET shop_quantity = ?, unit = ?, default_note = ?, description = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?'
-    );
+    $supportsSortOrder = table_column_exists('inventory_items', 'sort_order');
+    $supportsSpacer = table_column_exists('inventory_items', 'is_spacer');
+    $updateFields = 'shop_quantity = ?, unit = ?, default_note = ?, description = ?';
+    if ($supportsSortOrder) {
+        $updateFields .= ', sort_order = ?';
+    }
+    if ($supportsSpacer) {
+        $updateFields .= ', is_spacer = ?';
+    }
+    $updateFields .= ', updated_at = CURRENT_TIMESTAMP';
+    $stmt = db()->prepare('UPDATE inventory_items SET ' . $updateFields . ' WHERE id = ?');
 
     foreach ($items as $itemId => $row) {
         $itemId = (int) $itemId;
@@ -820,14 +854,36 @@ function save_inventory_batch(array $items): void
             continue;
         }
 
-        $stmt->execute([
+        $params = [
             max(0, (int) ($row['shop_quantity'] ?? 0)),
             trim((string) ($row['unit'] ?? '')),
             trim((string) ($row['default_note'] ?? '')),
             trim((string) ($row['description'] ?? '')),
-            $itemId,
-        ]);
+        ];
+        if ($supportsSortOrder) {
+            $params[] = max(0, (int) ($row['sort_order'] ?? 0));
+        }
+        if ($supportsSpacer) {
+            $params[] = !empty($row['is_spacer']) ? 1 : 0;
+        }
+        $params[] = $itemId;
+        $stmt->execute($params);
     }
+}
+
+function next_inventory_item_sort_order(?int $categoryId): int
+{
+    if (!table_column_exists('inventory_items', 'sort_order')) {
+        return 0;
+    }
+
+    if ($categoryId && $categoryId > 0) {
+        $stmt = db()->prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM inventory_items WHERE category_id = ?');
+        $stmt->execute([$categoryId]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    return (int) db()->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM inventory_items')->fetchColumn();
 }
 
 function create_category(string $name): array
@@ -914,6 +970,11 @@ function create_inventory_item(array $input): array
 {
     $name = trim((string) ($input['name'] ?? ''));
     $categoryId = (int) ($input['category_id'] ?? 0);
+    $sortOrderInput = trim((string) ($input['sort_order'] ?? ''));
+    $sortOrder = $sortOrderInput === '' ? next_inventory_item_sort_order($categoryId) : max(0, (int) $sortOrderInput);
+    $isSpacer = !empty($input['is_spacer']) ? 1 : 0;
+    $supportsSortOrder = table_column_exists('inventory_items', 'sort_order');
+    $supportsSpacer = table_column_exists('inventory_items', 'is_spacer');
 
     if ($name === '' || $categoryId <= 0) {
         return ['ok' => false, 'message' => 'Choose a category and enter an item name.'];
@@ -925,9 +986,34 @@ function create_inventory_item(array $input): array
         return ['ok' => false, 'message' => 'Choose a valid category.'];
     }
 
+    $columns = ['category_id', 'name'];
+    $placeholders = ['?', '?'];
+    $params = [$categoryId, $name];
+    if ($supportsSortOrder) {
+        $columns[] = 'sort_order';
+        $placeholders[] = '?';
+        $params[] = $sortOrder;
+    }
+    $columns[] = 'shop_quantity';
+    $placeholders[] = '?';
+    $params[] = max(0, (int) ($input['shop_quantity'] ?? 0));
+    $columns[] = 'unit';
+    $placeholders[] = '?';
+    $params[] = trim((string) ($input['unit'] ?? ''));
+    $columns[] = 'default_note';
+    $placeholders[] = '?';
+    $params[] = trim((string) ($input['default_note'] ?? ''));
+    $columns[] = 'description';
+    $placeholders[] = '?';
+    $params[] = trim((string) ($input['description'] ?? ''));
+    if ($supportsSpacer) {
+        $columns[] = 'is_spacer';
+        $placeholders[] = '?';
+        $params[] = $isSpacer;
+    }
     $stmt = db()->prepare(
-        'INSERT INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
-         VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO inventory_items (' . implode(', ', $columns) . ')
+         VALUES (' . implode(', ', $placeholders) . ')'
     );
     $duplicate = db()->prepare('SELECT COUNT(*) FROM inventory_items WHERE category_id = ? AND name = ? AND is_active = 1');
     $duplicate->execute([$categoryId, $name]);
@@ -935,14 +1021,7 @@ function create_inventory_item(array $input): array
         return ['ok' => false, 'message' => 'That category already has an item with this name.'];
     }
 
-    $stmt->execute([
-        $categoryId,
-        $name,
-        max(0, (int) ($input['shop_quantity'] ?? 0)),
-        trim((string) ($input['unit'] ?? '')),
-        trim((string) ($input['default_note'] ?? '')),
-        trim((string) ($input['description'] ?? '')),
-    ]);
+    $stmt->execute($params);
 
     return ['ok' => true, 'message' => 'Item added.'];
 }
@@ -1313,5 +1392,20 @@ function action_badge(string $action): string
         'exchange' => ui_badge('Exchange', 'warning'),
         'note' => ui_badge('See Notes', 'info'),
         default => ui_badge('No Change', 'neutral'),
+    };
+}
+
+function export_row_action_class(array $revision, array $item, array $line): string
+{
+    if (!empty($item['is_spacer']) || !empty($revision['is_initial'])) {
+        return '';
+    }
+
+    return match ((string) ($line['action'] ?? '')) {
+        'add' => 'export-row-add',
+        'return' => 'export-row-return',
+        'exchange' => 'export-row-exchange',
+        'note' => 'export-row-note',
+        default => '',
     };
 }
