@@ -424,6 +424,29 @@ function export_equipment_category_transition_height(bool $hasPreviousCategory, 
     return $gapHeight + export_equipment_category_row_height($metrics) + export_equipment_header_row_height($metrics);
 }
 
+function export_should_start_new_page(int $currentRowCount, float $currentHeight, float $nextAdditionHeight, float $availableHeight, int $minimumRows, int $maximumRows): bool
+{
+    if ($currentRowCount === 0) {
+        return false;
+    }
+
+    if ($maximumRows > 0 && $currentRowCount >= $maximumRows) {
+        return true;
+    }
+
+    $wouldOverflow = ($currentHeight + $nextAdditionHeight) > $availableHeight;
+    if (!$wouldOverflow) {
+        return false;
+    }
+
+    $underMinimumRows = $minimumRows > 0 && $currentRowCount < $minimumRows;
+    if ($underMinimumRows) {
+        return true;
+    }
+
+    return true;
+}
+
 function export_summary_pages(array $rows, array $layout): array
 {
     if (!$rows) {
@@ -448,9 +471,7 @@ function export_summary_pages(array $rows, array $layout): array
             ? export_equipment_category_transition_height($currentCategory !== null, $metrics)
             : 0.0;
         $currentRowCount = count($currentPage);
-        $reachesRowCap = $maximumRows > 0 && $currentRowCount >= $maximumRows;
-        $wouldOverflow = ($currentHeight + $transitionHeight + $rowHeight) > $availableHeight;
-        if ($currentPage !== [] && ($reachesRowCap || $wouldOverflow)) {
+        if (export_should_start_new_page($currentRowCount, $currentHeight, $transitionHeight + $rowHeight, $availableHeight, $minimumRows, $maximumRows)) {
             $pages[] = $currentPage;
             $currentPage = [];
             $currentHeight = 0.0;
@@ -495,9 +516,7 @@ function export_equipment_pages(array $rows, array $layout): array
             ? export_equipment_category_transition_height($currentCategory !== null, $metrics)
             : 0.0;
         $currentRowCount = count($currentPage);
-        $reachesRowCap = $maximumRows > 0 && $currentRowCount >= $maximumRows;
-        $wouldOverflow = ($currentHeight + $transitionHeight + $rowHeight) > $availableHeight;
-        if ($currentPage !== [] && ($reachesRowCap || $wouldOverflow)) {
+        if (export_should_start_new_page($currentRowCount, $currentHeight, $transitionHeight + $rowHeight, $availableHeight, $minimumRows, $maximumRows)) {
             $pages[] = $currentPage;
             $currentPage = [];
             $currentHeight = 0.0;

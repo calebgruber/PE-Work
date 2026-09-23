@@ -531,7 +531,7 @@ for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
 $syntheticAutoPages = export_equipment_pages($tallSyntheticRows, export_layout_settings());
 $syntheticMinPages = export_equipment_pages($tallSyntheticRows, $syntheticMinOnlyLayout);
 assert_true(count($syntheticAutoPages[0]) < 4, 'Expected automatic pagination to break tall rows before four items.');
-assert_true(count($syntheticMinPages[0]) < 4, 'Expected configured equipment minimum rows per page to remain a soft target when tall rows would be cut off.');
+assert_true(count($syntheticMinPages[0]) < 4, 'Expected equipment minimum rows per page to still avoid clipping when tall rows would force an earlier break.');
 $syntheticSummaryLayout = export_layout_settings();
 $syntheticSummaryLayout['layout.revision_summary_min_rows_per_page'] = '4';
 $syntheticSummaryLayout['layout.revision_summary_max_rows_per_page'] = '2';
@@ -562,7 +562,7 @@ for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
 $syntheticSummaryAutoPages = export_summary_pages($tallSyntheticSummaryRows, export_layout_settings());
 $syntheticSummaryMinPages = export_summary_pages($tallSyntheticSummaryRows, $syntheticSummaryMinOnlyLayout);
 assert_true(count($syntheticSummaryAutoPages[0]) < 4, 'Expected automatic revision summary pagination to break tall rows before four items.');
-assert_true(count($syntheticSummaryMinPages[0]) < 4, 'Expected configured revision summary minimum rows per page to remain a soft target when tall rows would be cut off.');
+assert_true(count($syntheticSummaryMinPages[0]) < 4, 'Expected revision summary minimum rows per page to still avoid clipping when tall rows would force an earlier break.');
 
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);

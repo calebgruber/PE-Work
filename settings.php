@@ -878,7 +878,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <div class="form-group">
               <label for="revision_summary_min_rows_per_page">Min Rows Per Page</label>
               <input class="form-control" id="revision_summary_min_rows_per_page" type="text" inputmode="numeric" name="revision_summary_min_rows_per_page" value="<?= h($layout['layout.revision_summary_min_rows_per_page'] ?? '0') ?>">
-              <div class="helper-text">Soft target only. The next line moves to a new page before anything gets cut off.</div>
+              <div class="helper-text">Tries to keep at least this many rows on each summary page when they fit. If the next row would get cut off, it moves to the next page.</div>
             </div>
             <div class="form-group">
               <label for="revision_summary_max_rows_per_page">Max Rows Per Page</label>
@@ -923,7 +923,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <div class="form-group">
               <label for="equipment_min_rows_per_page">Min Rows Per Page</label>
               <input class="form-control" id="equipment_min_rows_per_page" type="text" inputmode="numeric" name="equipment_min_rows_per_page" value="<?= h($layout['layout.equipment_min_rows_per_page'] ?? '0') ?>">
-              <div class="helper-text">Soft target only. The next line moves to a new page before anything gets cut off.</div>
+              <div class="helper-text">Tries to keep at least this many rows on each equipment page when they fit. If the next row would get cut off, it moves to the next page.</div>
             </div>
             <div class="form-group">
               <label for="equipment_max_rows_per_page">Max Rows Per Page</label>
