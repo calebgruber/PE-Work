@@ -249,7 +249,7 @@ function export_equipment_note(array $item, array $line): string
     return implode(' · ', $parts);
 }
 
-function export_equipment_pages(array $rows, int $rowsPerPage = 40): array
+function export_equipment_pages(array $rows, int $rowsPerPage = 30): array
 {
     if (!$rows) {
         return [[]];
@@ -342,8 +342,8 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     .page:last-child { page-break-after: auto; }
     .page.equipment-page {
-      padding-left: 0.22in;
-      padding-right: 0.22in;
+      padding-left: 0.18in;
+      padding-right: 0.18in;
     }
     .page-content {
       min-height: 0;
@@ -472,10 +472,10 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table.equipment-table {
       width: 100%;
-      max-width: 8.0in;
+      max-width: 100%;
       margin: 0 auto;
-      font-size: 7.05pt;
-      line-height: 1;
+      font-size: 7.1pt;
+      line-height: 1.02;
     }
     .equipment-table-wrap {
       display: flex;
@@ -485,7 +485,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table th,
     table.word-table td {
-      padding: 0.015in 0.03in;
+      padding: 0.012in 0.028in;
       vertical-align: middle;
       text-align: left;
       white-space: nowrap;
@@ -500,14 +500,14 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       font-weight: 700;
     }
     .col-line { width: 4%; }
-    .col-item { width: 45%; }
-    .col-description { width: 23%; }
-    .col-action { width: 9%; }
+    .col-item { width: 46%; }
+    .col-description { width: 24%; }
+    .col-action { width: 7%; }
     .col-qty { width: 13%; }
     .col-used,
-    .col-spare { width: 4%; }
-    .col-total { width: 5%; }
-    .col-notes { width: 14%; }
+    .col-spare { width: 3.5%; }
+    .col-total { width: 4.5%; }
+    .col-notes { width: 11%; }
     .item-cell,
     .description-cell,
     .notes-cell {
@@ -517,7 +517,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     .line-cell {
       text-align: right;
       font-weight: 700;
-      font-size: 6.8pt;
+      font-size: 6.7pt;
       padding-right: 0.04in;
     }
     .delta {

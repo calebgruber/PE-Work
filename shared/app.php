@@ -52,7 +52,16 @@ function url_for(string $path = ''): string
 
 function asset_url(string $path): string
 {
-    return url_for($path);
+    $url = url_for($path);
+    $localPath = __DIR__ . '/../' . ltrim($path, '/');
+    if (is_file($localPath)) {
+        $version = @filemtime($localPath);
+        if ($version) {
+            return $url . '?v=' . rawurlencode((string) $version);
+        }
+    }
+
+    return $url;
 }
 
 function current_user(): array
