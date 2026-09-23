@@ -2086,6 +2086,7 @@ function export_layout_settings(): array
         'layout.revision_summary_col_line' => '4',
         'layout.revision_summary_col_item' => '45',
         'layout.revision_summary_col_description' => '23',
+        'layout.revision_summary_col_previous_total' => '6',
         'layout.revision_summary_col_total' => '6',
         'layout.revision_summary_col_action' => '10',
         'layout.revision_summary_col_notes' => '12',
@@ -2180,6 +2181,7 @@ function save_export_layout(array $input): void
     save_setting('layout.revision_summary_col_line', export_layout_number($input, 'revision_summary_col_line', '4', null, null, 1));
     save_setting('layout.revision_summary_col_item', export_layout_number($input, 'revision_summary_col_item', '45', null, null, 1));
     save_setting('layout.revision_summary_col_description', export_layout_number($input, 'revision_summary_col_description', '23', null, null, 1));
+    save_setting('layout.revision_summary_col_previous_total', export_layout_number($input, 'revision_summary_col_previous_total', '6', null, null, 1));
     save_setting('layout.revision_summary_col_total', export_layout_number($input, 'revision_summary_col_total', '6', null, null, 1));
     save_setting('layout.revision_summary_col_action', export_layout_number($input, 'revision_summary_col_action', '10', null, null, 1));
     save_setting('layout.revision_summary_col_notes', export_layout_number($input, 'revision_summary_col_notes', '12', null, null, 1));

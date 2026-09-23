@@ -401,6 +401,7 @@ function export_summary_layout_metrics(array $layout): array
     $metrics['line_width'] = round((float) ($layout['layout.revision_summary_col_line'] ?? ($metrics['line_width'] ?? 4)), 3);
     $metrics['columns']['item'] = round((float) ($layout['layout.revision_summary_col_item'] ?? ($metrics['columns']['item'] ?? 45)), 3);
     $metrics['columns']['description'] = round((float) ($layout['layout.revision_summary_col_description'] ?? ($metrics['columns']['description'] ?? 23)), 3);
+    $metrics['columns']['previous_total'] = round((float) ($layout['layout.revision_summary_col_previous_total'] ?? 6), 3);
     $metrics['columns']['total'] = round((float) ($layout['layout.revision_summary_col_total'] ?? ($metrics['columns']['total'] ?? 6)), 3);
     $metrics['columns']['notes'] = round((float) ($layout['layout.revision_summary_col_notes'] ?? ($metrics['columns']['notes'] ?? 12)), 3);
     $metrics['summary_action_width'] = round((float) ($layout['layout.revision_summary_col_action'] ?? ($metrics['summary_action_width'] ?? 10)), 3);
@@ -434,14 +435,12 @@ function export_should_start_new_page(int $currentRowCount, float $currentHeight
         return true;
     }
 
-    $wouldOverflow = ($currentHeight + $nextAdditionHeight) > $availableHeight;
-    if (!$wouldOverflow) {
+    if (($currentHeight + $nextAdditionHeight) <= $availableHeight) {
         return false;
     }
 
-    $underMinimumRows = $minimumRows > 0 && $currentRowCount < $minimumRows;
-    if ($underMinimumRows) {
-        return true;
+    if ($minimumRows > 0 && $currentRowCount < $minimumRows) {
+        return false;
     }
 
     return true;
@@ -1217,6 +1216,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
           <col style="width: <?= h(number_format($summaryMetrics['line_width'], 3, '.', '')) ?>%;">
           <col style="width: <?= h(number_format($summaryMetrics['columns']['item'], 3, '.', '')) ?>%;">
           <col style="width: <?= h(number_format($summaryMetrics['columns']['description'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($summaryMetrics['columns']['previous_total'], 3, '.', '')) ?>%;">
           <col style="width: <?= h(number_format($summaryMetrics['columns']['total'], 3, '.', '')) ?>%;">
           <col style="width: <?= h(number_format($summaryMetrics['summary_action_width'], 3, '.', '')) ?>%;">
           <col style="width: <?= h(number_format($summaryMetrics['columns']['notes'], 3, '.', '')) ?>%;">
@@ -1227,15 +1227,16 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
           <?php foreach ($summaryPageRows as $summaryRowIndex => $row): ?>
           <?php if ($summaryCategory !== $row['category']): ?>
           <?php if ($summaryCategory !== null): ?>
-          <tr class="category-gap-row"><td colspan="6"></td></tr>
+          <tr class="category-gap-row"><td colspan="7"></td></tr>
           <?php endif; ?>
           <tr class="category-header-row">
-            <td colspan="6"><?= h($row['category']) ?></td>
+            <td colspan="7"><?= h($row['category']) ?></td>
           </tr>
           <tr class="category-column-header-row">
             <td class="col-line">LINE</td>
             <td class="col-item">ITEM</td>
             <td class="col-description">DESCRIPTION</td>
+            <td class="col-total">LAST TOTAL</td>
             <td class="col-total">TOTAL</td>
             <td class="col-action">ACTION</td>
             <td class="col-notes">NOTES</td>
@@ -1246,6 +1247,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
             <td class="line-cell"><?= h((string) $summaryLineNumber) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>
             <td class="description-cell"><?= h($row['description']) ?></td>
+            <td class="total-cell"><?= h((string) ($row['previous_line']['total_quantity'] ?? 0)) ?></td>
             <td class="total-cell">
               <?= h((string) ($row['line']['total_quantity'] ?? 0)) ?>
               <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
@@ -1264,7 +1266,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
           <?php else: ?>
           <tr>
             <td class="line-cell">1</td>
-            <td colspan="5">No line-item changes recorded for this revision.</td>
+            <td colspan="6">No line-item changes recorded for this revision.</td>
           </tr>
           <?php endif; ?>
         </tbody>

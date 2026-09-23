@@ -330,6 +330,7 @@ save_export_layout([
     'revision_summary_col_line' => '3.5',
     'revision_summary_col_item' => '38.5',
     'revision_summary_col_description' => '30.5',
+    'revision_summary_col_previous_total' => '6.5',
     'revision_summary_col_total' => '7.5',
     'revision_summary_col_action' => '8.5',
     'revision_summary_col_notes' => '11.5',
@@ -453,10 +454,10 @@ assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY<
 assert_true(substr_count($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>') >= 2, 'Expected long revision summaries to spill onto as many additional pages as needed.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, 'Only lines with changed counts or explicit revision actions are listed here.'), 'Expected revision summary copy to explain the changed-lines filter.');
-assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="col-total">TOTAL<\/td>.*?<td class="col-action">ACTION<\/td>.*?<td class="col-notes">NOTES<\/td>/s', $exportHtml), 'Expected revision summary to use total, action, and notes columns.');
-assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">SolaFrame 3000<\/td>.*?<td class="description-cell">Fixtures<\/td>.*?<span class="delta delta-positive">\(\+1\)<\/span>.*?<td class="action-cell">EXCHANGE<\/td>.*?Latest revision should clone from here\./s', $exportHtml), 'Expected revision summary to show category in the description column, total deltas, explicit action, and notes in separate columns.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="col-total">LAST TOTAL<\/td>.*?<td class="col-total">TOTAL<\/td>.*?<td class="col-action">ACTION<\/td>.*?<td class="col-notes">NOTES<\/td>/s', $exportHtml), 'Expected revision summary to use last total, total, action, and notes columns.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">SolaFrame 3000<\/td>.*?<td class="description-cell">Fixtures<\/td>.*?<td class="total-cell">8<\/td>.*?<span class="delta delta-positive">\(\+1\)<\/span>.*?<td class="action-cell">EXCHANGE<\/td>.*?Latest revision should clone from here\./s', $exportHtml), 'Expected revision summary to show category, previous total, total deltas, explicit action, and notes in separate columns.');
 assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">Late Added Feeder<\/td>.*?<td class="action-cell">CHANGE<\/td>.*?Changed without an explicit action\./s', $exportHtml), 'Expected revision summary rows without an explicit action to display CHANGE.');
-assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<tr class="category-header-row">\s*<td colspan="6">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected revision summary to include category headers followed by repeated table headers.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected revision summary to include category headers followed by repeated table headers.');
 assert_true(str_contains($exportHtml, 'table.word-table.revision-summary-table'), 'Expected the revision summary table to have its own centered table styling.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
 assert_true((bool) preg_match('/>\s*9\s*<span class="delta delta-positive">\(\+1\)<\/span>/', $exportHtml), 'Expected equipment breakdown totals to show total-quantity deltas in black text.');
@@ -474,7 +475,7 @@ assert_true(str_contains($exportHtml, 'background: #ABCDEF;'), 'Expected export 
 assert_true(str_contains($exportHtml, 'background: #FEDCBA;'), 'Expected export category rows to use the saved category color.');
 assert_true(str_contains($exportHtml, 'width: 2.500%;'), 'Expected export line-number column width to use the saved layout setting.');
 assert_true(str_contains($exportHtml, 'table.word-table.revision-summary-table {') && str_contains($exportHtml, 'width: 91.5%;'), 'Expected revision summary table width to use its dedicated layout setting.');
-assert_true((bool) preg_match('/<table class="word-table equipment-table revision-summary-table">.*?<colgroup>.*?<col style="width: 3\.500%;">.*?<col style="width: 38\.500%;">.*?<col style="width: 30\.500%;">.*?<col style="width: 7\.500%;">.*?<col style="width: 8\.500%;">.*?<col style="width: 11\.500%;">/s', $exportHtml), 'Expected revision summary markup to include dedicated configured column widths for every summary column.');
+assert_true((bool) preg_match('/<table class="word-table equipment-table revision-summary-table">.*?<colgroup>.*?<col style="width: 3\.500%;">.*?<col style="width: 38\.500%;">.*?<col style="width: 30\.500%;">.*?<col style="width: 6\.500%;">.*?<col style="width: 7\.500%;">.*?<col style="width: 8\.500%;">.*?<col style="width: 11\.500%;">/s', $exportHtml), 'Expected revision summary markup to include dedicated configured column widths for every summary column.');
 assert_true((bool) preg_match('/<table class="word-table equipment-table">.*?<colgroup>.*?<col style="width: 2\.500%;">.*?<col style="width: 45\.000%;">.*?<col style="width: 23\.000%;">.*?<col style="width: 5\.000%;">.*?<col style="width: 5\.000%;">.*?<col style="width: 6\.000%;">.*?<col style="width: 12\.000%;">/s', $exportHtml), 'Expected equipment breakdown markup to include explicit configured column widths.');
 assert_true(str_contains($exportHtml, 'font-size: 5.75pt;'), 'Expected line-number font size to use the saved layout setting.');
 assert_true(str_contains($exportHtml, 'font-size: 8.25pt;'), 'Expected item font size to use the saved layout setting.');
@@ -531,7 +532,7 @@ for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
 $syntheticAutoPages = export_equipment_pages($tallSyntheticRows, export_layout_settings());
 $syntheticMinPages = export_equipment_pages($tallSyntheticRows, $syntheticMinOnlyLayout);
 assert_true(count($syntheticAutoPages[0]) < 4, 'Expected automatic pagination to break tall rows before four items.');
-assert_true(count($syntheticMinPages[0]) < 4, 'Expected equipment minimum rows per page to still avoid clipping when tall rows would force an earlier break.');
+assert_true(count($syntheticMinPages[0]) === 4 && count($syntheticMinPages[1]) === 1, 'Expected equipment minimum rows per page to take priority over automatic pagination.');
 $syntheticSummaryLayout = export_layout_settings();
 $syntheticSummaryLayout['layout.revision_summary_min_rows_per_page'] = '4';
 $syntheticSummaryLayout['layout.revision_summary_max_rows_per_page'] = '2';
@@ -562,7 +563,7 @@ for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
 $syntheticSummaryAutoPages = export_summary_pages($tallSyntheticSummaryRows, export_layout_settings());
 $syntheticSummaryMinPages = export_summary_pages($tallSyntheticSummaryRows, $syntheticSummaryMinOnlyLayout);
 assert_true(count($syntheticSummaryAutoPages[0]) < 4, 'Expected automatic revision summary pagination to break tall rows before four items.');
-assert_true(count($syntheticSummaryMinPages[0]) < 4, 'Expected revision summary minimum rows per page to still avoid clipping when tall rows would force an earlier break.');
+assert_true(count($syntheticSummaryMinPages[0]) === 4 && count($syntheticSummaryMinPages[1]) === 1, 'Expected revision summary minimum rows per page to take priority over automatic pagination.');
 
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);
@@ -702,6 +703,7 @@ assert_true(array_key_exists('layout.revision_summary_max_rows_per_page', $layou
 assert_true(array_key_exists('layout.revision_summary_col_line', $layoutDefaults), 'Expected export layout defaults to include revision summary line-number width.');
 assert_true(array_key_exists('layout.revision_summary_col_item', $layoutDefaults), 'Expected export layout defaults to include revision summary item width.');
 assert_true(array_key_exists('layout.revision_summary_col_description', $layoutDefaults), 'Expected export layout defaults to include revision summary description width.');
+assert_true(array_key_exists('layout.revision_summary_col_previous_total', $layoutDefaults), 'Expected export layout defaults to include revision summary previous-total width.');
 assert_true(array_key_exists('layout.revision_summary_col_total', $layoutDefaults), 'Expected export layout defaults to include revision summary total width.');
 assert_true(array_key_exists('layout.revision_summary_col_action', $layoutDefaults), 'Expected export layout defaults to include revision summary action width.');
 assert_true(array_key_exists('layout.revision_summary_col_notes', $layoutDefaults), 'Expected export layout defaults to include revision summary notes width.');
@@ -727,6 +729,7 @@ save_export_layout([
     'revision_summary_col_line' => '12.5',
     'revision_summary_col_item' => '55.5',
     'revision_summary_col_description' => '34.4',
+    'revision_summary_col_previous_total' => '11.1',
     'revision_summary_col_total' => '18.3',
     'revision_summary_col_action' => '16.2',
     'revision_summary_col_notes' => '22.1',
@@ -765,6 +768,7 @@ assert_true(($savedLayout['layout.revision_summary_max_rows_per_page'] ?? '') ==
 assert_true(($savedLayout['layout.revision_summary_col_line'] ?? '') === '12.5', 'Expected revision summary line-number width to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.revision_summary_col_item'] ?? '') === '55.5', 'Expected revision summary item width to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.revision_summary_col_description'] ?? '') === '34.4', 'Expected revision summary description width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_previous_total'] ?? '') === '11.1', 'Expected revision summary previous-total width to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.revision_summary_col_total'] ?? '') === '18.3', 'Expected revision summary total width to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.revision_summary_col_action'] ?? '') === '16.2', 'Expected revision summary action width to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.revision_summary_col_notes'] ?? '') === '22.1', 'Expected revision summary notes width to persist in export layout settings without limits.');
