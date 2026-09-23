@@ -128,16 +128,12 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
                 continue;
             }
 
-            $descriptionBits = [$category['name']];
-            if (!empty($item['description'])) {
-                $descriptionBits[] = $item['description'];
-            }
             $rows[] = [
                 'category' => $category['name'],
                 'item' => $item,
                 'line' => $line,
                 'previous_line' => $previousLine,
-                'description' => implode(' · ', array_filter($descriptionBits, static fn ($value) => trim((string) $value) !== '')),
+                'description' => export_item_description($item),
             ];
         }
     }
@@ -203,6 +199,44 @@ function export_value(string $value, string $fallback = '—'): string
     return $value !== '' ? $value : $fallback;
 }
 
+function export_item_description(array $item): string
+{
+    return trim((string) ($item['description'] ?? ''));
+}
+
+function export_paperwork_date(?string $value, string $fallback = '—'): string
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        return $fallback;
+    }
+
+    $timestamp = strtotime($value);
+    if ($timestamp === false) {
+        return $value;
+    }
+
+    return date('F j Y', $timestamp);
+}
+
+function export_revision_history(int $showId, array $revision): array
+{
+    $rows = list_revisions($showId);
+    return array_values(array_filter(
+        $rows,
+        static fn (array $row): bool => (int) ($row['revision_index'] ?? 0) <= (int) ($revision['revision_index'] ?? 0)
+    ));
+}
+
+function export_revision_history_label(array $revision): string
+{
+    if (!empty($revision['is_initial'])) {
+        return 'INITIAL ORDER - ' . export_paperwork_date((string) ($revision['revision_date'] ?? ''), '');
+    }
+
+    return 'REVISION ' . revision_display_code($revision) . ' - ' . export_paperwork_date((string) ($revision['revision_date'] ?? ''), '');
+}
+
 function export_equipment_note(array $item, array $line): string
 {
     $parts = [];
@@ -211,10 +245,10 @@ function export_equipment_note(array $item, array $line): string
         $parts[] = $lineNote;
     }
     if (!empty($line['pickup_date'])) {
-        $parts[] = 'Pull ' . $line['pickup_date'];
+        $parts[] = 'Pull ' . export_paperwork_date((string) $line['pickup_date'], (string) $line['pickup_date']);
     }
     if (!empty($line['return_date'])) {
-        $parts[] = 'Return ' . $line['return_date'];
+        $parts[] = 'Return ' . export_paperwork_date((string) $line['return_date'], (string) $line['return_date']);
     }
 
     return implode(' · ', $parts);
@@ -226,6 +260,8 @@ function export_equipment_layout_metrics(array $layout): array
     $minRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_min_rows_per_page'] ?? 0)));
     $maxRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_max_rows_per_page'] ?? 0)));
     $rowPadding = max(0.008, min(0.04, (float) ($layout['layout.equipment_row_padding'] ?? 0.016)));
+    $headerRowPadding = max(0.008, min(0.08, (float) ($layout['layout.equipment_header_row_padding'] ?? 0.022)));
+    $categoryRowPadding = max(0.008, min(0.1, (float) ($layout['layout.equipment_category_row_padding'] ?? 0.03)));
     $fontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
     $lineHeight = max(0.9, min(2.2, (float) ($layout['layout.equipment_line_height'] ?? 1.1)));
     $lineWidth = 4.0;
@@ -248,6 +284,8 @@ function export_equipment_layout_metrics(array $layout): array
         'min_rows_per_page' => $minRowsPerPage,
         'max_rows_per_page' => $maxRowsPerPage,
         'row_padding' => $rowPadding,
+        'header_row_padding' => $headerRowPadding,
+        'category_row_padding' => $categoryRowPadding,
         'font_size' => $fontSize,
         'line_height' => $lineHeight,
         'line_width' => $lineWidth,
@@ -280,12 +318,30 @@ function export_estimated_line_count(string $text, float $columnWidthPercent, ar
 function export_equipment_page_row_height(array $row, array $metrics): float
 {
     $itemLines = export_estimated_line_count((string) ($row['item']['name'] ?? ''), $metrics['columns']['item'], $metrics);
-    $descriptionLines = export_estimated_line_count((string) ($row['category'] ?? ''), $metrics['columns']['description'], $metrics);
+    $descriptionLines = export_estimated_line_count(export_item_description($row['item']), $metrics['columns']['description'], $metrics);
     $notesLines = export_estimated_line_count(export_equipment_note($row['item'], $row['line']), $metrics['columns']['notes'], $metrics);
     $lineCount = max($itemLines, $descriptionLines, $notesLines);
     $baseHeight = (($metrics['font_size'] / 72) * $metrics['line_height']) + ($metrics['row_padding'] * 2) + 0.08;
 
     return max(0.18, $baseHeight * $lineCount);
+}
+
+function export_equipment_header_row_height(array $metrics): float
+{
+    $baseHeight = (($metrics['font_size'] / 72) * $metrics['line_height']) + (($metrics['header_row_padding'] ?? 0.022) * 2) + 0.06;
+    return max(0.18, $baseHeight);
+}
+
+function export_equipment_category_row_height(array $metrics): float
+{
+    $baseHeight = (($metrics['font_size'] / 72) * $metrics['line_height']) + (($metrics['category_row_padding'] ?? 0.03) * 2) + 0.06;
+    return max(0.2, $baseHeight);
+}
+
+function export_equipment_category_transition_height(bool $hasPreviousCategory, array $metrics): float
+{
+    $gapHeight = $hasPreviousCategory ? 0.16 : 0.0;
+    return $gapHeight + export_equipment_category_row_height($metrics) + export_equipment_header_row_height($metrics);
 }
 
 function export_equipment_pages(array $rows, array $layout): array
@@ -304,20 +360,28 @@ function export_equipment_pages(array $rows, array $layout): array
     $pages = [];
     $currentPage = [];
     $currentHeight = 0.0;
+    $currentCategory = null;
 
     foreach ($rows as $row) {
         $rowHeight = export_equipment_page_row_height($row, $metrics);
+        $transitionHeight = $currentCategory !== $row['category']
+            ? export_equipment_category_transition_height($currentCategory !== null, $metrics)
+            : 0.0;
         $currentRowCount = count($currentPage);
         $reachesRowCap = $maximumRows > 0 && $currentRowCount >= $maximumRows;
         $meetsMinimumRows = $minimumRows === 0 || $currentRowCount >= $minimumRows;
-        if ($currentPage !== [] && ($reachesRowCap || ($meetsMinimumRows && ($currentHeight + $rowHeight) > $availableHeight))) {
+        if ($currentPage !== [] && ($reachesRowCap || ($meetsMinimumRows && ($currentHeight + $transitionHeight + $rowHeight) > $availableHeight))) {
             $pages[] = $currentPage;
             $currentPage = [];
             $currentHeight = 0.0;
+            $currentCategory = null;
+            $transitionHeight = export_equipment_category_transition_height(false, $metrics);
         }
 
+        $currentHeight += $transitionHeight;
         $currentPage[] = $row;
         $currentHeight += $rowHeight;
+        $currentCategory = $row['category'];
     }
 
     if ($currentPage !== []) {
@@ -333,6 +397,7 @@ $layout = export_layout_settings();
 $equipmentMetrics = export_equipment_layout_metrics($layout);
 $catalog = catalog_for_revision((int) $revision['id']);
 $revisionCode = revision_display_code($revision);
+$revisionHistory = export_revision_history($showId, $revision);
 $equipmentRows = export_equipment_rows($catalog, $type);
 $equipmentPages = export_equipment_pages($equipmentRows, $layout);
 $summaryRows = !empty($revision['is_initial']) ? [] : export_summary_rows($catalog, $revision, $type);
@@ -340,8 +405,8 @@ $notes = export_notes_list($layout, $show);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'] . '&export_type=' . rawurlencode((string) $type));
 $renderSummaryPage = empty($revision['is_initial']);
-$pageNumbers = ['cover' => 1, 'equipment' => []];
-$nextPageNumber = 2;
+$pageNumbers = ['cover' => 1, 'details' => 2, 'equipment' => []];
+$nextPageNumber = 3;
 if ($renderSummaryPage) {
     $pageNumbers['summary'] = $nextPageNumber++;
 }
@@ -355,6 +420,22 @@ $equipmentZebraGray = strtoupper(trim((string) ($layout['layout.equipment_zebra_
 if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
     $equipmentZebraGray = '#CCCCCC';
 }
+$equipmentHeaderFill = strtoupper(trim((string) ($layout['layout.equipment_header_fill'] ?? '#F3F4F6')));
+if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentHeaderFill)) {
+    $equipmentHeaderFill = '#F3F4F6';
+}
+$equipmentCategoryFill = strtoupper(trim((string) ($layout['layout.equipment_category_fill'] ?? '#E5E7EB')));
+if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentCategoryFill)) {
+    $equipmentCategoryFill = '#E5E7EB';
+}
+$coverVenueParts = array_values(array_filter([
+    trim((string) ($show['theatre_name'] ?? '')),
+    trim((string) ($show['theatre_address'] ?? '')),
+], static fn ($value) => $value !== ''));
+$coverVenue = implode(' · ', $coverVenueParts);
+$coverTitle = $type === 'order' ? 'LIGHTING SHOP ORDER' : strtoupper($labels['title']);
+$showImagePath = trim((string) ($show['show_image_url'] ?? ''));
+$showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') === '1' ? url_for($showImagePath) : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -453,6 +534,69 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
       text-align: right;
       font-size: 9pt;
       line-height: 1.35;
+    }
+    .cover-page {
+      padding: 0.55in 0.7in 0.42in;
+    }
+    .cover-page .page-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cover-body {
+      width: 100%;
+      text-align: center;
+    }
+    .cover-art {
+      margin: 0 auto 0.55in;
+      max-width: 6.5in;
+    }
+    .cover-art img {
+      display: block;
+      max-width: 100%;
+      max-height: 3.5in;
+      width: auto;
+      height: auto;
+      margin: 0 auto;
+      object-fit: contain;
+    }
+    .cover-title-fallback {
+      font-size: 29pt;
+      font-style: italic;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    .cover-venue {
+      margin-bottom: 0.1in;
+      font-size: 18pt;
+      font-style: italic;
+      letter-spacing: 0.01em;
+    }
+    .cover-document-title {
+      margin-bottom: 0.52in;
+      font-size: 25pt;
+      letter-spacing: 0.02em;
+    }
+    .cover-revision-current {
+      font-size: 17pt;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    .cover-revision-history {
+      margin-top: 0.08in;
+      display: grid;
+      gap: 0.05in;
+      font-size: 13.5pt;
+    }
+    .details-page .page-content {
+      display: flex;
+      flex-direction: column;
+    }
+    .details-page-heading {
+      text-align: center;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      margin-bottom: 0.16in;
     }
     .center-title {
       text-align: center;
@@ -572,6 +716,9 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
       border-bottom: 1px solid #666;
       text-decoration: underline;
       font-weight: 700;
+      padding-top: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
+      padding-bottom: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
+      background: <?= h($equipmentHeaderFill) ?>;
     }
     .col-line { width: <?= h(number_format($equipmentMetrics['line_width'], 3, '.', '')) ?>%; }
     .col-item { width: <?= h(number_format($equipmentMetrics['columns']['item'], 3, '.', '')) ?>%; }
@@ -615,14 +762,22 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
       background: #fff;
     }
     .category-header-row td {
-      padding-top: 0.045in;
-      padding-bottom: 0.045in;
+      padding-top: <?= h(number_format($equipmentMetrics['category_row_padding'], 3, '.', '')) ?>in;
+      padding-bottom: <?= h(number_format($equipmentMetrics['category_row_padding'], 3, '.', '')) ?>in;
       font-weight: 700;
       letter-spacing: 0.03em;
       text-transform: uppercase;
       border-top: 1px solid #111827;
       border-bottom: 1px solid #9ca3af;
-      background: #e5e7eb;
+      background: <?= h($equipmentCategoryFill) ?>;
+    }
+    .category-column-header-row td {
+      padding-top: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
+      padding-bottom: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
+      border-bottom: 1px solid #666;
+      text-decoration: underline;
+      font-weight: 700;
+      background: <?= h($equipmentHeaderFill) ?>;
     }
     @media print {
       * {
@@ -658,27 +813,49 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
     <button type="button" onclick="window.print()">Print / Save PDF</button>
   </div>
   <div class="document">
-    <section class="page">
+    <section class="page cover-page">
+      <div class="page-content">
+      <div class="cover-body">
+        <div class="cover-art">
+          <?php if ($showImageUrl !== ''): ?>
+          <img src="<?= h($showImageUrl) ?>" alt="<?= h($show['show_name']) ?>">
+          <?php else: ?>
+          <div class="cover-title-fallback"><?= h($show['show_name']) ?></div>
+          <?php endif; ?>
+        </div>
+        <?php if ($coverVenue !== ''): ?><p class="cover-venue"><?= h($coverVenue) ?></p><?php endif; ?>
+        <p class="cover-document-title"><?= h($coverTitle) ?></p>
+        <p class="cover-revision-current">&gt;&gt; <?= h(export_revision_history_label($revision)) ?> &lt;&lt;</p>
+        <?php if (count($revisionHistory) > 1): ?>
+        <div class="cover-revision-history">
+          <?php foreach (array_slice($revisionHistory, 1) as $historyRevision): ?>
+          <div><?= h(export_revision_history_label($historyRevision)) ?></div>
+          <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+      </div>
+      </div>
+
+      <div class="footer">
+        <span><?= h($layout['layout.footer_text']) ?></span>
+      </div>
+    </section>
+
+    <section class="page details-page">
       <div class="page-content">
       <div class="top-rule">
         <div class="page-header-bar">
           <div class="page-header-title">
-            <strong><?= h($layout['layout.header_text']) ?></strong>
-            <div><?= h($headerOrganization) ?></div>
-            <?php if ($theatreAddress !== ''): ?><div class="page-header-subtitle"><?= h($theatreAddress) ?></div><?php endif; ?>
+            <strong><?= h($show['show_name']) ?></strong>
+            <div class="page-header-subtitle"><?= h($coverTitle) ?></div>
           </div>
           <div class="page-header-meta">
             <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
-            <div><strong>Page</strong> 1 of <?= h((string) $totalPages) ?></div>
+            <div><strong>Page</strong> <?= h((string) $pageNumbers['details']) ?> of <?= h((string) $totalPages) ?></div>
           </div>
         </div>
       </div>
-      <div class="center-title">
-        <p class="show-name">&quot;<?= h($show['show_name']) ?>&quot;</p>
-        <p class="subtitle"><?= h($labels['title']) ?></p>
-        <p class="revised">REVISION <?= h($revisionCode) ?> · <?= !empty($revision['is_initial']) ? 'INITIAL ORDER' : 'REVISED' ?> <?= h($revision['revision_date']) ?></p>
-      </div>
-
+      <p class="details-page-heading">CREW &amp; NOTES</p>
       <div class="cover-grid">
         <div class="cover-panel">
           <p class="cover-panel-title">Creative Team</p>
@@ -711,19 +888,19 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
           <div class="cover-detail-grid">
             <div>
               <div class="cover-entry-label">Load-In</div>
-              <div class="cover-panel-copy"><?= h(export_value((string) ($show['pull_date'] ?? ''))) ?></div>
+              <div class="cover-panel-copy"><?= h(export_paperwork_date((string) ($show['pull_date'] ?? ''))) ?></div>
             </div>
             <div>
               <div class="cover-entry-label">Opening</div>
-              <div class="cover-panel-copy"><?= h(export_value((string) ($show['opening_date'] ?? ''))) ?></div>
+              <div class="cover-panel-copy"><?= h(export_paperwork_date((string) ($show['opening_date'] ?? ''))) ?></div>
             </div>
             <div>
               <div class="cover-entry-label">Return</div>
-              <div class="cover-panel-copy"><?= h(export_value((string) ($show['return_date'] ?? ''))) ?></div>
+              <div class="cover-panel-copy"><?= h(export_paperwork_date((string) ($show['return_date'] ?? ''))) ?></div>
             </div>
             <div>
               <div class="cover-entry-label">Strike</div>
-              <div class="cover-panel-copy"><?= h(export_value((string) ($show['strike_date'] ?? ''))) ?></div>
+              <div class="cover-panel-copy"><?= h(export_paperwork_date((string) ($show['strike_date'] ?? ''))) ?></div>
             </div>
           </div>
         </div>
@@ -803,6 +980,15 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
           <?php endif; ?>
           <tr class="category-header-row">
             <td colspan="7"><?= h($row['category']) ?></td>
+          </tr>
+          <tr class="category-column-header-row">
+            <td class="col-line">LINE</td>
+            <td class="col-item">ITEM</td>
+            <td class="col-description">DESCRIPTION</td>
+            <td class="col-used">USED</td>
+            <td class="col-spare">SPARE</td>
+            <td class="col-total">TOTAL</td>
+            <td class="col-notes">NOTES</td>
           </tr>
           <?php $summaryCategory = $row['category']; ?>
           <?php endif; ?>
@@ -888,13 +1074,22 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
           <tr class="category-header-row">
             <td colspan="7"><?= h($row['category']) ?></td>
           </tr>
+          <tr class="category-column-header-row">
+            <td class="col-line">LINE</td>
+            <td class="col-item">ITEM</td>
+            <td class="col-description">DESCRIPTION</td>
+            <td class="col-used">USED</td>
+            <td class="col-spare">SPARE</td>
+            <td class="col-total">TOTAL</td>
+            <td class="col-notes">NOTES</td>
+          </tr>
           <?php $pageCategory = $row['category']; ?>
           <?php endif; ?>
           <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
           <tr style="<?= h(export_row_style($pageRowIndex, $revision, $row['item'], $row['line'], $equipmentZebraGray)) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>
-            <td class="description-cell"><?= h($row['category']) ?></td>
+            <td class="description-cell"><?= h(export_item_description($row['item'])) ?></td>
             <td><?= h((string) ($row['line']['rent_quantity'] ?? 0)) ?></td>
             <td><?= h((string) ($row['line']['spare_quantity'] ?? 0)) ?></td>
             <td>

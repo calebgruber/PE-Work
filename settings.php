@@ -850,8 +850,24 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <input class="form-control" id="equipment_row_padding" type="number" min="0.008" max="0.04" step="0.001" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
           </div>
           <div class="form-group">
+            <label for="equipment_header_row_padding">Header Row Height (in)</label>
+            <input class="form-control" id="equipment_header_row_padding" type="number" min="0.008" max="0.08" step="0.001" name="equipment_header_row_padding" value="<?= h($layout['layout.equipment_header_row_padding'] ?? '0.022') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_category_row_padding">Category Row Height (in)</label>
+            <input class="form-control" id="equipment_category_row_padding" type="number" min="0.008" max="0.1" step="0.001" name="equipment_category_row_padding" value="<?= h($layout['layout.equipment_category_row_padding'] ?? '0.03') ?>">
+          </div>
+          <div class="form-group">
             <label for="equipment_font_size">Font Size (pt)</label>
             <input class="form-control" id="equipment_font_size" type="number" min="6.5" max="10" step="0.01" name="equipment_font_size" value="<?= h($layout['layout.equipment_font_size'] ?? '7.35') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_header_fill">Header Row Color</label>
+            <input class="form-control" id="equipment_header_fill" type="color" name="equipment_header_fill" value="<?= h($layout['layout.equipment_header_fill'] ?? '#F3F4F6') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_category_fill">Category Row Color</label>
+            <input class="form-control" id="equipment_category_fill" type="color" name="equipment_category_fill" value="<?= h($layout['layout.equipment_category_fill'] ?? '#E5E7EB') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_line_height">Line Height</label>
