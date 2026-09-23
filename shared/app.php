@@ -230,6 +230,10 @@ function import_inventory_csv_from_handle($handle): array
         }
 
         $categoryId = category_id_for_name($category);
+        if ($categoryId <= 0) {
+            fclose($handle);
+            return ['ok' => false, 'message' => 'Unable to resolve category "' . $category . '" while importing inventory.'];
+        }
         $shopQuantity = max(0, (int) ($row[$headerMap['shop_quantity']] ?? 0));
         $unit = normalize_csv_value($row[$headerMap['unit']] ?? '');
         $defaultNote = normalize_csv_value($row[$headerMap['default_note']] ?? '');

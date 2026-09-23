@@ -81,17 +81,21 @@ for ($attempt = 0; $attempt < 20; $attempt++) {
 settings_assert($serverReady, 'Expected local PHP server to start before running import requests.', $repoRoot, $localConfig, $localBackup, $process, $pipes, [$csvPath]);
 
 $cookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-');
+$headersPath = tempnam(sys_get_temp_dir(), 'pew-headers-');
+$responsePath = tempnam(sys_get_temp_dir(), 'pew-response-');
 $command = sprintf(
-    "curl -isS -o /tmp/pew-settings-response.txt -D /tmp/pew-settings-headers.txt -L -c %s -b %s -F 'action=import_inventory' -F 'inventory_csv=@%s;type=text/csv' 'http://127.0.0.1:8099/settings?tab=inventory'",
+    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=import_inventory' -F 'inventory_csv=@%s;type=text/csv' 'http://127.0.0.1:8099/settings?tab=inventory'",
+    escapeshellarg($responsePath),
+    escapeshellarg($headersPath),
     escapeshellarg($cookieJar),
     escapeshellarg($cookieJar),
     escapeshellarg($csvPath)
 );
 exec($command, $output, $curlStatus);
 
-$headers = is_file('/tmp/pew-settings-headers.txt') ? file_get_contents('/tmp/pew-settings-headers.txt') : '';
-$responseBody = is_file('/tmp/pew-settings-response.txt') ? file_get_contents('/tmp/pew-settings-response.txt') : '';
-$testPaths = [$csvPath, $cookieJar, '/tmp/pew-settings-response.txt', '/tmp/pew-settings-headers.txt'];
+$headers = is_file($headersPath) ? file_get_contents($headersPath) : '';
+$responseBody = is_file($responsePath) ? file_get_contents($responsePath) : '';
+$testPaths = [$csvPath, $cookieJar, $responsePath, $headersPath];
 
 $stmt = db()->prepare('SELECT shop_quantity FROM inventory_items WHERE name = ?');
 $stmt->execute(['Import Action Item']);
@@ -103,8 +107,8 @@ settings_assert($quantity === 7, 'Expected settings import action to create the 
 settings_assert(str_contains($responseBody, 'Import complete'), 'Expected redirected settings page to show the import success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 
 $warningCookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-warning-');
-$warningHeadersPath = '/tmp/pew-settings-warning-headers.txt';
-$warningResponsePath = '/tmp/pew-settings-warning-response.txt';
+$warningHeadersPath = tempnam(sys_get_temp_dir(), 'pew-warning-headers-');
+$warningResponsePath = tempnam(sys_get_temp_dir(), 'pew-warning-response-');
 $testPaths[] = $warningCookieJar;
 $testPaths[] = $warningHeadersPath;
 $testPaths[] = $warningResponsePath;
@@ -124,8 +128,8 @@ settings_assert(str_contains($warningHeaders, 'Location: /settings?tab=inventory
 settings_assert(str_contains($warningBody, 'Choose a CSV file to import.'), 'Expected redirected settings page to show the missing-file warning.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 
 $pasteCookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-paste-');
-$pasteHeadersPath = '/tmp/pew-settings-paste-headers.txt';
-$pasteResponsePath = '/tmp/pew-settings-paste-response.txt';
+$pasteHeadersPath = tempnam(sys_get_temp_dir(), 'pew-paste-headers-');
+$pasteResponsePath = tempnam(sys_get_temp_dir(), 'pew-paste-response-');
 $testPaths[] = $pasteCookieJar;
 $testPaths[] = $pasteHeadersPath;
 $testPaths[] = $pasteResponsePath;
