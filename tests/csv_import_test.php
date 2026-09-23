@@ -442,6 +442,8 @@ assert_true(str_contains($exportHtml, '<strong>Revision</strong> 1.1'), 'Expecte
 assert_true(str_contains($exportHtml, 'background: #ABCDEF;'), 'Expected export header rows to use the saved header color.');
 assert_true(str_contains($exportHtml, 'background: #FEDCBA;'), 'Expected export category rows to use the saved category color.');
 assert_true(str_contains($exportHtml, 'width: 2.500%;'), 'Expected export line-number column width to use the saved layout setting.');
+assert_true((bool) preg_match('/<table class="word-table equipment-table revision-summary-table">.*?<colgroup>.*?<col style="width: 2\.500%;">.*?<col style="width: 45\.000%;">.*?<col style="width: 23\.000%;">/s', $exportHtml), 'Expected revision summary markup to include explicit configured column widths.');
+assert_true((bool) preg_match('/<table class="word-table equipment-table">.*?<colgroup>.*?<col style="width: 2\.500%;">.*?<col style="width: 45\.000%;">.*?<col style="width: 23\.000%;">.*?<col style="width: 5\.000%;">.*?<col style="width: 5\.000%;">.*?<col style="width: 6\.000%;">.*?<col style="width: 12\.000%;">/s', $exportHtml), 'Expected equipment breakdown markup to include explicit configured column widths.');
 assert_true(str_contains($exportHtml, 'font-size: 5.75pt;'), 'Expected line-number font size to use the saved layout setting.');
 assert_true(str_contains($exportHtml, 'font-size: 8.25pt;'), 'Expected item font size to use the saved layout setting.');
 assert_true(str_contains($exportHtml, 'font-size: 6.60pt;'), 'Expected description font size to use the saved layout setting.');

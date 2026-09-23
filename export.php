@@ -325,11 +325,14 @@ function export_equipment_layout_metrics(array $layout): array
         'action' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_action'] ?? $fontSize))),
         'notes' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_notes'] ?? $fontSize))),
     ];
-    $scale = max(1.0, 100.0 - $lineWidth) / (array_sum($rawColumns) ?: 96.0);
+    $remainingWidth = max(1.0, 100.0 - $lineWidth);
+    $rawTotal = array_sum($rawColumns) ?: $remainingWidth;
+    $scale = $rawTotal > $remainingWidth ? ($remainingWidth / $rawTotal) : 1.0;
     $columns = [];
     foreach ($rawColumns as $key => $value) {
         $columns[$key] = round($value * $scale, 3);
     }
+    $summaryActionWidth = round(($columns['used'] ?? 0) + ($columns['spare'] ?? 0), 3);
 
     return [
         'table_width' => $tableWidth,
@@ -343,6 +346,7 @@ function export_equipment_layout_metrics(array $layout): array
         'line_height' => $lineHeight,
         'line_width' => $lineWidth,
         'columns' => $columns,
+        'summary_action_width' => $summaryActionWidth,
         'column_font_sizes' => $columnFontSizes,
     ];
 }
@@ -1121,6 +1125,14 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       <p class="page-note">Only lines with changed counts or explicit revision actions are listed here.</p>
       <div class="equipment-table-wrap">
       <table class="word-table equipment-table revision-summary-table">
+        <colgroup>
+          <col style="width: <?= h(number_format($equipmentMetrics['line_width'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['columns']['item'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['columns']['description'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['columns']['total'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['summary_action_width'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['columns']['notes'], 3, '.', '')) ?>%;">
+        </colgroup>
         <tbody>
           <?php if ($summaryRows): ?>
           <?php $summaryCategory = null; ?>
@@ -1195,6 +1207,15 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       <p class="page-heading"><?= h($labels['equipment_heading']) ?></p>
       <div class="equipment-table-wrap">
       <table class="word-table equipment-table">
+        <colgroup>
+          <col style="width: <?= h(number_format($equipmentMetrics['line_width'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['columns']['item'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['columns']['description'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['columns']['used'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['columns']['spare'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['columns']['total'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($equipmentMetrics['columns']['notes'], 3, '.', '')) ?>%;">
+        </colgroup>
         <tbody>
           <?php $pageCategory = null; ?>
           <?php foreach ($equipmentPageRows as $pageRowIndex => $row): ?>
