@@ -352,6 +352,7 @@ assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDO
 assert_true(str_contains($exportHtml, 'Only lines with changed counts or explicit revision actions are listed here.'), 'Expected revision summary copy to explain the changed-lines filter.');
 assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<th class="col-used">USED<\/th>.*?<th class="col-spare">SPARE<\/th>.*?<th class="col-total">TOTAL<\/th>.*?<th class="col-notes">NOTES<\/th>/s', $exportHtml), 'Expected revision summary to use the same breakdown-style table columns.');
 assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?EXCHANGE.*?9\s*<span class="delta delta-positive">\(\+1\)<\/span>/s', $exportHtml), 'Expected revision summary to list changed rows with action notes and total deltas.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>/s', $exportHtml), 'Expected revision summary to include category header rows.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
 assert_true((bool) preg_match('/>\s*9\s*<span class="delta delta-positive">\(\+1\)<\/span>/', $exportHtml), 'Expected equipment breakdown totals to show total-quantity deltas in black text.');
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
@@ -360,6 +361,8 @@ assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cove
 assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
 assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export to include later line items instead of stopping early.');
 assert_true(!str_contains($exportHtml, 'Adapter note'), 'Expected admin inventory default notes to stay off paperwork exports.');
+assert_true((bool) preg_match('/<p class="page-heading">EQUIPMENT BREAKDOWN<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>/s', $exportHtml), 'Expected equipment breakdown to include category header rows.');
+assert_true(str_contains($exportHtml, '<tr class="category-gap-row"><td colspan="7"></td></tr>'), 'Expected export tables to include spacing rows between categories.');
 $syntheticLayout = export_layout_settings();
 $syntheticLayout['layout.equipment_min_rows_per_page'] = '4';
 $syntheticLayout['layout.equipment_max_rows_per_page'] = '2';

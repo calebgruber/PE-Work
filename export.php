@@ -609,6 +609,21 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
       border-bottom: 1px solid #d1d5db;
       background: #f3f4f6;
     }
+    .category-gap-row td {
+      padding: 0.08in 0;
+      border: 0;
+      background: #fff;
+    }
+    .category-header-row td {
+      padding-top: 0.045in;
+      padding-bottom: 0.045in;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      border-top: 1px solid #111827;
+      border-bottom: 1px solid #9ca3af;
+      background: #e5e7eb;
+    }
     @media print {
       * {
         -webkit-print-color-adjust: exact !important;
@@ -780,7 +795,17 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
         </thead>
         <tbody>
           <?php if ($summaryRows): ?>
+          <?php $summaryCategory = null; ?>
           <?php foreach ($summaryRows as $index => $row): ?>
+          <?php if ($summaryCategory !== $row['category']): ?>
+          <?php if ($summaryCategory !== null): ?>
+          <tr class="category-gap-row"><td colspan="7"></td></tr>
+          <?php endif; ?>
+          <tr class="category-header-row">
+            <td colspan="7"><?= h($row['category']) ?></td>
+          </tr>
+          <?php $summaryCategory = $row['category']; ?>
+          <?php endif; ?>
           <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
           <tr style="<?= h(export_row_style($index, $revision, $row['item'], $row['line'], $equipmentZebraGray)) ?>">
             <td class="line-cell"><?= h((string) ($index + 1)) ?></td>
@@ -854,7 +879,17 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
           </tr>
         </thead>
         <tbody>
+          <?php $pageCategory = null; ?>
           <?php foreach ($equipmentPageRows as $pageRowIndex => $row): ?>
+          <?php if ($pageCategory !== $row['category']): ?>
+          <?php if ($pageCategory !== null): ?>
+          <tr class="category-gap-row"><td colspan="7"></td></tr>
+          <?php endif; ?>
+          <tr class="category-header-row">
+            <td colspan="7"><?= h($row['category']) ?></td>
+          </tr>
+          <?php $pageCategory = $row['category']; ?>
+          <?php endif; ?>
           <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
           <tr style="<?= h(export_row_style($pageRowIndex, $revision, $row['item'], $row['line'], $equipmentZebraGray)) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
