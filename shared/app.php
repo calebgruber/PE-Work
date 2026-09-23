@@ -1667,7 +1667,10 @@ function store_resource_upload(array $file, string $title = '', ?int $folderId =
         return ['ok' => false, 'message' => 'Run migrations before uploading resources.'];
     }
 
-    if ($folderId !== null && $folderId > 0 && table_column_exists('resources', 'folder_id') && table_exists('resource_folders')) {
+    if ($folderId !== null && $folderId > 0) {
+        if (!table_column_exists('resources', 'folder_id') || !table_exists('resource_folders')) {
+            return ['ok' => false, 'message' => 'Run the resource folder migration before uploading into a folder.'];
+        }
         $folderStmt = db()->prepare('SELECT COUNT(*) FROM resource_folders WHERE id = ?');
         $folderStmt->execute([$folderId]);
         if ((int) $folderStmt->fetchColumn() !== 1) {

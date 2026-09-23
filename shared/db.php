@@ -193,11 +193,16 @@ function run_pending_migrations(): array
 
         try {
             $startedTransaction = false;
-            if (!db()->inTransaction()) {
+            if (db_driver() === 'sqlite' && !db()->inTransaction()) {
                 db()->beginTransaction();
                 $startedTransaction = true;
             }
             foreach ($statements as $statement) {
+                if (is_callable($statement)) {
+                    $statement(db());
+                    continue;
+                }
+
                 $sql = trim((string) $statement);
                 if ($sql !== '') {
                     db()->exec($sql);

@@ -374,8 +374,12 @@
     document.querySelectorAll('[data-confirm-code]').forEach(function (button) {
       const form = button.closest('form');
       let lastSubmitter = null;
+      function trackSubmitter(event) {
+        if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+        lastSubmitter = button;
+      }
       function confirmAction(event) {
-        const submitter = event.submitter || lastSubmitter;
+        const submitter = event.submitter || lastSubmitter || (document.activeElement === button ? button : null);
         if (submitter !== button) return;
         const expected = button.getAttribute('data-confirm-code') || '';
         const message = button.getAttribute('data-confirm') || ('Type ' + expected + ' to continue.');
@@ -385,11 +389,10 @@
           event.stopPropagation();
         }
       }
-
       if (form) {
-        button.addEventListener('click', function () {
-          lastSubmitter = button;
-        });
+      if (form) {
+        button.addEventListener('click', trackSubmitter);
+        button.addEventListener('keydown', trackSubmitter);
         form.addEventListener('submit', confirmAction);
       } else {
         button.addEventListener('click', confirmAction);
@@ -401,8 +404,12 @@
     document.querySelectorAll('[data-confirm-message]').forEach(function (button) {
       const form = button.closest('form');
       let lastSubmitter = null;
+      function trackSubmitter(event) {
+        if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+        lastSubmitter = button;
+      }
       function confirmAction(event) {
-        const submitter = event.submitter || lastSubmitter;
+        const submitter = event.submitter || lastSubmitter || (document.activeElement === button ? button : null);
         if (submitter !== button) return;
         if (!window.confirm(button.getAttribute('data-confirm-message') || 'Are you sure?')) {
           event.preventDefault();
@@ -411,9 +418,8 @@
       }
 
       if (form) {
-        button.addEventListener('click', function () {
-          lastSubmitter = button;
-        });
+        button.addEventListener('click', trackSubmitter);
+        button.addEventListener('keydown', trackSubmitter);
         form.addEventListener('submit', confirmAction);
       } else {
         button.addEventListener('click', confirmAction);
