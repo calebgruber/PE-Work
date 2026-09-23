@@ -123,6 +123,9 @@
           }
         })
         .catch(function () {
+          if (validationRun !== latestValidationRun) {
+            return;
+          }
           renderWarnings([{
             type: 'rule',
             message: 'Unable to validate this revision right now. Please try again.'

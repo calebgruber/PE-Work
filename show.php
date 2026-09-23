@@ -214,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         header('Content-Type: application/json');
         echo json_encode([
-            'warnings' => revision_validation_warnings(is_array($_POST['items'] ?? null) ? $_POST['items'] : []),
+            'warnings' => revision_validation_warnings(revision_input_snapshot($revisionId, is_array($_POST['items'] ?? null) ? $_POST['items'] : [])),
         ]);
         exit;
     }
@@ -228,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $revisionOverrideItems = is_array($_POST['items'] ?? null) ? $_POST['items'] : [];
-        $validationWarnings = revision_validation_warnings($revisionOverrideItems);
+        $validationWarnings = revision_validation_warnings(revision_input_snapshot($revisionId, $revisionOverrideItems));
         if ($validationWarnings) {
             foreach ($validationWarnings as $warning) {
                 flash('danger', $warning['message']);

@@ -1,6 +1,19 @@
 <?php
 
-$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$path = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+$segments = array_values(array_filter(explode('/', $path), static fn ($segment) => $segment !== ''));
+foreach ($segments as $segment) {
+    if ($segment === '.' || $segment === '..') {
+        http_response_code(404);
+        echo 'Not Found';
+        return true;
+    }
+}
+$normalizedPath = '/' . implode('/', $segments);
+if ($normalizedPath === '//') {
+    $normalizedPath = '/';
+}
+$path = $normalizedPath === '' ? '/' : $normalizedPath;
 $fullPath = __DIR__ . $path;
 $publicAssetPrefixes = ['/shared/assets/'];
 

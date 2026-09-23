@@ -51,7 +51,7 @@ defined('DB_USER') || define('DB_USER', getenv('DB_USER') ?: 'root');
 defined('DB_PASS') || define('DB_PASS', getenv('DB_PASS') ?: '');
 defined('DB_CHARSET') || define('DB_CHARSET', 'utf8mb4');
 defined('DB_SQLITE_PATH') || define('DB_SQLITE_PATH', __DIR__ . '/../storage/pe-work.sqlite');
-defined('RESOURCE_STORAGE_PATH') || define('RESOURCE_STORAGE_PATH', rtrim((string) (getenv('RESOURCE_STORAGE_PATH') ?: (sys_get_temp_dir() . '/pe-work-storage')), '/'));
+defined('RESOURCE_STORAGE_PATH') || define('RESOURCE_STORAGE_PATH', rtrim((string) (getenv('RESOURCE_STORAGE_PATH') ?: (__DIR__ . '/../storage/private')), '/'));
 
 defined('SESSION_NAME') || define('SESSION_NAME', 'pe_work_session');
 defined('APP_SECRET') || define('APP_SECRET', app_secret_value());

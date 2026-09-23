@@ -762,6 +762,24 @@ function normalize_revision_lines_input(array $items): array
     return $normalized;
 }
 
+function revision_input_snapshot(int $revisionId, array $overrides = []): array
+{
+    $snapshot = [];
+    if ($revisionId > 0) {
+        $stmt = db()->prepare('SELECT * FROM revision_items WHERE revision_id = ?');
+        $stmt->execute([$revisionId]);
+        foreach ($stmt->fetchAll() as $row) {
+            $snapshot[(int) $row['inventory_item_id']] = normalize_revision_line_input($row);
+        }
+    }
+
+    foreach (normalize_revision_lines_input($overrides) as $itemId => $row) {
+        $snapshot[(int) $itemId] = $row;
+    }
+
+    return $snapshot;
+}
+
 function revision_validation_warnings(array $items): array
 {
     $warnings = [];
@@ -1313,6 +1331,11 @@ function delete_inventory_item(int $itemId): array
         return ['ok' => false, 'message' => 'Inventory item not found.'];
     }
 
+    if (table_exists('revision_items')) {
+        $cleanup = db()->prepare('DELETE FROM revision_items WHERE inventory_item_id = ?');
+        $cleanup->execute([$itemId]);
+    }
+
     $stmt = db()->prepare('DELETE FROM inventory_items WHERE id = ?');
     $stmt->execute([$itemId]);
     return ['ok' => true, 'message' => 'Inventory item removed.'];
@@ -1320,6 +1343,9 @@ function delete_inventory_item(int $itemId): array
 
 function clear_inventory_items(): array
 {
+    if (table_exists('revision_items')) {
+        db()->exec('DELETE FROM revision_items');
+    }
     db()->exec('DELETE FROM inventory_items');
     return ['ok' => true, 'message' => 'All inventory items removed.'];
 }

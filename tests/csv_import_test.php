@@ -310,12 +310,14 @@ $deleteItemResult = delete_inventory_item($adapterItemId);
 assert_true($deleteItemResult['ok'] === true, 'Expected inventory delete to hard-delete the row.');
 $stmt->execute(['Stagepin to True1 Adapter']);
 assert_true($stmt->fetch() === false, 'Expected deleted inventory item to be removed from storage.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM revision_items WHERE inventory_item_id = ' . (int) $adapterItemId)->fetchColumn() === 0, 'Expected deleted inventory item to remove related revision lines.');
 
 $clearCatalogItemId = ensure_catalog_item('Accessories', 'Cable Crate', 8, 'ea');
 $clearInventoryResult = clear_inventory_items();
 assert_true($clearInventoryResult['ok'] === true, 'Expected clear inventory action to succeed.');
 assert_true((int) db()->query('SELECT COUNT(*) FROM inventory_items')->fetchColumn() === 0, 'Expected clear inventory action to remove all items.');
 assert_true((int) db()->query('SELECT COUNT(*) FROM system_rules')->fetchColumn() === 0, 'Expected clear inventory action to cascade-delete related rules.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM revision_items')->fetchColumn() === 0, 'Expected clear inventory action to remove related revision lines.');
 assert_true($clearCatalogItemId > 0, 'Expected clear-inventory test item creation to succeed before clearing.');
 
 $invalidCsv = tempnam(sys_get_temp_dir(), 'pew-invalid-');
