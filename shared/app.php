@@ -950,6 +950,7 @@ function import_inventory_csv(string $tmpPath): array
 
 function save_rule(array $input): array
 {
+    $ruleId = (int) ($input['rule_id'] ?? 0);
     $triggerItem = (int) ($input['trigger_item_id'] ?? 0);
     $requiredItem = (int) ($input['required_item_id'] ?? 0);
     $triggerQuantity = max(1, (int) ($input['trigger_quantity'] ?? 1));
@@ -969,6 +970,32 @@ function save_rule(array $input): array
         return ['ok' => false, 'message' => 'Choose a valid suggested item.'];
     }
 
+    $note = trim((string) ($input['note'] ?? ''));
+
+    if ($ruleId > 0) {
+        $ruleLookup = db()->prepare('SELECT COUNT(*) FROM system_rules WHERE id = ?');
+        $ruleLookup->execute([$ruleId]);
+        if ((int) $ruleLookup->fetchColumn() !== 1) {
+            return ['ok' => false, 'message' => 'Rule not found.'];
+        }
+
+        $stmt = db()->prepare(
+            'UPDATE system_rules
+             SET trigger_item_id = ?, trigger_quantity = ?, required_item_id = ?, required_quantity = ?, note = ?
+             WHERE id = ?'
+        );
+        $stmt->execute([
+            $triggerItem,
+            $triggerQuantity,
+            $requiredItem,
+            $requiredQuantity,
+            $note,
+            $ruleId,
+        ]);
+
+        return ['ok' => true, 'message' => 'Rule updated.'];
+    }
+
     $stmt = db()->prepare(
         'INSERT INTO system_rules (trigger_item_id, trigger_quantity, required_item_id, required_quantity, note)
          VALUES (?, ?, ?, ?, ?)'
@@ -978,10 +1005,26 @@ function save_rule(array $input): array
         $triggerQuantity,
         $requiredItem,
         $requiredQuantity,
-        trim((string) ($input['note'] ?? '')),
+        $note,
     ]);
 
     return ['ok' => true, 'message' => 'Rule saved.'];
+}
+
+function delete_rule(int $ruleId): array
+{
+    if ($ruleId <= 0) {
+        return ['ok' => false, 'message' => 'Rule not found.'];
+    }
+
+    $stmt = db()->prepare('DELETE FROM system_rules WHERE id = ?');
+    $stmt->execute([$ruleId]);
+
+    if ($stmt->rowCount() !== 1) {
+        return ['ok' => false, 'message' => 'Rule not found.'];
+    }
+
+    return ['ok' => true, 'message' => 'Rule removed.'];
 }
 
 function delete_inventory_item(int $itemId): array

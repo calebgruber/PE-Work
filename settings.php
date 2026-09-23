@@ -90,6 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        if ($action === 'delete_rule') {
+            $result = delete_rule((int) ($_POST['rule_id'] ?? 0));
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=rules'));
+            exit;
+        }
+
         if ($action === 'save_layout') {
             if (!table_exists('app_settings')) {
                 flash('danger', 'Layout settings storage is not available until migrations finish successfully.');
@@ -440,14 +447,51 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                 <th>When You Pull</th>
                 <th>Suggest</th>
                 <th>Note</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <?php foreach ($rules as $rule): ?>
               <tr>
-                <td><?= h((string) $rule['trigger_quantity']) ?> × <?= h($rule['trigger_item_name']) ?></td>
-                <td><?= h((string) $rule['required_quantity']) ?> × <?= h($rule['required_item_name']) ?></td>
-                <td><?= h($rule['note']) ?></td>
+                <td>
+                  <select class="form-control" name="trigger_item_id" form="rule-form-<?= (int) $rule['id'] ?>">
+                    <option value="">Choose an item</option>
+                    <?php foreach ($catalog as $category): foreach ($category['items'] as $item): ?>
+                    <option value="<?= h((string) $item['id']) ?>" <?= (int) $rule['trigger_item_id'] === (int) $item['id'] ? 'selected' : '' ?>><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
+                    <?php endforeach; endforeach; ?>
+                  </select>
+                  <input class="form-control" type="number" min="1" name="trigger_quantity" value="<?= h((string) $rule['trigger_quantity']) ?>" form="rule-form-<?= (int) $rule['id'] ?>" style="margin-top:0.5rem;">
+                </td>
+                <td>
+                  <select class="form-control" name="required_item_id" form="rule-form-<?= (int) $rule['id'] ?>">
+                    <option value="">Choose an item</option>
+                    <?php foreach ($catalog as $category): foreach ($category['items'] as $item): ?>
+                    <option value="<?= h((string) $item['id']) ?>" <?= (int) $rule['required_item_id'] === (int) $item['id'] ? 'selected' : '' ?>><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
+                    <?php endforeach; endforeach; ?>
+                  </select>
+                  <input class="form-control" type="number" min="1" name="required_quantity" value="<?= h((string) $rule['required_quantity']) ?>" form="rule-form-<?= (int) $rule['id'] ?>" style="margin-top:0.5rem;">
+                </td>
+                <td>
+                  <textarea class="form-control" name="note" form="rule-form-<?= (int) $rule['id'] ?>" rows="3"><?= h($rule['note']) ?></textarea>
+                </td>
+                <td>
+                  <form method="post" id="rule-form-<?= (int) $rule['id'] ?>" class="stack">
+                    <input type="hidden" name="action" value="save_rule">
+                    <input type="hidden" name="rule_id" value="<?= (int) $rule['id'] ?>">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                      <span class="material-symbols-outlined">save</span>
+                      Update
+                    </button>
+                  </form>
+                  <form method="post" style="margin-top:0.5rem;">
+                    <input type="hidden" name="action" value="delete_rule">
+                    <input type="hidden" name="rule_id" value="<?= (int) $rule['id'] ?>">
+                    <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE RULE" data-confirm="Type REMOVE RULE to delete this rule.">
+                      <span class="material-symbols-outlined">delete</span>
+                      Remove
+                    </button>
+                  </form>
+                </td>
               </tr>
               <?php endforeach; ?>
             </tbody>

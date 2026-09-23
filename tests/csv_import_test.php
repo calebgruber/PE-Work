@@ -107,15 +107,19 @@ assert_true($showId > 0, 'Expected saved show to have an id.');
 $initialRevisionId = create_initial_revision($showId);
 $catalog = catalog_for_revision($initialRevisionId);
 $fixtureItemId = 0;
+$adapterItemId = 0;
 foreach ($catalog as $category) {
     foreach ($category['items'] as $item) {
         if ($item['name'] === 'SolaFrame 3000') {
             $fixtureItemId = (int) $item['id'];
-            break 2;
+        }
+        if ($item['name'] === 'Stagepin to True1 Adapter') {
+            $adapterItemId = (int) $item['id'];
         }
     }
 }
 assert_true($fixtureItemId > 0, 'Expected seeded inventory item to exist for revision cloning.');
+assert_true($adapterItemId > 0, 'Expected adapter inventory item to exist for rule tests.');
 
 save_revision_lines($initialRevisionId, [
     $fixtureItemId => [
@@ -142,6 +146,38 @@ assert_true(($clonedLine['action'] ?? '') === 'add', 'Expected next revision to 
 assert_true(($clonedLine['line_note'] ?? '') === 'Clone this into the next revision.', 'Expected next revision to clone notes.');
 assert_true(($clonedLine['pickup_date'] ?? '') === '2026-10-01', 'Expected next revision to clone pickup date.');
 assert_true(($clonedLine['return_date'] ?? '') === '2026-10-15', 'Expected next revision to clone return date.');
+
+$createRuleResult = save_rule([
+    'trigger_item_id' => $fixtureItemId,
+    'trigger_quantity' => 2,
+    'required_item_id' => $adapterItemId,
+    'required_quantity' => 3,
+    'note' => 'Initial rule note',
+]);
+assert_true($createRuleResult['ok'] === true, 'Expected rule creation to succeed.');
+$ruleId = (int) db()->query('SELECT id FROM system_rules ORDER BY id DESC LIMIT 1')->fetchColumn();
+assert_true($ruleId > 0, 'Expected created rule id.');
+
+$updateRuleResult = save_rule([
+    'rule_id' => $ruleId,
+    'trigger_item_id' => $fixtureItemId,
+    'trigger_quantity' => 4,
+    'required_item_id' => $adapterItemId,
+    'required_quantity' => 5,
+    'note' => 'Updated rule note',
+]);
+assert_true($updateRuleResult['ok'] === true, 'Expected rule update to succeed.');
+$ruleStmt = db()->prepare('SELECT trigger_quantity, required_quantity, note FROM system_rules WHERE id = ?');
+$ruleStmt->execute([$ruleId]);
+$updatedRule = $ruleStmt->fetch() ?: [];
+assert_true((int) ($updatedRule['trigger_quantity'] ?? 0) === 4, 'Expected updated rule trigger quantity.');
+assert_true((int) ($updatedRule['required_quantity'] ?? 0) === 5, 'Expected updated rule required quantity.');
+assert_true(($updatedRule['note'] ?? '') === 'Updated rule note', 'Expected updated rule note.');
+
+$deleteRuleResult = delete_rule($ruleId);
+assert_true($deleteRuleResult['ok'] === true, 'Expected rule delete to succeed.');
+$ruleStmt->execute([$ruleId]);
+assert_true($ruleStmt->fetch() === false, 'Expected deleted rule to be removed from storage.');
 
 $invalidCsv = tempnam(sys_get_temp_dir(), 'pew-invalid-');
 file_put_contents($invalidCsv, "label,qty\nBad Item,1\n");
