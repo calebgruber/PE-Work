@@ -824,9 +824,17 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <input class="form-control" id="cover_title_revision_spacing" type="number" min="0" step="0.001" name="cover_title_revision_spacing" value="<?= h($layout['layout.cover_title_revision_spacing'] ?? '0.52') ?>">
           </div>
           <div class="form-group">
+            <label for="cover_notes_spacing">Cards To Notes Spacing (in)</label>
+            <input class="form-control" id="cover_notes_spacing" type="number" min="0" step="0.001" name="cover_notes_spacing" value="<?= h($layout['layout.cover_notes_spacing'] ?? '0.9') ?>">
+          </div>
+          <div class="form-group">
             <label for="cover_footer_logo_url">Cover Footer Logo Path</label>
             <input class="form-control" id="cover_footer_logo_url" name="cover_footer_logo_url" placeholder="images/my-logo.png" value="<?= h($layout['layout.cover_footer_logo_url'] ?? '') ?>">
             <div class="helper-text">Optional local path for a centered logo at the bottom of the cover page.</div>
+          </div>
+          <div class="form-group">
+            <label for="cover_prepared_by_name">Cover Prepared By Name</label>
+            <input class="form-control" id="cover_prepared_by_name" name="cover_prepared_by_name" placeholder="Your Name" value="<?= h($layout['layout.cover_prepared_by_name'] ?? '') ?>">
           </div>
         </div>
         <div class="form-group" style="margin-top:1rem;">
@@ -835,6 +843,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
         </div>
         <div class="pill-row" style="margin-top:1rem;">
           <label class="tab"><input type="checkbox" name="show_image" value="1" <?= $layout['layout.show_image'] === '1' ? 'checked' : '' ?>> Show image on exports</label>
+          <label class="tab"><input type="checkbox" name="cover_show_title" value="1" <?= ($layout['layout.cover_show_title'] ?? '1') === '1' ? 'checked' : '' ?>> Show title above cover image</label>
           <label class="tab"><input type="checkbox" name="show_page_numbers" value="1" <?= $layout['layout.show_page_numbers'] === '1' ? 'checked' : '' ?>> Page X of X</label>
           <label class="tab"><input type="checkbox" name="show_revision_summary" value="1" <?= $layout['layout.show_revision_summary'] === '1' ? 'checked' : '' ?>> Revision summary block</label>
         </div>

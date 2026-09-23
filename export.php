@@ -457,8 +457,15 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentCategoryFill)) {
     $equipmentCategoryFill = '#E5E7EB';
 }
 $coverTitleRevisionSpacing = max(0.0, (float) ($layout['layout.cover_title_revision_spacing'] ?? 0.52));
+$coverNotesSpacing = max(0.0, (float) ($layout['layout.cover_notes_spacing'] ?? 0.9));
 $coverFooterLogoPath = sanitize_local_asset_path((string) ($layout['layout.cover_footer_logo_url'] ?? ''));
 $coverFooterLogoUrl = $coverFooterLogoPath ? url_for($coverFooterLogoPath) : '';
+$coverPreparedByName = trim((string) ($layout['layout.cover_prepared_by_name'] ?? ''));
+if ($coverPreparedByName === '') {
+    $coverPreparedByName = (string) (current_user()['display_name'] ?? '');
+}
+$coverShowTitle = ($layout['layout.cover_show_title'] ?? '1') === '1';
+$showPageNumbers = ($layout['layout.show_page_numbers'] ?? '1') === '1';
 $coverTheatreName = trim((string) ($show['theatre_name'] ?? ''));
 $coverTheatreAddress = trim((string) ($show['theatre_address'] ?? ''));
 $coverTitle = $type === 'order' ? 'LIGHTING SHOP ORDER' : strtoupper($labels['title']);
@@ -533,6 +540,35 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       overflow: hidden;
     }
     .page p { margin: 0 0 0.08in; }
+    .top-rule {
+      border-bottom: 1px solid #000;
+      padding-bottom: 0.08in;
+      margin-bottom: 0.12in;
+    }
+    .page-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.3in;
+    }
+    .page-header-title {
+      min-width: 0;
+    }
+    .page-header-title strong {
+      display: block;
+      font-size: 13pt;
+    }
+    .page-header-subtitle {
+      margin-top: 0.03in;
+      font-size: 9pt;
+      color: #4b5563;
+    }
+    .page-header-meta {
+      min-width: 1.55in;
+      text-align: right;
+      font-size: 9pt;
+      line-height: 1.35;
+    }
     .cover-page {
       padding: 0.55in 0.7in 0.42in;
     }
@@ -545,6 +581,12 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       width: 100%;
       text-align: center;
       line-height: 1.55;
+    }
+    .cover-show-title {
+      margin-bottom: 0.18in;
+      font-size: 18pt;
+      font-weight: 600;
+      letter-spacing: 0.02em;
     }
     .cover-art {
       margin: 0 auto 0.55in;
@@ -667,7 +709,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       gap: 0.1in 0.16in;
     }
     .notes-heading {
-      margin-top: 0.9in;
+      margin-top: <?= h(number_format($coverNotesSpacing, 3, '.', '')) ?>in;
       text-decoration: underline;
       font-weight: 600;
     }
@@ -718,6 +760,9 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       vertical-align: middle;
       text-align: left;
       white-space: nowrap;
+    }
+    table.word-table tbody tr:not(.category-gap-row):not(.category-header-row):not(.category-column-header-row) td {
+      min-height: <?= h(number_format(max(0.0, $equipmentMetrics['row_padding'] * 2), 3, '.', '')) ?>in;
     }
     table.word-table th:first-child,
     table.word-table td:first-child {
@@ -773,6 +818,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       background: #fff;
     }
     .category-header-row td {
+      height: <?= h(number_format(max(0.0, $equipmentMetrics['category_row_padding'] * 2), 3, '.', '')) ?>in;
       padding-top: <?= h(number_format($equipmentMetrics['category_row_padding'], 3, '.', '')) ?>in;
       padding-bottom: <?= h(number_format($equipmentMetrics['category_row_padding'], 3, '.', '')) ?>in;
       font-weight: 700;
@@ -783,6 +829,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       background: <?= h($equipmentCategoryFill) ?>;
     }
     .category-column-header-row td {
+      height: <?= h(number_format(max(0.0, $equipmentMetrics['header_row_padding'] * 2), 3, '.', '')) ?>in;
       padding-top: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
       padding-bottom: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
       border-bottom: 1px solid #666;
@@ -811,6 +858,12 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       text-align: center;
       flex-direction: column;
       gap: 0.14in;
+      align-items: center;
+    }
+    .cover-footer-logo {
+      width: 100%;
+      display: flex;
+      justify-content: center;
     }
     .cover-footer-logo img {
       display: block;
@@ -820,6 +873,10 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       height: auto;
       margin: 0 auto;
       object-fit: contain;
+    }
+    .cover-footer-prepared-by {
+      font-weight: 600;
+      text-align: center;
     }
     @media print {
       body { background: #fff; }
@@ -841,11 +898,24 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
   <div class="document">
     <section class="page cover-page">
       <div class="page-content">
+      <div class="top-rule">
+        <div class="page-header-bar">
+          <div class="page-header-title">
+            <strong><?= h($show['show_name']) ?></strong>
+            <div class="page-header-subtitle"><?= h($coverTitle) ?></div>
+          </div>
+          <div class="page-header-meta">
+            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
+            <?php if ($showPageNumbers): ?><div><strong>Page</strong> <?= h((string) $pageNumbers['cover']) ?> of <?= h((string) $totalPages) ?></div><?php endif; ?>
+          </div>
+        </div>
+      </div>
       <div class="cover-body">
+        <?php if ($coverShowTitle): ?><p class="cover-show-title"><?= h($show['show_name']) ?></p><?php endif; ?>
         <div class="cover-art">
           <?php if ($showImageUrl !== ''): ?>
           <img src="<?= h($showImageUrl) ?>" alt="<?= h($show['show_name']) ?>">
-          <?php else: ?>
+          <?php elseif (!$coverShowTitle): ?>
           <div class="cover-title-fallback"><?= h($show['show_name']) ?></div>
           <?php endif; ?>
         </div>
@@ -867,12 +937,25 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
         <?php if ($coverFooterLogoUrl !== ''): ?>
         <div class="cover-footer-logo"><img src="<?= h($coverFooterLogoUrl) ?>" alt="Cover footer logo"></div>
         <?php endif; ?>
+        <?php if ($coverPreparedByName !== ''): ?><div class="cover-footer-prepared-by">Prepared by: <?= h($coverPreparedByName) ?></div><?php endif; ?>
         <span><?= h($layout['layout.footer_text']) ?></span>
       </div>
     </section>
 
     <section class="page details-page">
       <div class="page-content">
+      <div class="top-rule">
+        <div class="page-header-bar">
+          <div class="page-header-title">
+            <strong><?= h($show['show_name']) ?></strong>
+            <div class="page-header-subtitle"><?= h($coverTitle) ?></div>
+          </div>
+          <div class="page-header-meta">
+            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
+            <?php if ($showPageNumbers): ?><div><strong>Page</strong> <?= h((string) $pageNumbers['details']) ?> of <?= h((string) $totalPages) ?></div><?php endif; ?>
+          </div>
+        </div>
+      </div>
       <p class="details-page-heading">CREW &amp; NOTES</p>
       <div class="cover-grid">
         <div class="cover-panel">
@@ -961,6 +1044,18 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     <?php if ($renderSummaryPage): ?>
     <section class="page">
       <div class="page-content">
+      <div class="top-rule">
+        <div class="page-header-bar">
+          <div class="page-header-title">
+            <strong><?= h($show['show_name']) ?></strong>
+            <div class="page-header-subtitle"><?= h($coverTitle) ?></div>
+          </div>
+          <div class="page-header-meta">
+            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
+            <?php if ($showPageNumbers): ?><div><strong>Page</strong> <?= h((string) $pageNumbers['summary']) ?> of <?= h((string) $totalPages) ?></div><?php endif; ?>
+          </div>
+        </div>
+      </div>
       <p class="page-heading">REVISION SUMMARY</p>
       <p class="page-note">Only lines with changed counts or explicit revision actions are listed here.</p>
       <div class="equipment-table-wrap">
@@ -1024,6 +1119,18 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     <?php foreach ($equipmentPages as $equipmentPageIndex => $equipmentPageRows): ?>
     <section class="page equipment-page">
       <div class="page-content">
+      <div class="top-rule">
+        <div class="page-header-bar">
+          <div class="page-header-title">
+            <strong><?= h($show['show_name']) ?></strong>
+            <div class="page-header-subtitle"><?= h($coverTitle) ?></div>
+          </div>
+          <div class="page-header-meta">
+            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
+            <?php if ($showPageNumbers): ?><div><strong>Page</strong> <?= h((string) $pageNumbers['equipment'][$equipmentPageIndex]) ?> of <?= h((string) $totalPages) ?></div><?php endif; ?>
+          </div>
+        </div>
+      </div>
       <p class="page-heading"><?= h($labels['equipment_heading']) ?></p>
       <div class="equipment-table-wrap">
       <table class="word-table equipment-table">

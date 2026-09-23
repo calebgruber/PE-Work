@@ -2070,10 +2070,13 @@ function export_layout_settings(): array
         'layout.footer_text' => 'Prepared in PE Work',
         'layout.export_notes' => "Unless otherwise noted, all units to come with lamp, c-clamp, safety cable and black color frame.\nAll hardware, perishables, cable lengths and power distribution requirements as per electrician.\nAbsolutely no substitutions without written permission of Designer.\nAny revisions or substitutions must be fully disclosed.\nShop assumes responsibility for any additional materials that are required on site due to rental shop oversight or error.\nAll PAR cans to have interior protective screening.\nColor scrolls to be made and loaded by shop. A list of required colors will be provided.",
         'layout.show_image' => '1',
+        'layout.cover_show_title' => '1',
         'layout.show_page_numbers' => '1',
         'layout.show_revision_summary' => '1',
         'layout.cover_title_revision_spacing' => '0.52',
+        'layout.cover_notes_spacing' => '0.9',
         'layout.cover_footer_logo_url' => '',
+        'layout.cover_prepared_by_name' => '',
         'layout.equipment_table_width' => '100',
         'layout.equipment_min_rows_per_page' => '0',
         'layout.equipment_max_rows_per_page' => '0',
@@ -2131,10 +2134,13 @@ function save_export_layout(array $input): void
     save_setting('layout.footer_text', trim((string) ($input['footer_text'] ?? 'Prepared in PE Work')));
     save_setting('layout.export_notes', trim((string) ($input['export_notes'] ?? '')));
     save_setting('layout.show_image', !empty($input['show_image']) ? '1' : '0');
+    save_setting('layout.cover_show_title', !empty($input['cover_show_title']) ? '1' : '0');
     save_setting('layout.show_page_numbers', !empty($input['show_page_numbers']) ? '1' : '0');
     save_setting('layout.show_revision_summary', !empty($input['show_revision_summary']) ? '1' : '0');
     save_setting('layout.cover_title_revision_spacing', export_layout_number($input, 'cover_title_revision_spacing', 0.52, 0, 10.0, 3));
+    save_setting('layout.cover_notes_spacing', export_layout_number($input, 'cover_notes_spacing', 0.9, 0, 10.0, 3));
     save_setting('layout.cover_footer_logo_url', sanitize_local_asset_path((string) ($input['cover_footer_logo_url'] ?? '')) ?? '');
+    save_setting('layout.cover_prepared_by_name', trim((string) ($input['cover_prepared_by_name'] ?? '')));
     save_setting('layout.equipment_table_width', export_layout_number($input, 'equipment_table_width', 100, 70, 100, 1));
     save_setting('layout.equipment_min_rows_per_page', export_layout_number($input, 'equipment_min_rows_per_page', 0, 0, 100, 0));
     save_setting('layout.equipment_max_rows_per_page', export_layout_number($input, 'equipment_max_rows_per_page', 0, 0, 100, 0));

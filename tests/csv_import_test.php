@@ -306,10 +306,13 @@ save_export_layout([
     'organization_text' => '',
     'footer_text' => 'Prepared in PE Work',
     'export_notes' => "Default note one\nDefault note two",
+    'cover_show_title' => '1',
     'show_page_numbers' => '1',
     'show_revision_summary' => '1',
     'cover_title_revision_spacing' => '0.73',
+    'cover_notes_spacing' => '1.234',
     'cover_footer_logo_url' => 'images/footer-logo.png',
+    'cover_prepared_by_name' => 'Caleb Tester',
     'equipment_table_width' => '100',
     'equipment_min_rows_per_page' => '0',
     'equipment_max_rows_per_page' => '0',
@@ -390,7 +393,7 @@ assert_true(!str_contains($exportHtml, 'col-summary-notes'), 'Expected revision 
 assert_true(str_contains($exportHtml, 'Pull 10/02/26'), 'Expected equipment breakdown notes to include item-specific pull dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Return 10/16/26'), 'Expected equipment breakdown notes to include item-specific return dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Latest revision should clone from here.'), 'Expected order or revision line notes to print on the breakdown paperwork.');
-assert_true(str_contains($exportHtml, '<div class="cover-title-fallback">Revision Clone Test</div>'), 'Expected the cover page to fall back to the show title when no show image is configured.');
+assert_true(str_contains($exportHtml, '<p class="cover-show-title">Revision Clone Test</p>'), 'Expected the cover page to show the title above the cover image area when enabled.');
 assert_true(str_contains($exportHtml, '<p class="cover-venue-name">Mainstage</p>'), 'Expected the cover page to show the theatre name on its own line.');
 assert_true(str_contains($exportHtml, '<p class="cover-venue-address">123 Theatre Way</p>'), 'Expected the cover page to show the theatre address on a separate line.');
 assert_true(str_contains($exportHtml, 'LIGHTING SHOP ORDER'), 'Expected the cover page to label the paperwork as a lighting shop order.');
@@ -399,9 +402,11 @@ assert_true(str_contains($exportHtml, 'INITIAL ORDER - 09/01/2026'), 'Expected t
 assert_true(str_contains($exportHtml, '<p class="details-page-heading">CREW &amp; NOTES</p>'), 'Expected the second paperwork page to contain the crew and notes section.');
 assert_true(str_contains($exportHtml, '09/20/2026'), 'Expected show schedule dates to use mm/dd/yyyy formatting.');
 assert_true(str_contains($exportHtml, 'margin-bottom: 0.730in;'), 'Expected the cover title-to-revision spacing to use the saved layout setting.');
-assert_true(str_contains($exportHtml, 'margin-top: 0.9in;'), 'Expected notes to have much more space above them.');
+assert_true(str_contains($exportHtml, 'margin-top: 1.234in;'), 'Expected notes spacing to use the saved layout setting.');
 assert_true(str_contains($exportHtml, 'line-height: 1.55;'), 'Expected the cover page to add more vertical space between lines.');
 assert_true(str_contains($exportHtml, 'cover-footer-logo') && str_contains($exportHtml, 'footer-logo.png'), 'Expected the cover page footer to support a centered personal logo.');
+assert_true(str_contains($exportHtml, 'Prepared by: Caleb Tester'), 'Expected the cover page footer to show the prepared-by name.');
+assert_true(str_contains($exportHtml, '.cover-footer-logo {') && str_contains($exportHtml, 'justify-content: center;'), 'Expected the cover footer logo wrapper to center the logo.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, 'Only lines with changed counts or explicit revision actions are listed here.'), 'Expected revision summary copy to explain the changed-lines filter.');
@@ -420,7 +425,9 @@ assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export 
 assert_true(!str_contains($exportHtml, 'Adapter note'), 'Expected admin inventory default notes to stay off paperwork exports.');
 assert_true((bool) preg_match('/<p class="page-heading">EQUIPMENT BREAKDOWN<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected equipment breakdown to include category header rows followed by repeated table headers.');
 assert_true(str_contains($exportHtml, '<tr class="category-gap-row"><td colspan="7"></td></tr>'), 'Expected export tables to include spacing rows between categories.');
-assert_true(!str_contains($exportHtml, 'page-header-bar'), 'Expected export pages to remove the old per-page top header block.');
+assert_true(substr_count($exportHtml, 'class="page-header-bar"') >= 4, 'Expected every export page to include the old top header block again.');
+assert_true(str_contains($exportHtml, '<strong>Page</strong> 1 of '), 'Expected page headers to include page numbering.');
+assert_true(str_contains($exportHtml, '<strong>Revision</strong> 1.1'), 'Expected page headers to include the current revision.');
 assert_true(str_contains($exportHtml, 'background: #ABCDEF;'), 'Expected export header rows to use the saved header color.');
 assert_true(str_contains($exportHtml, 'background: #FEDCBA;'), 'Expected export category rows to use the saved category color.');
 assert_true(str_contains($exportHtml, 'padding-top: 0.028in;'), 'Expected export header rows to use the saved header row height.');
