@@ -869,6 +869,16 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <div class="helper-text">Set to 0 to let page sizing decide automatically.</div>
           </div>
           <div class="form-group">
+            <label for="revision_summary_min_rows_per_page">Revision Summary Min Rows Per Page</label>
+            <input class="form-control" id="revision_summary_min_rows_per_page" type="text" inputmode="numeric" name="revision_summary_min_rows_per_page" value="<?= h($layout['layout.revision_summary_min_rows_per_page'] ?? '0') ?>">
+            <div class="helper-text">Set to 0 to allow automatic summary page breaks before a minimum row count.</div>
+          </div>
+          <div class="form-group">
+            <label for="revision_summary_max_rows_per_page">Revision Summary Max Rows Per Page</label>
+            <input class="form-control" id="revision_summary_max_rows_per_page" type="text" inputmode="numeric" name="revision_summary_max_rows_per_page" value="<?= h($layout['layout.revision_summary_max_rows_per_page'] ?? '0') ?>">
+            <div class="helper-text">Set to 0 to let summary page sizing decide automatically.</div>
+          </div>
+          <div class="form-group">
             <label for="equipment_row_padding">Line Item Row Padding (in)</label>
             <input class="form-control" id="equipment_row_padding" type="text" inputmode="decimal" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
           </div>

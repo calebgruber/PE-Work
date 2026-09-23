@@ -374,6 +374,24 @@ function export_equipment_page_row_height(array $row, array $metrics): float
     return max(0.18, $baseHeight * $lineCount);
 }
 
+function export_summary_page_row_height(array $row, array $metrics): float
+{
+    $itemLines = export_estimated_line_count((string) ($row['item']['name'] ?? ''), $metrics['columns']['item'], $metrics, 'item');
+    $descriptionLines = export_estimated_line_count((string) ($row['description'] ?? ''), $metrics['columns']['description'], $metrics, 'description');
+    $notesLines = export_estimated_line_count(export_equipment_note($row['item'], $row['line']), $metrics['columns']['notes'], $metrics, 'notes');
+    $lineCount = max($itemLines, $descriptionLines, $notesLines);
+    $rowFontSize = max(
+        (float) ($metrics['column_font_sizes']['item'] ?? $metrics['font_size']),
+        (float) ($metrics['column_font_sizes']['description'] ?? $metrics['font_size']),
+        (float) ($metrics['column_font_sizes']['notes'] ?? $metrics['font_size']),
+        (float) ($metrics['column_font_sizes']['total'] ?? $metrics['font_size']),
+        (float) ($metrics['column_font_sizes']['action'] ?? $metrics['font_size'])
+    );
+    $baseHeight = (($rowFontSize / 72) * $metrics['line_height']) + ($metrics['row_padding'] * 2) + 0.08;
+
+    return max(0.18, $baseHeight * $lineCount);
+}
+
 function export_equipment_header_row_height(array $metrics): float
 {
     return max(0.18, (float) ($metrics['header_row_padding'] ?? 0.22));
@@ -388,6 +406,53 @@ function export_equipment_category_transition_height(bool $hasPreviousCategory, 
 {
     $gapHeight = $hasPreviousCategory ? (float) ($metrics['category_gap'] ?? 0.08) : 0.0;
     return $gapHeight + export_equipment_category_row_height($metrics) + export_equipment_header_row_height($metrics);
+}
+
+function export_summary_pages(array $rows, array $layout): array
+{
+    if (!$rows) {
+        return [[]];
+    }
+
+    $metrics = export_equipment_layout_metrics($layout);
+    $availableHeight = 7.3;
+    $minimumRows = (int) ($layout['layout.revision_summary_min_rows_per_page'] ?? 0);
+    $maximumRows = (int) ($layout['layout.revision_summary_max_rows_per_page'] ?? 0);
+    if ($maximumRows > 0 && $minimumRows > $maximumRows) {
+        $minimumRows = $maximumRows;
+    }
+    $pages = [];
+    $currentPage = [];
+    $currentHeight = 0.0;
+    $currentCategory = null;
+
+    foreach ($rows as $row) {
+        $rowHeight = export_summary_page_row_height($row, $metrics);
+        $transitionHeight = $currentCategory !== $row['category']
+            ? export_equipment_category_transition_height($currentCategory !== null, $metrics)
+            : 0.0;
+        $currentRowCount = count($currentPage);
+        $reachesRowCap = $maximumRows > 0 && $currentRowCount >= $maximumRows;
+        $meetsMinimumRows = $minimumRows === 0 || $currentRowCount >= $minimumRows;
+        if ($currentPage !== [] && ($reachesRowCap || ($meetsMinimumRows && ($currentHeight + $transitionHeight + $rowHeight) > $availableHeight))) {
+            $pages[] = $currentPage;
+            $currentPage = [];
+            $currentHeight = 0.0;
+            $currentCategory = null;
+            $transitionHeight = export_equipment_category_transition_height(false, $metrics);
+        }
+
+        $currentHeight += $transitionHeight;
+        $currentPage[] = $row;
+        $currentHeight += $rowHeight;
+        $currentCategory = $row['category'];
+    }
+
+    if ($currentPage !== []) {
+        $pages[] = $currentPage;
+    }
+
+    return $pages;
 }
 
 function export_equipment_pages(array $rows, array $layout): array
@@ -445,16 +510,19 @@ $catalog = catalog_for_revision((int) $revision['id']);
 $revisionCode = revision_display_code($revision);
 $revisionHistory = export_revision_history($showId, $revision);
 $equipmentRows = export_equipment_rows($catalog, $type);
-$equipmentPages = export_equipment_pages($equipmentRows, $layout);
 $summaryRows = !empty($revision['is_initial']) ? [] : export_summary_rows($catalog, $revision, $type);
+$summaryPages = !empty($revision['is_initial']) ? [] : export_summary_pages($summaryRows, $layout);
+$equipmentPages = export_equipment_pages($equipmentRows, $layout);
 $notes = export_notes_list($layout);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'] . '&export_type=' . rawurlencode((string) $type));
 $renderSummaryPage = empty($revision['is_initial']);
-$pageNumbers = ['cover' => 1, 'details' => 2, 'equipment' => []];
+$pageNumbers = ['cover' => 1, 'details' => 2, 'summary' => [], 'equipment' => []];
 $nextPageNumber = 3;
 if ($renderSummaryPage) {
-    $pageNumbers['summary'] = $nextPageNumber++;
+    foreach ($summaryPages as $_summaryPage) {
+        $pageNumbers['summary'][] = $nextPageNumber++;
+    }
 }
 foreach ($equipmentPages as $_equipmentPage) {
     $pageNumbers['equipment'][] = $nextPageNumber++;
@@ -1088,6 +1156,8 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     </section>
 
     <?php if ($renderSummaryPage): ?>
+    <?php $summaryLineNumber = 1; ?>
+    <?php foreach ($summaryPages as $summaryPageIndex => $summaryPageRows): ?>
     <section class="page">
       <div class="page-content">
       <div class="top-rule">
@@ -1098,7 +1168,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
           </div>
           <div class="page-header-meta">
             <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
-            <?php if ($showPageNumbers): ?><div><strong>Page</strong> <?= h((string) $pageNumbers['summary']) ?> of <?= h((string) $totalPages) ?></div><?php endif; ?>
+            <?php if ($showPageNumbers): ?><div><strong>Page</strong> <?= h((string) $pageNumbers['summary'][$summaryPageIndex]) ?> of <?= h((string) $totalPages) ?></div><?php endif; ?>
           </div>
         </div>
       </div>
@@ -1115,9 +1185,9 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
           <col style="width: <?= h(number_format($equipmentMetrics['columns']['notes'], 3, '.', '')) ?>%;">
         </colgroup>
         <tbody>
-          <?php if ($summaryRows): ?>
+          <?php if ($summaryPageRows): ?>
           <?php $summaryCategory = null; ?>
-          <?php foreach ($summaryRows as $index => $row): ?>
+          <?php foreach ($summaryPageRows as $summaryRowIndex => $row): ?>
           <?php if ($summaryCategory !== $row['category']): ?>
           <?php if ($summaryCategory !== null): ?>
           <tr class="category-gap-row"><td colspan="6"></td></tr>
@@ -1135,8 +1205,8 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
           </tr>
           <?php $summaryCategory = $row['category']; ?>
           <?php endif; ?>
-          <tr style="<?= h(export_row_style($index, $revision, $row['item'], $row['line'], $equipmentZebraGray)) ?>">
-            <td class="line-cell"><?= h((string) ($index + 1)) ?></td>
+          <tr style="<?= h(export_row_style($summaryRowIndex, $revision, $row['item'], $row['line'], $equipmentZebraGray)) ?>">
+            <td class="line-cell"><?= h((string) $summaryLineNumber) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>
             <td class="description-cell"><?= h($row['description']) ?></td>
             <td class="total-cell">
@@ -1152,6 +1222,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
               <?= h($equipmentNote) ?>
             </td>
           </tr>
+          <?php $summaryLineNumber++; ?>
           <?php endforeach; ?>
           <?php else: ?>
           <tr>
@@ -1167,6 +1238,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
         <span><?= h($globalFooterText) ?></span>
       </div>
     </section>
+    <?php endforeach; ?>
     <?php endif; ?>
 
     <?php $lineNumber = 1; ?>

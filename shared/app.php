@@ -2080,6 +2080,8 @@ function export_layout_settings(): array
         'layout.equipment_table_width' => '100',
         'layout.equipment_min_rows_per_page' => '0',
         'layout.equipment_max_rows_per_page' => '0',
+        'layout.revision_summary_min_rows_per_page' => '0',
+        'layout.revision_summary_max_rows_per_page' => '0',
         'layout.equipment_zebra_gray' => '#CCCCCC',
         'layout.equipment_row_padding' => '0.016',
         'layout.equipment_header_row_padding' => '0.22',
@@ -2165,6 +2167,8 @@ function save_export_layout(array $input): void
     save_setting('layout.equipment_table_width', export_layout_number($input, 'equipment_table_width', '100', null, null, 1));
     save_setting('layout.equipment_min_rows_per_page', export_layout_number($input, 'equipment_min_rows_per_page', '0', null, null, 0));
     save_setting('layout.equipment_max_rows_per_page', export_layout_number($input, 'equipment_max_rows_per_page', '0', null, null, 0));
+    save_setting('layout.revision_summary_min_rows_per_page', export_layout_number($input, 'revision_summary_min_rows_per_page', '0', null, null, 0));
+    save_setting('layout.revision_summary_max_rows_per_page', export_layout_number($input, 'revision_summary_max_rows_per_page', '0', null, null, 0));
     save_setting('layout.equipment_zebra_gray', export_layout_color($input, 'equipment_zebra_gray', '#CCCCCC'));
     save_setting('layout.equipment_row_padding', export_layout_number($input, 'equipment_row_padding', '0.016', null, null, 3));
     save_setting('layout.equipment_header_row_padding', export_layout_number($input, 'equipment_header_row_padding', '0.22', null, null, 3));

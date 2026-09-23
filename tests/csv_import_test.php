@@ -324,6 +324,8 @@ save_export_layout([
     'equipment_table_width' => '100',
     'equipment_min_rows_per_page' => '0',
     'equipment_max_rows_per_page' => '0',
+    'revision_summary_min_rows_per_page' => '0',
+    'revision_summary_max_rows_per_page' => '12',
     'equipment_zebra_gray' => '#BBBBBB',
     'equipment_row_padding' => '0.016',
     'equipment_header_row_padding' => '0.280',
@@ -441,6 +443,7 @@ assert_true(str_contains($exportHtml, 'cover-footer-logo') && str_contains($expo
 assert_true(str_contains($exportHtml, 'Prepared by: Caleb Tester'), 'Expected the cover page footer to show the prepared-by name.');
 assert_true(str_contains($exportHtml, '.cover-footer-logo {') && str_contains($exportHtml, 'justify-content: center;'), 'Expected the cover footer logo wrapper to center the logo.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
+assert_true(substr_count($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>') >= 2, 'Expected long revision summaries to spill onto as many additional pages as needed.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, 'Only lines with changed counts or explicit revision actions are listed here.'), 'Expected revision summary copy to explain the changed-lines filter.');
 assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="col-total">TOTAL<\/td>.*?<td class="col-action">ACTION<\/td>.*?<td class="col-notes">NOTES<\/td>/s', $exportHtml), 'Expected revision summary to use total, action, and notes columns.');
@@ -521,6 +524,37 @@ $syntheticAutoPages = export_equipment_pages($tallSyntheticRows, export_layout_s
 $syntheticMinPages = export_equipment_pages($tallSyntheticRows, $syntheticMinOnlyLayout);
 assert_true(count($syntheticAutoPages[0]) < 4, 'Expected automatic pagination to break tall rows before four items.');
 assert_true(count($syntheticMinPages[0]) === 4 && count($syntheticMinPages[1]) === 1, 'Expected configured minimum rows per page to keep at least the minimum rows together when possible.');
+$syntheticSummaryLayout = export_layout_settings();
+$syntheticSummaryLayout['layout.revision_summary_min_rows_per_page'] = '4';
+$syntheticSummaryLayout['layout.revision_summary_max_rows_per_page'] = '2';
+$syntheticSummaryRows = [];
+for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
+    $syntheticSummaryRows[] = [
+        'category' => 'Fixtures',
+        'description' => 'Fixtures',
+        'item' => ['id' => $syntheticIndex + 1, 'name' => 'Synthetic Summary Item ' . $syntheticIndex, 'default_note' => ''],
+        'line' => ['total_quantity' => 1, 'action' => 'add', 'line_note' => ''],
+    ];
+}
+$syntheticSummaryPages = export_summary_pages($syntheticSummaryRows, $syntheticSummaryLayout);
+assert_true(count($syntheticSummaryPages) === 3, 'Expected configured max rows per page to cap revision summary pagination.');
+assert_true(count($syntheticSummaryPages[0]) === 2 && count($syntheticSummaryPages[1]) === 2 && count($syntheticSummaryPages[2]) === 1, 'Expected synthetic revision summary page chunking to preserve row limits.');
+$syntheticSummaryMinOnlyLayout = export_layout_settings();
+$syntheticSummaryMinOnlyLayout['layout.revision_summary_min_rows_per_page'] = '4';
+$syntheticSummaryMinOnlyLayout['layout.revision_summary_max_rows_per_page'] = '0';
+$tallSyntheticSummaryRows = [];
+for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
+    $tallSyntheticSummaryRows[] = [
+        'category' => 'Very Long Category Label ' . str_repeat('Alpha ', 30),
+        'description' => 'Very Long Description ' . str_repeat('Beta ', 25),
+        'item' => ['id' => $syntheticIndex + 10, 'name' => 'Tall Synthetic Summary Item ' . $syntheticIndex, 'default_note' => ''],
+        'line' => ['total_quantity' => 1, 'action' => 'note', 'line_note' => str_repeat('This is a very long revision summary note to force wrapping. ', 20)],
+    ];
+}
+$syntheticSummaryAutoPages = export_summary_pages($tallSyntheticSummaryRows, export_layout_settings());
+$syntheticSummaryMinPages = export_summary_pages($tallSyntheticSummaryRows, $syntheticSummaryMinOnlyLayout);
+assert_true(count($syntheticSummaryAutoPages[0]) < 4, 'Expected automatic revision summary pagination to break tall rows before four items.');
+assert_true(count($syntheticSummaryMinPages[0]) === 4 && count($syntheticSummaryMinPages[1]) === 1, 'Expected configured minimum rows per page to keep revision summary rows together when possible.');
 
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);
@@ -654,6 +688,8 @@ assert_true(array_key_exists('layout.export_notes', $layoutDefaults), 'Expected 
 assert_true(array_key_exists('layout.equipment_table_width', $layoutDefaults), 'Expected export layout defaults to include equipment table sizing.');
 assert_true(array_key_exists('layout.equipment_min_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment min rows per page.');
 assert_true(array_key_exists('layout.equipment_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment max rows per page.');
+assert_true(array_key_exists('layout.revision_summary_min_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include revision summary min rows per page.');
+assert_true(array_key_exists('layout.revision_summary_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include revision summary max rows per page.');
 assert_true(array_key_exists('layout.equipment_zebra_gray', $layoutDefaults), 'Expected export layout defaults to include equipment zebra gray.');
 assert_true(array_key_exists('layout.equipment_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment line height.');
 assert_true(array_key_exists('layout.equipment_col_line', $layoutDefaults), 'Expected export layout defaults to include line-number width.');
@@ -670,6 +706,8 @@ save_export_layout([
     'equipment_table_width' => '132.40',
     'equipment_min_rows_per_page' => '111',
     'equipment_max_rows_per_page' => '222',
+    'revision_summary_min_rows_per_page' => '333',
+    'revision_summary_max_rows_per_page' => '444',
     'equipment_zebra_gray' => '#BBBBBB',
     'equipment_row_padding' => '0.123',
     'equipment_header_row_padding' => '1.25',
@@ -699,6 +737,8 @@ assert_true(($savedLayout['layout.export_notes'] ?? '') === "One\nTwo", 'Expecte
 assert_true(($savedLayout['layout.equipment_table_width'] ?? '') === '132.40', 'Expected equipment table width to persist in export layout settings without reformatting.');
 assert_true(($savedLayout['layout.equipment_min_rows_per_page'] ?? '') === '111', 'Expected equipment min rows per page to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.equipment_max_rows_per_page'] ?? '') === '222', 'Expected equipment max rows per page to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_min_rows_per_page'] ?? '') === '333', 'Expected revision summary min rows per page to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_max_rows_per_page'] ?? '') === '444', 'Expected revision summary max rows per page to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.equipment_zebra_gray'] ?? '') === '#BBBBBB', 'Expected equipment zebra gray to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_line_height'] ?? '') === '4.6', 'Expected equipment line height to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.equipment_col_line'] ?? '') === '18.5', 'Expected line-number width to persist in export layout settings without limits.');
