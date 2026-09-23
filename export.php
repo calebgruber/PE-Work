@@ -233,11 +233,8 @@ function export_equipment_note(array $item, array $line): string
 {
     $parts = [];
     $lineNote = trim((string) ($line['line_note'] ?? ''));
-    $defaultNote = trim((string) ($item['default_note'] ?? ''));
     if ($lineNote !== '') {
         $parts[] = $lineNote;
-    } elseif ($defaultNote !== '') {
-        $parts[] = $defaultNote;
     }
     if (!empty($line['pickup_date'])) {
         $parts[] = 'Pull ' . $line['pickup_date'];
@@ -364,7 +361,7 @@ $catalog = catalog_for_revision((int) $revision['id']);
 $revisionCode = revision_display_code($revision);
 $equipmentRows = export_equipment_rows($catalog, $type);
 $equipmentPages = export_equipment_pages($equipmentRows, $layout);
-$summaryRows = (($layout['layout.show_revision_summary'] ?? '1') === '1') ? export_summary_rows($catalog, $revision, $type) : [];
+$summaryRows = !empty($revision['is_initial']) ? [] : export_summary_rows($catalog, $revision, $type);
 $notes = export_notes_list($layout, $show);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'] . '&export_type=' . rawurlencode((string) $type));
@@ -851,7 +848,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
         </thead>
         <tbody>
           <?php foreach ($equipmentPageRows as $pageRowIndex => $row): ?>
-          <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'rent_quantity'); ?>
+          <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
           <tr style="<?= h(export_row_style($pageRowIndex, $revision, $row['item'], $row['line'])) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>
