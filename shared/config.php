@@ -59,6 +59,13 @@ defined('ALLOW_SQLITE_FOR_TESTS') || define('ALLOW_SQLITE_FOR_TESTS', false);
 date_default_timezone_set(APP_TIMEZONE);
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
+    $httpsEnabled = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443);
+    session_set_cookie_params([
+        'httponly' => true,
+        'secure' => $httpsEnabled,
+        'samesite' => 'Lax',
+    ]);
     session_name(SESSION_NAME);
     session_start();
 }

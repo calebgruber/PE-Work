@@ -231,15 +231,28 @@ function import_inventory_csv_from_handle($handle): array
 
     $created = 0;
     $updated = 0;
-    $lookupWithCategory = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id = ? AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
-    $lookupByName = db()->prepare('SELECT id, is_active FROM inventory_items WHERE name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
-    $updateItem = db()->prepare(
-        'UPDATE inventory_items
-         SET category_id = ?, shop_quantity = ?, unit = ?, default_note = ?, description = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?'
-    );
+    $lookupWithCategory = db()->prepare('SELECT * FROM inventory_items WHERE category_id = ? AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
+    $lookupByName = db()->prepare('SELECT * FROM inventory_items WHERE name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
     $supportsSortOrder = table_column_exists('inventory_items', 'sort_order');
     $supportsSpacer = table_column_exists('inventory_items', 'is_spacer');
+    $updateFields = ['name = ?', 'category_id = ?'];
+    if ($supportsSortOrder) {
+        $updateFields[] = 'sort_order = ?';
+    }
+    $updateFields[] = 'shop_quantity = ?';
+    $updateFields[] = 'unit = ?';
+    $updateFields[] = 'default_note = ?';
+    $updateFields[] = 'description = ?';
+    if ($supportsSpacer) {
+        $updateFields[] = 'is_spacer = ?';
+    }
+    $updateFields[] = 'is_active = 1';
+    $updateFields[] = 'updated_at = CURRENT_TIMESTAMP';
+    $updateItem = db()->prepare(
+        'UPDATE inventory_items
+         SET ' . implode(', ', $updateFields) . '
+         WHERE id = ?'
+    );
     $insertColumns = ['category_id', 'name'];
     if ($supportsSortOrder) {
         $insertColumns[] = 'sort_order';
@@ -283,7 +296,19 @@ function import_inventory_csv_from_handle($handle): array
         $itemId = $existing['id'] ?? null;
 
         if ($itemId) {
-            $updateItem->execute([$categoryId, $shopQuantity, $unit, $defaultNote, $description, $itemId]);
+            $updateParams = [$name, $categoryId];
+            if ($supportsSortOrder) {
+                $currentCategoryId = (int) ($existing['category_id'] ?? 0);
+                $updateParams[] = $currentCategoryId === $categoryId
+                    ? max(0, (int) ($existing['sort_order'] ?? 0))
+                    : next_inventory_item_sort_order($categoryId);
+            }
+            $updateParams = array_merge($updateParams, [$shopQuantity, $unit, $defaultNote, $description]);
+            if ($supportsSpacer) {
+                $updateParams[] = 0;
+            }
+            $updateParams[] = $itemId;
+            $updateItem->execute($updateParams);
             $updated++;
         } else {
             $insertParams = [$categoryId, $name];
@@ -1288,13 +1313,20 @@ function store_resource_upload(array $file, string $title = ''): array
         'INSERT INTO resources (title, original_name, stored_name, mime_type, file_size)
          VALUES (?, ?, ?, ?, ?)'
     );
-    $stmt->execute([
-        $resourceTitle,
-        $originalName,
-        $storedName,
-        'application/pdf',
-        max(0, (int) ($file['size'] ?? filesize($destination))),
-    ]);
+    try {
+        $stmt->execute([
+            $resourceTitle,
+            $originalName,
+            $storedName,
+            'application/pdf',
+            max(0, (int) ($file['size'] ?? filesize($destination))),
+        ]);
+    } catch (Throwable $e) {
+        if (is_file($destination)) {
+            @unlink($destination);
+        }
+        throw $e;
+    }
 
     return ['ok' => true, 'message' => 'Resource uploaded.'];
 }

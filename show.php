@@ -433,15 +433,15 @@ if ($mode === 'edit' && $showId && $currentRevision) {
     <?php ui_card_close(); ?>
   <?php else: ?>
     <nav class="pill-row workspace-tabs" aria-label="Show workspace sections">
-      <a class="tab<?= $tab === 'info' ? ' active' : '' ?>" aria-current="<?= $tab === 'info' ? 'page' : 'false' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=info')) ?>">
+      <a class="tab<?= $tab === 'info' ? ' active' : '' ?>"<?= $tab === 'info' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=info')) ?>">
         <span class="material-symbols-outlined">badge</span>
         Show Information
       </a>
-      <a class="tab<?= $tab === 'orders' ? ' active' : '' ?>" aria-current="<?= $tab === 'orders' ? 'page' : 'false' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=orders')) ?>">
+      <a class="tab<?= $tab === 'orders' ? ' active' : '' ?>"<?= $tab === 'orders' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=orders')) ?>">
         <span class="material-symbols-outlined">assignment</span>
         Orders
       </a>
-      <a class="tab<?= $tab === 'revisions' ? ' active' : '' ?>" aria-current="<?= $tab === 'revisions' ? 'page' : 'false' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=revisions')) ?>">
+      <a class="tab<?= $tab === 'revisions' ? ' active' : '' ?>"<?= $tab === 'revisions' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=revisions')) ?>">
         <span class="material-symbols-outlined">history</span>
         Revisions
       </a>

@@ -167,11 +167,11 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
   <?php ui_flash(); ?>
 
   <nav class="tabs" aria-label="Settings sections">
-    <a class="tab<?= $tab === 'inventory' ? ' active' : '' ?>" aria-current="<?= $tab === 'inventory' ? 'page' : 'false' ?>" href="<?= h(url_for('settings?tab=inventory')) ?>"><span class="material-symbols-outlined">inventory_2</span>Inventory</a>
-    <a class="tab<?= $tab === 'resources' ? ' active' : '' ?>" aria-current="<?= $tab === 'resources' ? 'page' : 'false' ?>" href="<?= h(url_for('settings?tab=resources')) ?>"><span class="material-symbols-outlined">folder</span>Resources</a>
-    <a class="tab<?= $tab === 'rules' ? ' active' : '' ?>" aria-current="<?= $tab === 'rules' ? 'page' : 'false' ?>" href="<?= h(url_for('settings?tab=rules')) ?>"><span class="material-symbols-outlined">rule</span>Rules</a>
-    <a class="tab<?= $tab === 'layout' ? ' active' : '' ?>" aria-current="<?= $tab === 'layout' ? 'page' : 'false' ?>" href="<?= h(url_for('settings?tab=layout')) ?>"><span class="material-symbols-outlined">dashboard_customize</span>Layout</a>
-    <a class="tab<?= $tab === 'migrations' ? ' active' : '' ?>" aria-current="<?= $tab === 'migrations' ? 'page' : 'false' ?>" href="<?= h(url_for('settings?tab=migrations')) ?>"><span class="material-symbols-outlined">database</span>Migrations</a>
+    <a class="tab<?= $tab === 'inventory' ? ' active' : '' ?>"<?= $tab === 'inventory' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=inventory')) ?>"><span class="material-symbols-outlined">inventory_2</span>Inventory</a>
+    <a class="tab<?= $tab === 'resources' ? ' active' : '' ?>"<?= $tab === 'resources' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=resources')) ?>"><span class="material-symbols-outlined">folder</span>Resources</a>
+    <a class="tab<?= $tab === 'rules' ? ' active' : '' ?>"<?= $tab === 'rules' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=rules')) ?>"><span class="material-symbols-outlined">rule</span>Rules</a>
+    <a class="tab<?= $tab === 'layout' ? ' active' : '' ?>"<?= $tab === 'layout' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=layout')) ?>"><span class="material-symbols-outlined">dashboard_customize</span>Layout</a>
+    <a class="tab<?= $tab === 'migrations' ? ' active' : '' ?>"<?= $tab === 'migrations' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=migrations')) ?>"><span class="material-symbols-outlined">database</span>Migrations</a>
   </nav>
 
   <?php if ($tab === 'inventory'): ?>
