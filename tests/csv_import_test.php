@@ -135,6 +135,12 @@ $movedCategoryStmt->execute(['Source Four']);
 assert_true(($movedCategoryStmt->fetchColumn() ?? '') === 'Control', 'Expected moved-category CSV import to update the existing item category.');
 assert_true((int) db()->query("SELECT COUNT(*) FROM inventory_items WHERE name = 'Source Four'")->fetchColumn() === 1, 'Expected moved-category CSV import to avoid creating duplicates.');
 
+file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nMoved Ordering,Second Item,2,ea,,\n");
+$orderingMoveResult = import_inventory_csv($validCsv);
+assert_true($orderingMoveResult['ok'] === true, 'Expected category move import for ordered items to succeed.');
+$orderingSpacerSortOrder = (int) db()->query("SELECT sort_order FROM inventory_items WHERE name = 'Spacer Break'")->fetchColumn();
+assert_true($orderingSpacerSortOrder === 1, 'Expected moving an ordered item out of a category to normalize the remaining sort order.');
+
 $dynamicCsv = tempnam(sys_get_temp_dir(), 'pew-dynamic-');
 file_put_contents($dynamicCsv, "category,name,shop_quantity,unit,default_note,description\nPracticals,Lamp Cart,3,ea,Practical carts,Dynamic category import\n");
 $dynamicResult = import_inventory_csv($dynamicCsv);

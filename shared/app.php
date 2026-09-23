@@ -284,6 +284,7 @@ function import_inventory_csv_from_handle($handle): array
         'INSERT INTO inventory_items (' . implode(', ', $insertColumns) . ')
          VALUES (' . implode(', ', $insertPlaceholders) . ')'
     );
+    $sourceCategoriesToNormalize = [];
     while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
         $category = normalize_csv_value($row[$headerMap['category']] ?? '');
         $name = normalize_csv_value($row[$headerMap['name']] ?? '');
@@ -320,6 +321,9 @@ function import_inventory_csv_from_handle($handle): array
                 $updateParams[] = $currentCategoryId === $categoryId
                     ? max(0, (int) ($existing['sort_order'] ?? 0))
                     : next_inventory_item_sort_order($categoryId);
+                if ($currentCategoryId > 0 && $currentCategoryId !== $categoryId) {
+                    $sourceCategoriesToNormalize[$currentCategoryId] = true;
+                }
             }
             $updateParams = array_merge($updateParams, [$shopQuantity, $unit, $defaultNote, $description]);
             if ($supportsSpacer) {
@@ -343,6 +347,10 @@ function import_inventory_csv_from_handle($handle): array
     }
 
     fclose($handle);
+
+    foreach (array_keys($sourceCategoriesToNormalize) as $sourceCategoryId) {
+        normalize_inventory_category_sort_order((int) $sourceCategoryId);
+    }
 
     return ['ok' => true, 'message' => sprintf('Import complete: %d created, %d updated.', $created, $updated)];
 }
@@ -1068,6 +1076,27 @@ function next_inventory_item_sort_order(?int $categoryId): int
     return (int) db()->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM inventory_items')->fetchColumn();
 }
 
+function normalize_inventory_category_sort_order(int $categoryId): void
+{
+    if ($categoryId <= 0 || !table_column_exists('inventory_items', 'sort_order')) {
+        return;
+    }
+
+    $stmt = db()->prepare(
+        'SELECT id
+         FROM inventory_items
+         WHERE category_id = ? AND is_active = 1
+         ORDER BY COALESCE(sort_order, 0) ASC, name ASC, id ASC'
+    );
+    $stmt->execute([$categoryId]);
+    $update = db()->prepare('UPDATE inventory_items SET sort_order = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $sortOrder = 1;
+    foreach ($stmt->fetchAll() as $row) {
+        $update->execute([$sortOrder, (int) $row['id']]);
+        $sortOrder++;
+    }
+}
+
 function unique_inventory_item_name(int $categoryId, string $baseName): string
 {
     $baseName = trim($baseName) !== '' ? trim($baseName) : 'Spacer';
@@ -1434,13 +1463,24 @@ function delete_inventory_item(int $itemId): array
 
 function clear_inventory_items(): array
 {
-    if (table_exists('revision_items')) {
-        db()->exec('DELETE FROM revision_items');
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        if (table_exists('revision_items')) {
+            $pdo->exec('DELETE FROM revision_items');
+        }
+        $pdo->exec('DELETE FROM inventory_items');
+        if (table_exists('inventory_categories')) {
+            $pdo->exec('DELETE FROM inventory_categories');
+        }
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
     }
-    db()->exec('DELETE FROM inventory_items');
-    if (table_exists('inventory_categories')) {
-        db()->exec('DELETE FROM inventory_categories');
-    }
+
     return ['ok' => true, 'message' => 'All inventory items removed.'];
 }
 
