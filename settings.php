@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . url_for('settings?tab=migrations'));
         exit;
     } elseif (schema_ready()) {
-        if ($action === 'save_inventory') {
+        if ($action === 'save_inventory' || $action === 'save_inventory_item') {
             save_inventory_batch($_POST['items'] ?? []);
             flash('success', 'Inventory updates saved.');
             header('Location: ' . url_for('settings?tab=inventory'));
@@ -222,7 +222,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                 <div class="inventory-item-wrap" data-inventory-item data-item-name="<?= h(strtolower($item['name'] . ' ' . ($item['description'] ?? '') . ' ' . ($item['default_note'] ?? ''))) ?>">
                   <form method="post" class="inventory-item-card">
                     <?= csrf_input() ?>
-                    <input type="hidden" name="action" value="save_inventory">
+                    <input type="hidden" name="action" value="save_inventory_item">
                     <div class="inventory-item-header">
                       <div>
                         <h3><?= h($item['name']) ?></h3>

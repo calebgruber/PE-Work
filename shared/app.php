@@ -232,10 +232,10 @@ function import_inventory_csv_from_handle($handle): array
     $created = 0;
     $updated = 0;
     $lookupWithCategory = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id = ? AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
-    $lookupWithoutCategory = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id IS NULL AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
+    $lookupByName = db()->prepare('SELECT id, is_active FROM inventory_items WHERE name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
     $updateItem = db()->prepare(
         'UPDATE inventory_items
-         SET shop_quantity = ?, unit = ?, default_note = ?, description = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
+         SET category_id = ?, shop_quantity = ?, unit = ?, default_note = ?, description = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?'
     );
     $supportsSortOrder = table_column_exists('inventory_items', 'sort_order');
@@ -274,13 +274,16 @@ function import_inventory_csv_from_handle($handle): array
             $lookupWithCategory->execute([$categoryId, $name]);
             $existing = $lookupWithCategory->fetch();
         } else {
-            $lookupWithoutCategory->execute([$name]);
-            $existing = $lookupWithoutCategory->fetch();
+            $existing = false;
+        }
+        if (!$existing) {
+            $lookupByName->execute([$name]);
+            $existing = $lookupByName->fetch();
         }
         $itemId = $existing['id'] ?? null;
 
         if ($itemId) {
-            $updateItem->execute([$shopQuantity, $unit, $defaultNote, $description, $itemId]);
+            $updateItem->execute([$categoryId, $shopQuantity, $unit, $defaultNote, $description, $itemId]);
             $updated++;
         } else {
             $insertParams = [$categoryId, $name];
@@ -564,6 +567,14 @@ function find_revision(int $revisionId): ?array
     return $revision ?: null;
 }
 
+function find_revision_by_identity(int $showId, string $revisionCode, int $revisionIndex): ?array
+{
+    $stmt = db()->prepare('SELECT * FROM show_revisions WHERE show_id = ? AND revision_code = ? AND revision_index = ? LIMIT 1');
+    $stmt->execute([$showId, $revisionCode, $revisionIndex]);
+    $revision = $stmt->fetch();
+    return $revision ?: null;
+}
+
 function revision_alpha(int $index): string
 {
     $value = '';
@@ -634,9 +645,9 @@ function create_next_revision(int $showId): int
             $pdo->rollBack();
         }
         if (is_unique_constraint_violation($e)) {
-            $latest = find_latest_revision($showId);
-            if ($latest) {
-                return (int) $latest['id'];
+            $existing = find_revision_by_identity($showId, $code, $nextIndex);
+            if ($existing) {
+                return (int) $existing['id'];
             }
         }
         throw $e;

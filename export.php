@@ -65,6 +65,7 @@ $titleMap = [
 ];
 $pageTitle = $titleMap[$type] ?? $titleMap['order'];
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
+$editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -82,7 +83,7 @@ $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 <body>
   <div class="print-shell">
     <div class="print-toolbar">
-      <a class="btn btn-ghost" href="<?= h(url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'])) ?>">
+      <a class="btn btn-ghost" href="<?= h($editorUrl) ?>">
         <span class="material-symbols-outlined">arrow_back</span>
         Back
       </a>

@@ -106,6 +106,14 @@ assert_true($updateResult['ok'] === true, 'Expected second valid CSV import to s
 $stmt->execute(['Source Four']);
 assert_true((int) $stmt->fetchColumn() === 12, 'Expected repeated import to update the existing item.');
 
+file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nControl,Source Four,15,ea,Moved category,Updated import\n");
+$moveResult = import_inventory_csv($validCsv);
+assert_true($moveResult['ok'] === true, 'Expected moved-category CSV import to succeed.');
+$movedCategoryStmt = db()->prepare('SELECT c.name AS category_name FROM inventory_items i LEFT JOIN inventory_categories c ON c.id = i.category_id WHERE i.name = ? LIMIT 1');
+$movedCategoryStmt->execute(['Source Four']);
+assert_true(($movedCategoryStmt->fetchColumn() ?? '') === 'Control', 'Expected moved-category CSV import to update the existing item category.');
+assert_true((int) db()->query("SELECT COUNT(*) FROM inventory_items WHERE name = 'Source Four'")->fetchColumn() === 1, 'Expected moved-category CSV import to avoid creating duplicates.');
+
 $dynamicCsv = tempnam(sys_get_temp_dir(), 'pew-dynamic-');
 file_put_contents($dynamicCsv, "category,name,shop_quantity,unit,default_note,description\nPracticals,Lamp Cart,3,ea,Practical carts,Dynamic category import\n");
 $dynamicResult = import_inventory_csv($dynamicCsv);
