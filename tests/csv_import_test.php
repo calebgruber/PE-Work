@@ -308,6 +308,7 @@ save_export_layout([
     'export_notes' => "Default note one\nDefault note two",
     'show_page_numbers' => '1',
     'show_revision_summary' => '1',
+    'cover_title_revision_spacing' => '0.73',
     'equipment_table_width' => '100',
     'equipment_min_rows_per_page' => '0',
     'equipment_max_rows_per_page' => '0',
@@ -355,6 +356,12 @@ save_revision_lines($nextRevisionId, [
         'spare_quantity' => 0,
         'action' => 'add',
     ],
+    $lateAddedItemId => [
+        'rent_quantity' => 3,
+        'spare_quantity' => 1,
+        'action' => '',
+        'line_note' => 'Changed without an explicit action.',
+    ],
 ]);
 $bulkRevisionLines = [];
 for ($bulkIndex = 1; $bulkIndex <= 72; $bulkIndex++) {
@@ -382,18 +389,24 @@ assert_true(str_contains($exportHtml, 'Pull October 2 2026'), 'Expected equipmen
 assert_true(str_contains($exportHtml, 'Return October 16 2026'), 'Expected equipment breakdown notes to include item-specific return dates in month day year format.');
 assert_true(str_contains($exportHtml, 'Latest revision should clone from here.'), 'Expected order or revision line notes to print on the breakdown paperwork.');
 assert_true(str_contains($exportHtml, '<div class="cover-title-fallback">Revision Clone Test</div>'), 'Expected the cover page to fall back to the show title when no show image is configured.');
-assert_true(str_contains($exportHtml, 'Mainstage · 123 Theatre Way'), 'Expected the cover page to show theatre name and address.');
+assert_true(str_contains($exportHtml, '<p class="cover-venue-name">Mainstage</p>'), 'Expected the cover page to show the theatre name on its own line.');
+assert_true(str_contains($exportHtml, '<p class="cover-venue-address">123 Theatre Way</p>'), 'Expected the cover page to show the theatre address on a separate line.');
 assert_true(str_contains($exportHtml, 'LIGHTING SHOP ORDER'), 'Expected the cover page to label the paperwork as a lighting shop order.');
 assert_true(str_contains($exportHtml, '&gt;&gt; REVISION 1.1 - September 15 2026 &lt;&lt;'), 'Expected the cover page to highlight the current revision with arrows and a formatted date.');
 assert_true(str_contains($exportHtml, 'INITIAL ORDER - September 1 2026'), 'Expected the cover page to list past revision dates.');
 assert_true(str_contains($exportHtml, '<p class="details-page-heading">CREW &amp; NOTES</p>'), 'Expected the second paperwork page to contain the crew and notes section.');
 assert_true(str_contains($exportHtml, 'September 20 2026'), 'Expected show schedule dates to use month day year formatting.');
+assert_true(str_contains($exportHtml, 'margin-bottom: 0.730in;'), 'Expected the cover title-to-revision spacing to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'margin-top: 0.42in;'), 'Expected notes to have more space above them.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, 'Only lines with changed counts or explicit revision actions are listed here.'), 'Expected revision summary copy to explain the changed-lines filter.');
-assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<th class="col-used">USED<\/th>.*?<th class="col-spare">SPARE<\/th>.*?<th class="col-total">TOTAL<\/th>.*?<th class="col-notes">NOTES<\/th>/s', $exportHtml), 'Expected revision summary to use the same breakdown-style table columns.');
-assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?EXCHANGE.*?9\s*<span class="delta delta-positive">\(\+1\)<\/span>/s', $exportHtml), 'Expected revision summary to list changed rows with action notes and total deltas.');
-assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected revision summary to include category headers followed by repeated table headers.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="col-used">USED<\/td>.*?<td class="col-action">ACTION<\/td>.*?<td class="col-notes">NOTES<\/td>/s', $exportHtml), 'Expected revision summary to use used, action, and notes columns.');
+assert_true(!str_contains($exportHtml, '<td class="col-spare">SPARE</td>'), 'Expected revision summary to remove the spare column.');
+assert_true(!str_contains($exportHtml, '<td class="col-total">TOTAL</td>'), 'Expected revision summary to remove the total column.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="description-cell">Manual test fixture row<\/td>.*?<td>EXCHANGE<\/td>.*?Latest revision should clone from here\./s', $exportHtml), 'Expected revision summary to show description, explicit action, and notes in separate columns.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">Late Added Feeder<\/td>.*?<td>CHANGE<\/td>.*?Changed without an explicit action\./s', $exportHtml), 'Expected revision summary rows without an explicit action to display CHANGE.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<tr class="category-header-row">\s*<td colspan="6">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected revision summary to include category headers followed by repeated table headers.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
 assert_true((bool) preg_match('/>\s*9\s*<span class="delta delta-positive">\(\+1\)<\/span>/', $exportHtml), 'Expected equipment breakdown totals to show total-quantity deltas in black text.');
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
@@ -404,6 +417,7 @@ assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export 
 assert_true(!str_contains($exportHtml, 'Adapter note'), 'Expected admin inventory default notes to stay off paperwork exports.');
 assert_true((bool) preg_match('/<p class="page-heading">EQUIPMENT BREAKDOWN<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected equipment breakdown to include category header rows followed by repeated table headers.');
 assert_true(str_contains($exportHtml, '<tr class="category-gap-row"><td colspan="7"></td></tr>'), 'Expected export tables to include spacing rows between categories.');
+assert_true(!str_contains($exportHtml, 'page-header-bar'), 'Expected export pages to remove the old per-page top header block.');
 assert_true(str_contains($exportHtml, 'background: #ABCDEF;'), 'Expected export header rows to use the saved header color.');
 assert_true(str_contains($exportHtml, 'background: #FEDCBA;'), 'Expected export category rows to use the saved category color.');
 assert_true(str_contains($exportHtml, 'padding-top: 0.028in;'), 'Expected export header rows to use the saved header row height.');

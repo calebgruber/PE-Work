@@ -2017,6 +2017,7 @@ function export_layout_settings(): array
         'layout.show_image' => '1',
         'layout.show_page_numbers' => '1',
         'layout.show_revision_summary' => '1',
+        'layout.cover_title_revision_spacing' => '0.52',
         'layout.equipment_table_width' => '100',
         'layout.equipment_min_rows_per_page' => '0',
         'layout.equipment_max_rows_per_page' => '0',
@@ -2075,6 +2076,7 @@ function save_export_layout(array $input): void
     save_setting('layout.show_image', !empty($input['show_image']) ? '1' : '0');
     save_setting('layout.show_page_numbers', !empty($input['show_page_numbers']) ? '1' : '0');
     save_setting('layout.show_revision_summary', !empty($input['show_revision_summary']) ? '1' : '0');
+    save_setting('layout.cover_title_revision_spacing', export_layout_number($input, 'cover_title_revision_spacing', 0.52, 0.05, 2.0, 3));
     save_setting('layout.equipment_table_width', export_layout_number($input, 'equipment_table_width', 100, 70, 100, 1));
     save_setting('layout.equipment_min_rows_per_page', export_layout_number($input, 'equipment_min_rows_per_page', 0, 0, 100, 0));
     save_setting('layout.equipment_max_rows_per_page', export_layout_number($input, 'equipment_max_rows_per_page', 0, 0, 100, 0));

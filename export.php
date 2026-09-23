@@ -237,6 +237,17 @@ function export_revision_history_label(array $revision): string
     return 'REVISION ' . revision_display_code($revision) . ' - ' . export_paperwork_date((string) ($revision['revision_date'] ?? ''), '');
 }
 
+function export_summary_action_label(array $line): string
+{
+    return match ((string) ($line['action'] ?? '')) {
+        'add' => 'ADD',
+        'return' => 'RETURN',
+        'exchange' => 'EXCHANGE',
+        'note' => 'SEE NOTES',
+        default => 'CHANGE',
+    };
+}
+
 function export_equipment_note(array $item, array $line): string
 {
     $parts = [];
@@ -428,11 +439,9 @@ $equipmentCategoryFill = strtoupper(trim((string) ($layout['layout.equipment_cat
 if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentCategoryFill)) {
     $equipmentCategoryFill = '#E5E7EB';
 }
-$coverVenueParts = array_values(array_filter([
-    trim((string) ($show['theatre_name'] ?? '')),
-    trim((string) ($show['theatre_address'] ?? '')),
-], static fn ($value) => $value !== ''));
-$coverVenue = implode(' · ', $coverVenueParts);
+$coverTitleRevisionSpacing = max(0.05, min(2.0, (float) ($layout['layout.cover_title_revision_spacing'] ?? 0.52)));
+$coverTheatreName = trim((string) ($show['theatre_name'] ?? ''));
+$coverTheatreAddress = trim((string) ($show['theatre_address'] ?? ''));
 $coverTitle = $type === 'order' ? 'LIGHTING SHOP ORDER' : strtoupper($labels['title']);
 $showImagePath = trim((string) ($show['show_image_url'] ?? ''));
 $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') === '1' ? url_for($showImagePath) : '';
@@ -504,37 +513,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       min-height: 0;
       overflow: hidden;
     }
-    .top-rule {
-      border-bottom: 1px solid #000;
-      padding-bottom: 0.08in;
-      margin-bottom: 0.12in;
-    }
-    .top-rule p,
     .page p { margin: 0 0 0.08in; }
-    .page-header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 0.3in;
-    }
-    .page-header-title {
-      min-width: 0;
-    }
-    .page-header-title strong {
-      display: block;
-      font-size: 13pt;
-    }
-    .page-header-subtitle {
-      margin-top: 0.03in;
-      font-size: 9pt;
-      color: #4b5563;
-    }
-    .page-header-meta {
-      min-width: 1.55in;
-      text-align: right;
-      font-size: 9pt;
-      line-height: 1.35;
-    }
     .cover-page {
       padding: 0.55in 0.7in 0.42in;
     }
@@ -566,14 +545,19 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       font-weight: 600;
       letter-spacing: 0.01em;
     }
-    .cover-venue {
-      margin-bottom: 0.1in;
+    .cover-venue-name {
+      margin-bottom: 0.04in;
       font-size: 18pt;
       font-style: italic;
       letter-spacing: 0.01em;
     }
+    .cover-venue-address {
+      margin-bottom: 0.1in;
+      font-size: 15pt;
+      letter-spacing: 0.01em;
+    }
     .cover-document-title {
-      margin-bottom: 0.52in;
+      margin-bottom: <?= h(number_format($coverTitleRevisionSpacing, 3, '.', '')) ?>in;
       font-size: 25pt;
       letter-spacing: 0.02em;
     }
@@ -661,7 +645,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       gap: 0.1in 0.16in;
     }
     .notes-heading {
-      margin-top: 0.22in;
+      margin-top: 0.42in;
       text-decoration: underline;
       font-weight: 600;
     }
@@ -823,7 +807,8 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
           <div class="cover-title-fallback"><?= h($show['show_name']) ?></div>
           <?php endif; ?>
         </div>
-        <?php if ($coverVenue !== ''): ?><p class="cover-venue"><?= h($coverVenue) ?></p><?php endif; ?>
+        <?php if ($coverTheatreName !== ''): ?><p class="cover-venue-name"><?= h($coverTheatreName) ?></p><?php endif; ?>
+        <?php if ($coverTheatreAddress !== ''): ?><p class="cover-venue-address"><?= h($coverTheatreAddress) ?></p><?php endif; ?>
         <p class="cover-document-title"><?= h($coverTitle) ?></p>
         <p class="cover-revision-current">&gt;&gt; <?= h(export_revision_history_label($revision)) ?> &lt;&lt;</p>
         <?php if (count($revisionHistory) > 1): ?>
@@ -843,18 +828,6 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
 
     <section class="page details-page">
       <div class="page-content">
-      <div class="top-rule">
-        <div class="page-header-bar">
-          <div class="page-header-title">
-            <strong><?= h($show['show_name']) ?></strong>
-            <div class="page-header-subtitle"><?= h($coverTitle) ?></div>
-          </div>
-          <div class="page-header-meta">
-            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
-            <div><strong>Page</strong> <?= h((string) $pageNumbers['details']) ?> of <?= h((string) $totalPages) ?></div>
-          </div>
-        </div>
-      </div>
       <p class="details-page-heading">CREW &amp; NOTES</p>
       <div class="cover-grid">
         <div class="cover-panel">
@@ -943,33 +916,10 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     <?php if ($renderSummaryPage): ?>
     <section class="page">
       <div class="page-content">
-      <div class="top-rule">
-        <div class="page-header-bar">
-          <div class="page-header-title">
-            <strong><?= h($show['show_name']) ?></strong>
-            <div class="page-header-subtitle">Electrical Equipment List</div>
-          </div>
-          <div class="page-header-meta">
-            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
-            <div><strong>Page</strong> <?= h((string) $pageNumbers['summary']) ?> of <?= h((string) $totalPages) ?></div>
-          </div>
-        </div>
-      </div>
       <p class="page-heading">REVISION SUMMARY</p>
       <p class="page-note">Only lines with changed counts or explicit revision actions are listed here.</p>
       <div class="equipment-table-wrap">
       <table class="word-table equipment-table">
-        <thead>
-          <tr>
-            <th class="col-line">LINE</th>
-            <th class="col-item">ITEM</th>
-            <th class="col-description">DESCRIPTION</th>
-            <th class="col-used">USED</th>
-            <th class="col-spare">SPARE</th>
-            <th class="col-total">TOTAL</th>
-            <th class="col-notes">NOTES</th>
-          </tr>
-        </thead>
         <tbody>
           <?php if ($summaryRows): ?>
           <?php $summaryCategory = null; ?>
@@ -979,49 +929,36 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
           <tr class="category-gap-row"><td colspan="7"></td></tr>
           <?php endif; ?>
           <tr class="category-header-row">
-            <td colspan="7"><?= h($row['category']) ?></td>
+            <td colspan="6"><?= h($row['category']) ?></td>
           </tr>
           <tr class="category-column-header-row">
             <td class="col-line">LINE</td>
             <td class="col-item">ITEM</td>
             <td class="col-description">DESCRIPTION</td>
             <td class="col-used">USED</td>
-            <td class="col-spare">SPARE</td>
-            <td class="col-total">TOTAL</td>
+            <td class="col-action">ACTION</td>
             <td class="col-notes">NOTES</td>
           </tr>
           <?php $summaryCategory = $row['category']; ?>
           <?php endif; ?>
-          <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
           <tr style="<?= h(export_row_style($index, $revision, $row['item'], $row['line'], $equipmentZebraGray)) ?>">
             <td class="line-cell"><?= h((string) ($index + 1)) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>
             <td class="description-cell"><?= h($row['description']) ?></td>
             <td><?= h((string) ($row['line']['rent_quantity'] ?? 0)) ?></td>
-            <td><?= h((string) ($row['line']['spare_quantity'] ?? 0)) ?></td>
-            <td>
-              <?= $type === 'returns' ? '__________' : h((string) ($row['line']['total_quantity'] ?? 0)) ?>
-              <?php if ($delta !== ''): ?><span class="delta <?= str_starts_with($delta, '-') ? 'delta-negative' : 'delta-positive' ?>"><?= h($delta) ?></span><?php endif; ?>
-            </td>
+            <td><?= h(export_summary_action_label($row['line'])) ?></td>
             <td class="notes-cell">
               <?php
-                $summaryNotes = [];
-                if (!empty($row['line']['action'])) {
-                    $summaryNotes[] = strtoupper((string) $row['line']['action']);
-                }
                 $equipmentNote = export_equipment_note($row['item'], $row['line']);
-                if ($equipmentNote !== '') {
-                    $summaryNotes[] = $equipmentNote;
-                }
               ?>
-              <?= h(implode(' · ', $summaryNotes)) ?>
+              <?= h($equipmentNote) ?>
             </td>
           </tr>
           <?php endforeach; ?>
           <?php else: ?>
           <tr>
             <td class="line-cell">1</td>
-            <td colspan="6">No line-item changes recorded for this revision.</td>
+            <td colspan="5">No line-item changes recorded for this revision.</td>
           </tr>
           <?php endif; ?>
         </tbody>
@@ -1038,32 +975,9 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     <?php foreach ($equipmentPages as $equipmentPageIndex => $equipmentPageRows): ?>
     <section class="page equipment-page">
       <div class="page-content">
-      <div class="top-rule">
-        <div class="page-header-bar">
-          <div class="page-header-title">
-            <strong><?= h($show['show_name']) ?></strong>
-            <div class="page-header-subtitle">Electrical Equipment List</div>
-          </div>
-          <div class="page-header-meta">
-            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
-            <div><strong>Page</strong> <?= h((string) $pageNumbers['equipment'][$equipmentPageIndex]) ?> of <?= h((string) $totalPages) ?></div>
-          </div>
-        </div>
-      </div>
       <p class="page-heading"><?= h($labels['equipment_heading']) ?></p>
       <div class="equipment-table-wrap">
       <table class="word-table equipment-table">
-        <thead>
-          <tr>
-            <th class="col-line">LINE</th>
-            <th class="col-item">ITEM</th>
-            <th class="col-description">DESCRIPTION</th>
-            <th class="col-used">USED</th>
-            <th class="col-spare">SPARE</th>
-            <th class="col-total">TOTAL</th>
-            <th class="col-notes">NOTES</th>
-          </tr>
-        </thead>
         <tbody>
           <?php $pageCategory = null; ?>
           <?php foreach ($equipmentPageRows as $pageRowIndex => $row): ?>

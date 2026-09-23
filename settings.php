@@ -815,6 +815,10 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <label for="footer_text">Footer Text</label>
             <input class="form-control" id="footer_text" name="footer_text" value="<?= h($layout['layout.footer_text']) ?>">
           </div>
+          <div class="form-group">
+            <label for="cover_title_revision_spacing">Cover Title To Revision Spacing (in)</label>
+            <input class="form-control" id="cover_title_revision_spacing" type="number" min="0.05" max="2" step="0.001" name="cover_title_revision_spacing" value="<?= h($layout['layout.cover_title_revision_spacing'] ?? '0.52') ?>">
+          </div>
         </div>
         <div class="form-group" style="margin-top:1rem;">
           <label for="export_notes">Default Important Notes</label>
