@@ -442,14 +442,18 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       font-weight: 700;
     }
     .col-line { width: 0.55in; }
-    .col-item { width: 2.2in; }
-    .col-description { width: 1.65in; }
+    .col-item { width: 1.95in; }
+    .col-description { width: 1.2in; }
     .col-action { width: 1.1in; }
     .col-qty { width: 0.7in; }
     .col-used,
     .col-spare,
     .col-total { width: 0.6in; }
-    .col-notes { width: 2.1in; }
+    .col-notes { width: 1.55in; }
+    .notes-cell {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
     .line-cell { text-align: right; font-weight: 700; }
     .delta {
       margin-left: 0.12rem;
@@ -645,7 +649,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
               <?= $type === 'returns' ? '__________' : h((string) ($row['line']['total_quantity'] ?? 0)) ?>
               <?php if ($delta !== ''): ?><span class="delta <?= str_starts_with($delta, '-') ? 'delta-negative' : 'delta-positive' ?>"><?= h($delta) ?></span><?php endif; ?>
             </td>
-            <td><?= h(export_equipment_note($row['item'], $row['line'])) ?></td>
+            <td class="notes-cell"><?= h(export_equipment_note($row['item'], $row['line'])) ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
