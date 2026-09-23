@@ -158,6 +158,14 @@ $layout = export_layout_settings();
 $applied = applied_migrations();
 $migrationFiles = migration_files();
 $resources = schema_ready() ? fetch_resources() : [];
+$ruleCatalog = [];
+foreach ($catalog as $category) {
+    $filteredItems = array_values(array_filter($category['items'], static fn (array $item): bool => empty($item['is_spacer'])));
+    if ($filteredItems) {
+        $category['items'] = $filteredItems;
+        $ruleCatalog[] = $category;
+    }
+}
 
 ui_head('Settings', '', APP_NAME, 'settings');
 ui_sidebar(APP_NAME, 'settings', nav_items($tab === 'resources' ? 'resources' : 'settings'));
@@ -531,7 +539,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                 <td>
                   <select class="form-control" name="trigger_item_id" form="rule-form-<?= (int) $rule['id'] ?>">
                     <option value="">Choose an item</option>
-                    <?php foreach ($catalog as $category): foreach ($category['items'] as $item): ?>
+                    <?php foreach ($ruleCatalog as $category): foreach ($category['items'] as $item): ?>
                     <option value="<?= h((string) $item['id']) ?>" <?= (int) $rule['trigger_item_id'] === (int) $item['id'] ? 'selected' : '' ?>><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
                     <?php endforeach; endforeach; ?>
                   </select>
@@ -540,7 +548,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                 <td>
                   <select class="form-control" name="required_item_id" form="rule-form-<?= (int) $rule['id'] ?>">
                     <option value="">Choose an item</option>
-                    <?php foreach ($catalog as $category): foreach ($category['items'] as $item): ?>
+                    <?php foreach ($ruleCatalog as $category): foreach ($category['items'] as $item): ?>
                     <option value="<?= h((string) $item['id']) ?>" <?= (int) $rule['required_item_id'] === (int) $item['id'] ? 'selected' : '' ?>><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
                     <?php endforeach; endforeach; ?>
                   </select>
@@ -583,7 +591,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <label for="trigger_item_id">Trigger Item</label>
               <select class="form-control" id="trigger_item_id" name="trigger_item_id">
                 <option value="">Choose an item</option>
-                <?php foreach ($catalog as $category): foreach ($category['items'] as $item): ?>
+                <?php foreach ($ruleCatalog as $category): foreach ($category['items'] as $item): ?>
                 <option value="<?= h((string) $item['id']) ?>"><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
                 <?php endforeach; endforeach; ?>
               </select>
@@ -596,7 +604,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <label for="required_item_id">Suggested Item</label>
               <select class="form-control" id="required_item_id" name="required_item_id">
                 <option value="">Choose an item</option>
-                <?php foreach ($catalog as $category): foreach ($category['items'] as $item): ?>
+                <?php foreach ($ruleCatalog as $category): foreach ($category['items'] as $item): ?>
                 <option value="<?= h((string) $item['id']) ?>"><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
                 <?php endforeach; endforeach; ?>
               </select>

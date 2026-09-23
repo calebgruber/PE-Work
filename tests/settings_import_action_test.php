@@ -247,10 +247,14 @@ $resourceFetchHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-fetch-head
 $resourceFetchPath = tempnam(sys_get_temp_dir(), 'pew-resource-fetch-');
 $resourceForbiddenHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-forbidden-headers-');
 $resourceForbiddenPath = tempnam(sys_get_temp_dir(), 'pew-resource-forbidden-');
+$resourceInvalidHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-invalid-headers-');
+$resourceInvalidPath = tempnam(sys_get_temp_dir(), 'pew-resource-invalid-');
 $testPaths[] = $resourceFetchHeadersPath;
 $testPaths[] = $resourceFetchPath;
 $testPaths[] = $resourceForbiddenHeadersPath;
 $testPaths[] = $resourceForbiddenPath;
+$testPaths[] = $resourceInvalidHeadersPath;
+$testPaths[] = $resourceInvalidPath;
 $resourceUrl = $baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0) . '&token=' . rawurlencode(resource_access_token($resourceRow));
 exec(sprintf(
     "curl -fsS -o %s -D %s %s",
@@ -264,8 +268,15 @@ exec(sprintf(
     escapeshellarg($resourceForbiddenHeadersPath),
     escapeshellarg($baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0))
 ), $resourceForbiddenOutput, $resourceForbiddenStatus);
+exec(sprintf(
+    "curl -sS -o %s -D %s %s",
+    escapeshellarg($resourceInvalidPath),
+    escapeshellarg($resourceInvalidHeadersPath),
+    escapeshellarg($baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0) . '&token=invalid-token')
+), $resourceInvalidOutput, $resourceInvalidStatus);
 $resourceFetchHeaders = is_file($resourceFetchHeadersPath) ? file_get_contents($resourceFetchHeadersPath) : '';
 $resourceForbiddenHeaders = is_file($resourceForbiddenHeadersPath) ? file_get_contents($resourceForbiddenHeadersPath) : '';
+$resourceInvalidHeaders = is_file($resourceInvalidHeadersPath) ? file_get_contents($resourceInvalidHeadersPath) : '';
 $resourceFetchBody = is_file($resourceFetchPath) ? file_get_contents($resourceFetchPath) : '';
 
 settings_assert($resourceFetchStatus === 0, 'Expected signed resource URL to be fetchable.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
@@ -273,6 +284,8 @@ settings_assert(str_contains($resourceFetchHeaders, 'Content-Type: application/p
 settings_assert(str_starts_with($resourceFetchBody, '%PDF-'), 'Expected signed resource URL to stream the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($resourceForbiddenStatus === 0, 'Expected unsigned resource request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($resourceForbiddenHeaders, '403 Forbidden'), 'Expected missing token resource request to be rejected.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($resourceInvalidStatus === 0, 'Expected invalid-token resource request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceInvalidHeaders, '403 Forbidden'), 'Expected invalid token resource request to be rejected.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
 $textPath = tempnam(sys_get_temp_dir(), 'pew-resource-text-');
 file_put_contents($textPath, "not a pdf");

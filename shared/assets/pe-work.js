@@ -180,6 +180,7 @@
     const body = document.getElementById('note-modal-body');
     const title = document.getElementById('note-modal-title');
     const closeButton = modal.querySelector('[data-close-modal]');
+    const panel = modal.querySelector('.modal-panel');
     let lastTrigger = null;
 
     function focusableElements() {
@@ -221,7 +222,7 @@
     });
 
     modal.addEventListener('click', function (event) {
-      if (event.target === modal) {
+      if (panel && !panel.contains(event.target)) {
         closeModal();
       }
     });

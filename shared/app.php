@@ -163,6 +163,14 @@ function csv_stream_from_handle($handle)
         }
     } elseif (str_starts_with($contents, "\xEF\xBB\xBF")) {
         $contents = substr($contents, 3);
+    } elseif (str_contains($contents, "\x00")) {
+        $utf16Le = @iconv('UTF-16LE', 'UTF-8//IGNORE', $contents);
+        $utf16Be = @iconv('UTF-16BE', 'UTF-8//IGNORE', $contents);
+        if ($utf16Le !== false && preg_match('/[A-Za-z0-9]/', $utf16Le)) {
+            $contents = $utf16Le;
+        } elseif ($utf16Be !== false && preg_match('/[A-Za-z0-9]/', $utf16Be)) {
+            $contents = $utf16Be;
+        }
     }
 
     $contents = str_replace(["\r\n", "\r"], "\n", $contents);
