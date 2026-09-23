@@ -372,6 +372,29 @@ $updatedRule = $ruleStmt->fetch() ?: [];
 assert_true((int) ($updatedRule['trigger_quantity'] ?? 0) === 4, 'Expected updated rule trigger quantity.');
 assert_true((int) ($updatedRule['required_quantity'] ?? 0) === 5, 'Expected updated rule required quantity.');
 assert_true(($updatedRule['note'] ?? '') === 'Updated rule note', 'Expected updated rule note.');
+assert_true(save_rule(['trigger_quantity' => 1, 'required_quantity' => 1])['ok'] === false, 'Expected missing rule item ids to be rejected.');
+assert_true(save_rule([
+    'trigger_item_id' => 999999,
+    'trigger_quantity' => 1,
+    'required_item_id' => $adapterItemId,
+    'required_quantity' => 1,
+])['ok'] === false, 'Expected nonexistent trigger items to be rejected.');
+assert_true(save_rule([
+    'trigger_item_id' => $fixtureItemId,
+    'trigger_quantity' => 1,
+    'required_item_id' => 999999,
+    'required_quantity' => 1,
+])['ok'] === false, 'Expected nonexistent required items to be rejected.');
+$deactivateStmt = db()->prepare('UPDATE inventory_items SET is_active = 0 WHERE id = ?');
+$deactivateStmt->execute([$adapterItemId]);
+assert_true(save_rule([
+    'trigger_item_id' => $fixtureItemId,
+    'trigger_quantity' => 1,
+    'required_item_id' => $adapterItemId,
+    'required_quantity' => 1,
+])['ok'] === false, 'Expected inactive required items to be rejected.');
+$reactivateStmt = db()->prepare('UPDATE inventory_items SET is_active = 1 WHERE id = ?');
+$reactivateStmt->execute([$adapterItemId]);
 
 $deleteRuleResult = delete_rule($ruleId);
 assert_true($deleteRuleResult['ok'] === true, 'Expected rule delete to succeed.');

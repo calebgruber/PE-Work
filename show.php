@@ -285,11 +285,12 @@ if ($mode === 'edit' && !empty($_GET['revision_id'])) {
 $catalog = [];
 $totals = ['rent_total' => 0, 'spare_total' => 0, 'overall_total' => 0];
 if ($mode === 'edit' && $currentRevision) {
-    $catalog = catalog_for_revision((int) $currentRevision['id'], $revisionOverrideItems);
+    $normalizedRevisionOverrideItems = $revisionOverrideItems ? normalize_revision_lines_input($revisionOverrideItems) : [];
+    $catalog = catalog_for_revision((int) $currentRevision['id'], $normalizedRevisionOverrideItems);
     $totals = revision_totals((int) $currentRevision['id']);
-    if ($revisionOverrideItems) {
+    if ($normalizedRevisionOverrideItems) {
         $totals = ['rent_total' => 0, 'spare_total' => 0, 'overall_total' => 0];
-        foreach (normalize_revision_lines_input($revisionOverrideItems) as $line) {
+        foreach ($normalizedRevisionOverrideItems as $line) {
             $totals['rent_total'] += (int) ($line['rent_quantity'] ?? 0);
             $totals['spare_total'] += (int) ($line['spare_quantity'] ?? 0);
             $totals['overall_total'] += (int) ($line['total_quantity'] ?? 0);

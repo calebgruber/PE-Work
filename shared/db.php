@@ -76,6 +76,28 @@ function table_exists(string $table): bool
     }
 }
 
+function migration_has_implicit_commit_statements(array $statements): bool
+{
+    foreach ($statements as $statement) {
+        if (is_callable($statement)) {
+            return true;
+        }
+
+        $sql = strtoupper(ltrim((string) $statement));
+        if ($sql === '') {
+            continue;
+        }
+
+        foreach (['ALTER ', 'CREATE ', 'DROP ', 'RENAME ', 'TRUNCATE ', 'PREPARE ', 'EXECUTE ', 'DEALLOCATE '] as $prefix) {
+            if (str_starts_with($sql, $prefix)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 function table_column_exists(string $table, string $column): bool
 {
     try {
@@ -193,7 +215,7 @@ function run_pending_migrations(): array
 
         try {
             $startedTransaction = false;
-            if (db_driver() === 'sqlite' && !db()->inTransaction()) {
+            if (!db()->inTransaction() && (db_driver() !== 'mysql' || !migration_has_implicit_commit_statements($statements))) {
                 db()->beginTransaction();
                 $startedTransaction = true;
             }

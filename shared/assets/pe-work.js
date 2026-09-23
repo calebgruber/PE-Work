@@ -393,6 +393,7 @@
       if (form) {
         button.addEventListener('click', trackSubmitter);
         button.addEventListener('keydown', trackSubmitter);
+        button.addEventListener('keyup', trackSubmitter);
         form.addEventListener('submit', confirmAction);
       } else {
         button.addEventListener('click', confirmAction);
@@ -420,6 +421,7 @@
       if (form) {
         button.addEventListener('click', trackSubmitter);
         button.addEventListener('keydown', trackSubmitter);
+        button.addEventListener('keyup', trackSubmitter);
         form.addEventListener('submit', confirmAction);
       } else {
         button.addEventListener('click', confirmAction);

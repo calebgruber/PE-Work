@@ -72,6 +72,43 @@ function settings_assert(bool $condition, string $message, string $repoRoot, str
     }
 }
 
+function settings_start_server(string $repoRoot): array
+{
+    $descriptors = [
+        0 => ['pipe', 'r'],
+        1 => ['file', '/tmp/pe-work-settings-server.log', 'a'],
+        2 => ['file', '/tmp/pe-work-settings-server.log', 'a'],
+    ];
+
+    for ($attempt = 0; $attempt < 5; $attempt++) {
+        $socket = stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+        if ($socket === false) {
+            continue;
+        }
+
+        $serverAddress = stream_socket_get_name($socket, false) ?: '127.0.0.1:8099';
+        fclose($socket);
+        $port = (int) substr(strrchr($serverAddress, ':'), 1);
+        $baseUrl = 'http://127.0.0.1:' . $port;
+        $process = proc_open('php -S 127.0.0.1:' . $port . ' router.php', $descriptors, $pipes, $repoRoot);
+        if (!is_resource($process)) {
+            continue;
+        }
+
+        for ($probeAttempt = 0; $probeAttempt < 20; $probeAttempt++) {
+            $probe = @file_get_contents($baseUrl . '/settings?tab=inventory');
+            if ($probe !== false) {
+                return [$process, $pipes, $baseUrl];
+            }
+            usleep(250000);
+        }
+
+        settings_test_cleanup($repoRoot, $GLOBALS['localConfig'], $GLOBALS['localBackup'], $GLOBALS['movedLocalConfig'], $process, $pipes, []);
+    }
+
+    return [null, [], null];
+}
+
 run_pending_migrations();
 
 $showResult = save_show_record([
@@ -119,29 +156,8 @@ save_rule([
 $csvPath = tempnam(sys_get_temp_dir(), 'pew-settings-import-');
 file_put_contents($csvPath, "category,name,shop_quantity,unit,default_note,description\nFixtures,Import Action Item,7,ea,Imported via settings action,Action path\n");
 
-$descriptors = [
-    0 => ['pipe', 'r'],
-    1 => ['file', '/tmp/pe-work-settings-server.log', 'a'],
-    2 => ['file', '/tmp/pe-work-settings-server.log', 'a'],
-];
-$socket = stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
-settings_assert($socket !== false, 'Expected to reserve an ephemeral port for the local PHP server.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, null, [], [$csvPath]);
-$serverAddress = stream_socket_get_name($socket, false) ?: '127.0.0.1:8099';
-fclose($socket);
-$port = (int) substr(strrchr($serverAddress, ':'), 1);
-$baseUrl = 'http://127.0.0.1:' . $port;
-$process = proc_open('php -S 127.0.0.1:' . $port . ' router.php', $descriptors, $pipes, $repoRoot);
-$serverReady = false;
-for ($attempt = 0; $attempt < 20; $attempt++) {
-    $probe = @file_get_contents($baseUrl . '/settings?tab=inventory');
-    if ($probe !== false) {
-        $serverReady = true;
-        break;
-    }
-    usleep(250000);
-}
-
-settings_assert($serverReady, 'Expected local PHP server to start before running import requests.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, [$csvPath]);
+[$process, $pipes, $baseUrl] = settings_start_server($repoRoot);
+settings_assert(is_resource($process) && is_string($baseUrl) && $baseUrl !== '', 'Expected local PHP server to start before running import requests.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, [$csvPath]);
 
 $cookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-');
 $inventoryPagePath = tempnam(sys_get_temp_dir(), 'pew-inventory-page-');
