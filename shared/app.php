@@ -2114,11 +2114,17 @@ function export_layout_settings(): array
     return $settings;
 }
 
-function export_layout_number(array $input, string $key, float $default, ?float $min = null, ?float $max = null, int $precision = 3): string
+function export_layout_number(array $input, string $key, float|string $default, ?float $min = null, ?float $max = null, int $precision = 3): string
 {
-    $value = $input[$key] ?? $default;
+    $value = trim((string) ($input[$key] ?? ''));
+    if ($value === '') {
+        return (string) $default;
+    }
     if (!is_numeric($value)) {
-        $value = $default;
+        return (string) $default;
+    }
+    if ($min === null && $max === null) {
+        return $value;
     }
     $number = (float) $value;
     if ($min !== null && $number < $min) {
@@ -2152,37 +2158,37 @@ function save_export_layout(array $input): void
     save_setting('layout.cover_show_title', !empty($input['cover_show_title']) ? '1' : '0');
     save_setting('layout.show_page_numbers', !empty($input['show_page_numbers']) ? '1' : '0');
     save_setting('layout.show_revision_summary', !empty($input['show_revision_summary']) ? '1' : '0');
-    save_setting('layout.cover_title_revision_spacing', export_layout_number($input, 'cover_title_revision_spacing', 0.52, null, null, 3));
-    save_setting('layout.cover_notes_spacing', export_layout_number($input, 'cover_notes_spacing', 0.9, null, null, 3));
+    save_setting('layout.cover_title_revision_spacing', export_layout_number($input, 'cover_title_revision_spacing', '0.52', null, null, 3));
+    save_setting('layout.cover_notes_spacing', export_layout_number($input, 'cover_notes_spacing', '0.9', null, null, 3));
     save_setting('layout.cover_footer_logo_url', sanitize_local_asset_path((string) ($input['cover_footer_logo_url'] ?? '')) ?? '');
     save_setting('layout.cover_prepared_by_name', trim((string) ($input['cover_prepared_by_name'] ?? '')));
-    save_setting('layout.equipment_table_width', export_layout_number($input, 'equipment_table_width', 100, null, null, 1));
-    save_setting('layout.equipment_min_rows_per_page', export_layout_number($input, 'equipment_min_rows_per_page', 0, null, null, 0));
-    save_setting('layout.equipment_max_rows_per_page', export_layout_number($input, 'equipment_max_rows_per_page', 0, null, null, 0));
+    save_setting('layout.equipment_table_width', export_layout_number($input, 'equipment_table_width', '100', null, null, 1));
+    save_setting('layout.equipment_min_rows_per_page', export_layout_number($input, 'equipment_min_rows_per_page', '0', null, null, 0));
+    save_setting('layout.equipment_max_rows_per_page', export_layout_number($input, 'equipment_max_rows_per_page', '0', null, null, 0));
     save_setting('layout.equipment_zebra_gray', export_layout_color($input, 'equipment_zebra_gray', '#CCCCCC'));
-    save_setting('layout.equipment_row_padding', export_layout_number($input, 'equipment_row_padding', 0.016, null, null, 3));
-    save_setting('layout.equipment_header_row_padding', export_layout_number($input, 'equipment_header_row_padding', 0.22, null, null, 3));
-    save_setting('layout.equipment_category_row_padding', export_layout_number($input, 'equipment_category_row_padding', 0.26, null, null, 3));
-    save_setting('layout.equipment_category_gap', export_layout_number($input, 'equipment_category_gap', 0.08, null, null, 3));
+    save_setting('layout.equipment_row_padding', export_layout_number($input, 'equipment_row_padding', '0.016', null, null, 3));
+    save_setting('layout.equipment_header_row_padding', export_layout_number($input, 'equipment_header_row_padding', '0.22', null, null, 3));
+    save_setting('layout.equipment_category_row_padding', export_layout_number($input, 'equipment_category_row_padding', '0.26', null, null, 3));
+    save_setting('layout.equipment_category_gap', export_layout_number($input, 'equipment_category_gap', '0.08', null, null, 3));
     save_setting('layout.equipment_header_fill', export_layout_color($input, 'equipment_header_fill', '#F3F4F6'));
     save_setting('layout.equipment_category_fill', export_layout_color($input, 'equipment_category_fill', '#E5E7EB'));
-    save_setting('layout.equipment_font_size', export_layout_number($input, 'equipment_font_size', 7.35, null, null, 2));
-    save_setting('layout.equipment_line_height', export_layout_number($input, 'equipment_line_height', 1.1, null, null, 2));
-    save_setting('layout.equipment_col_line', export_layout_number($input, 'equipment_col_line', 4, null, null, 1));
-    save_setting('layout.equipment_col_item', export_layout_number($input, 'equipment_col_item', 45, null, null, 1));
-    save_setting('layout.equipment_col_description', export_layout_number($input, 'equipment_col_description', 23, null, null, 1));
-    save_setting('layout.equipment_col_used', export_layout_number($input, 'equipment_col_used', 5, null, null, 1));
-    save_setting('layout.equipment_col_spare', export_layout_number($input, 'equipment_col_spare', 5, null, null, 1));
-    save_setting('layout.equipment_col_total', export_layout_number($input, 'equipment_col_total', 6, null, null, 1));
-    save_setting('layout.equipment_col_notes', export_layout_number($input, 'equipment_col_notes', 12, null, null, 1));
-    save_setting('layout.equipment_font_line', export_layout_number($input, 'equipment_font_line', 6.9, null, null, 2));
-    save_setting('layout.equipment_font_item', export_layout_number($input, 'equipment_font_item', 7.35, null, null, 2));
-    save_setting('layout.equipment_font_description', export_layout_number($input, 'equipment_font_description', 7.35, null, null, 2));
-    save_setting('layout.equipment_font_used', export_layout_number($input, 'equipment_font_used', 7.35, null, null, 2));
-    save_setting('layout.equipment_font_spare', export_layout_number($input, 'equipment_font_spare', 7.35, null, null, 2));
-    save_setting('layout.equipment_font_total', export_layout_number($input, 'equipment_font_total', 7.35, null, null, 2));
-    save_setting('layout.equipment_font_action', export_layout_number($input, 'equipment_font_action', 7.35, null, null, 2));
-    save_setting('layout.equipment_font_notes', export_layout_number($input, 'equipment_font_notes', 7.35, null, null, 2));
+    save_setting('layout.equipment_font_size', export_layout_number($input, 'equipment_font_size', '7.35', null, null, 2));
+    save_setting('layout.equipment_line_height', export_layout_number($input, 'equipment_line_height', '1.1', null, null, 2));
+    save_setting('layout.equipment_col_line', export_layout_number($input, 'equipment_col_line', '4', null, null, 1));
+    save_setting('layout.equipment_col_item', export_layout_number($input, 'equipment_col_item', '45', null, null, 1));
+    save_setting('layout.equipment_col_description', export_layout_number($input, 'equipment_col_description', '23', null, null, 1));
+    save_setting('layout.equipment_col_used', export_layout_number($input, 'equipment_col_used', '5', null, null, 1));
+    save_setting('layout.equipment_col_spare', export_layout_number($input, 'equipment_col_spare', '5', null, null, 1));
+    save_setting('layout.equipment_col_total', export_layout_number($input, 'equipment_col_total', '6', null, null, 1));
+    save_setting('layout.equipment_col_notes', export_layout_number($input, 'equipment_col_notes', '12', null, null, 1));
+    save_setting('layout.equipment_font_line', export_layout_number($input, 'equipment_font_line', '6.9', null, null, 2));
+    save_setting('layout.equipment_font_item', export_layout_number($input, 'equipment_font_item', '7.35', null, null, 2));
+    save_setting('layout.equipment_font_description', export_layout_number($input, 'equipment_font_description', '7.35', null, null, 2));
+    save_setting('layout.equipment_font_used', export_layout_number($input, 'equipment_font_used', '7.35', null, null, 2));
+    save_setting('layout.equipment_font_spare', export_layout_number($input, 'equipment_font_spare', '7.35', null, null, 2));
+    save_setting('layout.equipment_font_total', export_layout_number($input, 'equipment_font_total', '7.35', null, null, 2));
+    save_setting('layout.equipment_font_action', export_layout_number($input, 'equipment_font_action', '7.35', null, null, 2));
+    save_setting('layout.equipment_font_notes', export_layout_number($input, 'equipment_font_notes', '7.35', null, null, 2));
 }
 
 function action_badge(string $action): string

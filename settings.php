@@ -821,11 +821,11 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           </div>
           <div class="form-group">
             <label for="cover_title_revision_spacing">Cover Title To Revision Spacing (in)</label>
-            <input class="form-control" id="cover_title_revision_spacing" type="number" step="0.001" name="cover_title_revision_spacing" value="<?= h($layout['layout.cover_title_revision_spacing'] ?? '0.52') ?>">
+            <input class="form-control" id="cover_title_revision_spacing" type="text" inputmode="decimal" name="cover_title_revision_spacing" value="<?= h($layout['layout.cover_title_revision_spacing'] ?? '0.52') ?>">
           </div>
           <div class="form-group">
             <label for="cover_notes_spacing">Cards To Notes Spacing (in)</label>
-            <input class="form-control" id="cover_notes_spacing" type="number" step="0.001" name="cover_notes_spacing" value="<?= h($layout['layout.cover_notes_spacing'] ?? '0.9') ?>">
+            <input class="form-control" id="cover_notes_spacing" type="text" inputmode="decimal" name="cover_notes_spacing" value="<?= h($layout['layout.cover_notes_spacing'] ?? '0.9') ?>">
           </div>
           <div class="form-group">
             <label for="cover_footer_logo_url">Cover Footer Logo Path</label>
@@ -852,11 +852,11 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
         <div class="card-grid">
           <div class="form-group">
             <label for="equipment_table_width">Table Width %</label>
-            <input class="form-control" id="equipment_table_width" type="number" step="0.1" name="equipment_table_width" value="<?= h($layout['layout.equipment_table_width'] ?? '100') ?>">
+            <input class="form-control" id="equipment_table_width" type="text" inputmode="decimal" name="equipment_table_width" value="<?= h($layout['layout.equipment_table_width'] ?? '100') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_min_rows_per_page">Min Rows Per Page</label>
-            <input class="form-control" id="equipment_min_rows_per_page" type="number" step="1" name="equipment_min_rows_per_page" value="<?= h($layout['layout.equipment_min_rows_per_page'] ?? '0') ?>">
+            <input class="form-control" id="equipment_min_rows_per_page" type="text" inputmode="numeric" name="equipment_min_rows_per_page" value="<?= h($layout['layout.equipment_min_rows_per_page'] ?? '0') ?>">
             <div class="helper-text">Set to 0 to allow automatic page breaks before a minimum row count.</div>
           </div>
           <div class="form-group">
@@ -865,30 +865,30 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           </div>
           <div class="form-group">
             <label for="equipment_max_rows_per_page">Max Rows Per Page</label>
-            <input class="form-control" id="equipment_max_rows_per_page" type="number" step="1" name="equipment_max_rows_per_page" value="<?= h($layout['layout.equipment_max_rows_per_page'] ?? '0') ?>">
+            <input class="form-control" id="equipment_max_rows_per_page" type="text" inputmode="numeric" name="equipment_max_rows_per_page" value="<?= h($layout['layout.equipment_max_rows_per_page'] ?? '0') ?>">
             <div class="helper-text">Set to 0 to let page sizing decide automatically.</div>
           </div>
           <div class="form-group">
             <label for="equipment_row_padding">Line Item Row Padding (in)</label>
-            <input class="form-control" id="equipment_row_padding" type="number" step="0.001" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
+            <input class="form-control" id="equipment_row_padding" type="text" inputmode="decimal" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_header_row_padding">Header Row Height (in)</label>
-            <input class="form-control" id="equipment_header_row_padding" type="number" step="0.001" name="equipment_header_row_padding" value="<?= h($layout['layout.equipment_header_row_padding'] ?? '0.22') ?>">
+            <input class="form-control" id="equipment_header_row_padding" type="text" inputmode="decimal" name="equipment_header_row_padding" value="<?= h($layout['layout.equipment_header_row_padding'] ?? '0.22') ?>">
             <div class="helper-text">One setting for the full LINE / ITEM / DESCRIPTION header row height.</div>
           </div>
           <div class="form-group">
             <label for="equipment_category_row_padding">Category Row Height (in)</label>
-            <input class="form-control" id="equipment_category_row_padding" type="number" step="0.001" name="equipment_category_row_padding" value="<?= h($layout['layout.equipment_category_row_padding'] ?? '0.26') ?>">
+            <input class="form-control" id="equipment_category_row_padding" type="text" inputmode="decimal" name="equipment_category_row_padding" value="<?= h($layout['layout.equipment_category_row_padding'] ?? '0.26') ?>">
             <div class="helper-text">One setting for the full category row height.</div>
           </div>
           <div class="form-group">
             <label for="equipment_category_gap">Space Above Categories (in)</label>
-            <input class="form-control" id="equipment_category_gap" type="number" step="0.001" name="equipment_category_gap" value="<?= h($layout['layout.equipment_category_gap'] ?? '0.08') ?>">
+            <input class="form-control" id="equipment_category_gap" type="text" inputmode="decimal" name="equipment_category_gap" value="<?= h($layout['layout.equipment_category_gap'] ?? '0.08') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_font_size">Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_size" type="number" step="0.01" name="equipment_font_size" value="<?= h($layout['layout.equipment_font_size'] ?? '7.35') ?>">
+            <input class="form-control" id="equipment_font_size" type="text" inputmode="decimal" name="equipment_font_size" value="<?= h($layout['layout.equipment_font_size'] ?? '7.35') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_header_fill">Header Row Color</label>
@@ -900,67 +900,67 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           </div>
           <div class="form-group">
             <label for="equipment_line_height">Line Height</label>
-            <input class="form-control" id="equipment_line_height" type="number" step="0.01" name="equipment_line_height" value="<?= h($layout['layout.equipment_line_height'] ?? '1.1') ?>">
+            <input class="form-control" id="equipment_line_height" type="text" inputmode="decimal" name="equipment_line_height" value="<?= h($layout['layout.equipment_line_height'] ?? '1.1') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_col_line">Line Number Width</label>
-            <input class="form-control" id="equipment_col_line" type="number" step="0.1" name="equipment_col_line" value="<?= h($layout['layout.equipment_col_line'] ?? '4') ?>">
+            <input class="form-control" id="equipment_col_line" type="text" inputmode="decimal" name="equipment_col_line" value="<?= h($layout['layout.equipment_col_line'] ?? '4') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_col_item">Item Width</label>
-            <input class="form-control" id="equipment_col_item" type="number" step="0.1" name="equipment_col_item" value="<?= h($layout['layout.equipment_col_item'] ?? '45') ?>">
+            <input class="form-control" id="equipment_col_item" type="text" inputmode="decimal" name="equipment_col_item" value="<?= h($layout['layout.equipment_col_item'] ?? '45') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_col_description">Description Width</label>
-            <input class="form-control" id="equipment_col_description" type="number" step="0.1" name="equipment_col_description" value="<?= h($layout['layout.equipment_col_description'] ?? '23') ?>">
+            <input class="form-control" id="equipment_col_description" type="text" inputmode="decimal" name="equipment_col_description" value="<?= h($layout['layout.equipment_col_description'] ?? '23') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_col_used">Used Width</label>
-            <input class="form-control" id="equipment_col_used" type="number" step="0.1" name="equipment_col_used" value="<?= h($layout['layout.equipment_col_used'] ?? '5') ?>">
+            <input class="form-control" id="equipment_col_used" type="text" inputmode="decimal" name="equipment_col_used" value="<?= h($layout['layout.equipment_col_used'] ?? '5') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_col_spare">Spare Width</label>
-            <input class="form-control" id="equipment_col_spare" type="number" step="0.1" name="equipment_col_spare" value="<?= h($layout['layout.equipment_col_spare'] ?? '5') ?>">
+            <input class="form-control" id="equipment_col_spare" type="text" inputmode="decimal" name="equipment_col_spare" value="<?= h($layout['layout.equipment_col_spare'] ?? '5') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_col_total">Total Width</label>
-            <input class="form-control" id="equipment_col_total" type="number" step="0.1" name="equipment_col_total" value="<?= h($layout['layout.equipment_col_total'] ?? '6') ?>">
+            <input class="form-control" id="equipment_col_total" type="text" inputmode="decimal" name="equipment_col_total" value="<?= h($layout['layout.equipment_col_total'] ?? '6') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_col_notes">Notes Width</label>
-            <input class="form-control" id="equipment_col_notes" type="number" step="0.1" name="equipment_col_notes" value="<?= h($layout['layout.equipment_col_notes'] ?? '12') ?>">
+            <input class="form-control" id="equipment_col_notes" type="text" inputmode="decimal" name="equipment_col_notes" value="<?= h($layout['layout.equipment_col_notes'] ?? '12') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_font_line">Line Number Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_line" type="number" step="0.01" name="equipment_font_line" value="<?= h($layout['layout.equipment_font_line'] ?? '6.9') ?>">
+            <input class="form-control" id="equipment_font_line" type="text" inputmode="decimal" name="equipment_font_line" value="<?= h($layout['layout.equipment_font_line'] ?? '6.9') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_font_item">Item Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_item" type="number" step="0.01" name="equipment_font_item" value="<?= h($layout['layout.equipment_font_item'] ?? '7.35') ?>">
+            <input class="form-control" id="equipment_font_item" type="text" inputmode="decimal" name="equipment_font_item" value="<?= h($layout['layout.equipment_font_item'] ?? '7.35') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_font_description">Description Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_description" type="number" step="0.01" name="equipment_font_description" value="<?= h($layout['layout.equipment_font_description'] ?? '7.35') ?>">
+            <input class="form-control" id="equipment_font_description" type="text" inputmode="decimal" name="equipment_font_description" value="<?= h($layout['layout.equipment_font_description'] ?? '7.35') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_font_used">Used Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_used" type="number" step="0.01" name="equipment_font_used" value="<?= h($layout['layout.equipment_font_used'] ?? '7.35') ?>">
+            <input class="form-control" id="equipment_font_used" type="text" inputmode="decimal" name="equipment_font_used" value="<?= h($layout['layout.equipment_font_used'] ?? '7.35') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_font_spare">Spare Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_spare" type="number" step="0.01" name="equipment_font_spare" value="<?= h($layout['layout.equipment_font_spare'] ?? '7.35') ?>">
+            <input class="form-control" id="equipment_font_spare" type="text" inputmode="decimal" name="equipment_font_spare" value="<?= h($layout['layout.equipment_font_spare'] ?? '7.35') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_font_total">Total Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_total" type="number" step="0.01" name="equipment_font_total" value="<?= h($layout['layout.equipment_font_total'] ?? '7.35') ?>">
+            <input class="form-control" id="equipment_font_total" type="text" inputmode="decimal" name="equipment_font_total" value="<?= h($layout['layout.equipment_font_total'] ?? '7.35') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_font_action">Action Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_action" type="number" step="0.01" name="equipment_font_action" value="<?= h($layout['layout.equipment_font_action'] ?? '7.35') ?>">
+            <input class="form-control" id="equipment_font_action" type="text" inputmode="decimal" name="equipment_font_action" value="<?= h($layout['layout.equipment_font_action'] ?? '7.35') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_font_notes">Notes Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_notes" type="number" step="0.01" name="equipment_font_notes" value="<?= h($layout['layout.equipment_font_notes'] ?? '7.35') ?>">
+            <input class="form-control" id="equipment_font_notes" type="text" inputmode="decimal" name="equipment_font_notes" value="<?= h($layout['layout.equipment_font_notes'] ?? '7.35') ?>">
           </div>
         </div>
         <div class="form-actions">

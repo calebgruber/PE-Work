@@ -141,33 +141,11 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
     return $rows;
 }
 
-function export_item_notes(array $catalog): array
-{
-    $itemNotes = [];
-    foreach ($catalog as $category) {
-        foreach (($category['items'] ?? []) as $item) {
-            if (!empty($item['is_spacer'])) {
-                continue;
-            }
-            $line = $item['line'] ?? [];
-            $note = trim((string) ($line['line_note'] ?? ''));
-            if ($note === '') {
-                continue;
-            }
-            $itemName = trim((string) ($item['name'] ?? ''));
-            $itemNotes[] = $itemName !== '' ? ($itemName . ': ' . $note) : $note;
-        }
-    }
-    return array_values(array_unique($itemNotes));
-}
-
-function export_notes_list(array $layout, array $show, array $catalog = []): array
+function export_notes_list(array $layout): array
 {
     $notes = preg_split('/\r\n|\r|\n/', (string) ($layout['layout.export_notes'] ?? '')) ?: [];
-    $showNotes = preg_split('/\r\n|\r|\n/', (string) ($show['show_notes'] ?? '')) ?: [];
-    $combined = array_merge($notes, $showNotes, export_item_notes($catalog));
-    $combined = array_map(static fn ($note) => trim((string) $note), $combined);
-    return array_values(array_filter(array_unique($combined), static fn ($note) => $note !== ''));
+    $notes = array_map(static fn ($note) => trim((string) $note), $notes);
+    return array_values(array_filter($notes, static fn ($note) => $note !== ''));
 }
 
 function export_row_background(array $revision, array $item, array $line): string
@@ -469,7 +447,7 @@ $revisionHistory = export_revision_history($showId, $revision);
 $equipmentRows = export_equipment_rows($catalog, $type);
 $equipmentPages = export_equipment_pages($equipmentRows, $layout);
 $summaryRows = !empty($revision['is_initial']) ? [] : export_summary_rows($catalog, $revision, $type);
-$notes = export_notes_list($layout, $show, $catalog);
+$notes = export_notes_list($layout);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'] . '&export_type=' . rawurlencode((string) $type));
 $renderSummaryPage = empty($revision['is_initial']);

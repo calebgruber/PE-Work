@@ -411,14 +411,18 @@ ob_start();
 require $repoRoot . '/export.php';
 $exportHtml = ob_get_clean();
 $_GET = $previousGet;
+$notesSectionStart = strpos($exportHtml, '<div class="notes-section">');
+$notesSectionEnd = $notesSectionStart === false ? false : strpos($exportHtml, '</div>', $notesSectionStart);
+$notesSectionHtml = ($notesSectionStart === false || $notesSectionEnd === false) ? '' : substr($exportHtml, $notesSectionStart, ($notesSectionEnd - $notesSectionStart) + 6);
 assert_true(!str_contains($exportHtml, 'Spacer Break'), 'Expected spacer rows to stay out of final paperwork.');
 assert_true(!str_contains($exportHtml, 'col-summary-notes'), 'Expected revision summary export to omit the notes column.');
 assert_true(str_contains($exportHtml, 'Pull 10/02/26'), 'Expected equipment breakdown notes to include item-specific pull dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Return 10/16/26'), 'Expected equipment breakdown notes to include item-specific return dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Latest revision should clone from here.'), 'Expected order or revision line notes to print on the breakdown paperwork.');
-assert_true((bool) preg_match('/<div class="notes-section">.*?SolaFrame 3000: Latest revision should clone from here\./s', $exportHtml), 'Expected primary order line notes to appear in the paperwork notes section.');
-assert_true((bool) preg_match('/<div class="notes-section">.*?Late Added Feeder: Changed without an explicit action\./s', $exportHtml), 'Expected changed order line notes to appear in the paperwork notes section.');
-assert_true((bool) preg_match('/<div class="notes-section">.*?Blue Clip Light: Blue clip light line note should print on notes page\./s', $exportHtml), 'Expected note-only line item notes to appear in the paperwork notes section.');
+assert_true((bool) preg_match('/<li>Default note one<\/li>.*?<li>Default note two<\/li>/s', $notesSectionHtml), 'Expected the notes page to show only the settings notes.');
+assert_true(!str_contains($notesSectionHtml, 'Latest revision should clone from here.'), 'Expected line-item notes to stay off the notes page.');
+assert_true(!str_contains($notesSectionHtml, 'Changed without an explicit action.'), 'Expected changed line-item notes to stay off the notes page.');
+assert_true(!str_contains($notesSectionHtml, 'Blue clip light line note should print on notes page.'), 'Expected note-only line-item notes to stay off the notes page.');
 assert_true(!str_contains($exportHtml, 'Profile moving light'), 'Expected settings-only item note content to stay out of the paperwork notes section.');
 assert_true(!str_contains($exportHtml, 'Late note'), 'Expected default inventory notes to stay out of the paperwork notes section.');
 assert_true(!str_contains($exportHtml, 'Workbox detail should stay hidden'), 'Expected workbox-style inventory default notes to stay out of the paperwork notes section.');
@@ -663,7 +667,7 @@ save_export_layout([
     'export_notes' => "One\nTwo",
     'show_page_numbers' => '1',
     'show_revision_summary' => '0',
-    'equipment_table_width' => '132.4',
+    'equipment_table_width' => '132.40',
     'equipment_min_rows_per_page' => '111',
     'equipment_max_rows_per_page' => '222',
     'equipment_zebra_gray' => '#BBBBBB',
@@ -681,7 +685,7 @@ save_export_layout([
     'equipment_col_total' => '21',
     'equipment_col_notes' => '33',
     'equipment_font_line' => '24.1',
-    'equipment_font_item' => '26.1',
+    'equipment_font_item' => '26.10',
     'equipment_font_description' => '27.9',
     'equipment_font_used' => '17.4',
     'equipment_font_spare' => '18.3',
@@ -692,13 +696,13 @@ save_export_layout([
 $savedLayout = export_layout_settings();
 assert_true(($savedLayout['layout.organization_text'] ?? '') === 'Top Right Copy', 'Expected organization text to persist in export layout settings.');
 assert_true(($savedLayout['layout.export_notes'] ?? '') === "One\nTwo", 'Expected export notes to persist in export layout settings.');
-assert_true(($savedLayout['layout.equipment_table_width'] ?? '') === '132.4', 'Expected equipment table width to persist in export layout settings without upper limits.');
+assert_true(($savedLayout['layout.equipment_table_width'] ?? '') === '132.40', 'Expected equipment table width to persist in export layout settings without reformatting.');
 assert_true(($savedLayout['layout.equipment_min_rows_per_page'] ?? '') === '111', 'Expected equipment min rows per page to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.equipment_max_rows_per_page'] ?? '') === '222', 'Expected equipment max rows per page to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.equipment_zebra_gray'] ?? '') === '#BBBBBB', 'Expected equipment zebra gray to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_line_height'] ?? '') === '4.6', 'Expected equipment line height to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.equipment_col_line'] ?? '') === '18.5', 'Expected line-number width to persist in export layout settings without limits.');
-assert_true(($savedLayout['layout.equipment_font_item'] ?? '') === '26.1', 'Expected per-column font sizes to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.equipment_font_item'] ?? '') === '26.10', 'Expected per-column font sizes to persist in export layout settings without reformatting.');
 
 $deleteItemResult = delete_inventory_item($adapterItemId);
 assert_true($deleteItemResult['ok'] === true, 'Expected inventory delete to hard-delete the row.');
