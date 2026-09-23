@@ -349,6 +349,9 @@ assert_true(str_contains($exportHtml, 'Pull 2026-10-02'), 'Expected equipment br
 assert_true(str_contains($exportHtml, 'Return 2026-10-16'), 'Expected equipment breakdown notes to include item-specific return dates.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
+assert_true(str_contains($exportHtml, 'Only lines with changed counts or explicit revision actions are listed here.'), 'Expected revision summary copy to explain the changed-lines filter.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<th class="col-used">USED<\/th>.*?<th class="col-spare">SPARE<\/th>.*?<th class="col-total">TOTAL<\/th>.*?<th class="col-notes">NOTES<\/th>/s', $exportHtml), 'Expected revision summary to use the same breakdown-style table columns.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?EXCHANGE.*?9\s*<span class="delta delta-positive">\(\+1\)<\/span>/s', $exportHtml), 'Expected revision summary to list changed rows with action notes and total deltas.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
 assert_true((bool) preg_match('/>\s*9\s*<span class="delta delta-positive">\(\+1\)<\/span>/', $exportHtml), 'Expected equipment breakdown totals to show total-quantity deltas in black text.');
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');

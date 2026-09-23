@@ -119,38 +119,12 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
                 'return_date' => null,
             ];
 
-            $changed = (int) ($line['rent_quantity'] ?? 0) !== (int) ($previousLine['rent_quantity'] ?? 0)
+            $countChanged = (int) ($line['rent_quantity'] ?? 0) !== (int) ($previousLine['rent_quantity'] ?? 0)
                 || (int) ($line['spare_quantity'] ?? 0) !== (int) ($previousLine['spare_quantity'] ?? 0)
-                || (int) ($line['total_quantity'] ?? 0) !== (int) ($previousLine['total_quantity'] ?? 0)
-                || (string) ($line['action'] ?? '') !== (string) ($previousLine['action'] ?? '')
-                || trim((string) ($line['line_note'] ?? '')) !== trim((string) ($previousLine['line_note'] ?? ''))
-                || (string) ($line['pickup_date'] ?? '') !== (string) ($previousLine['pickup_date'] ?? '')
-                || (string) ($line['return_date'] ?? '') !== (string) ($previousLine['return_date'] ?? '');
+                || (int) ($line['total_quantity'] ?? 0) !== (int) ($previousLine['total_quantity'] ?? 0);
+            $hasAction = in_array((string) ($line['action'] ?? ''), ['add', 'return', 'exchange', 'note'], true);
 
-            if (!$changed && empty($line['action'])) {
-                continue;
-            }
-
-            $currentRent = (int) ($line['rent_quantity'] ?? 0);
-            $currentSpares = (int) ($line['spare_quantity'] ?? 0);
-            $currentTotal = (int) ($line['total_quantity'] ?? 0);
-            $previousRent = (int) ($previousLine['rent_quantity'] ?? 0);
-            $previousSpares = (int) ($previousLine['spare_quantity'] ?? 0);
-            $previousTotal = (int) ($previousLine['total_quantity'] ?? 0);
-            $action = (string) ($line['action'] ?? '');
-
-            $quantity = match ($type) {
-                'spares' => max(0, abs($currentSpares - $previousSpares)),
-                default => match ($action) {
-                    'add' => max(0, $currentRent - $previousRent),
-                    'return' => max(0, $previousRent - $currentRent),
-                    'exchange' => max(1, abs($currentRent - $previousRent) ?: abs($currentTotal - $previousTotal) ?: $currentTotal ?: $previousTotal),
-                    'note' => max(1, $currentRent ?: $previousRent ?: $currentTotal ?: $previousTotal),
-                    default => max(1, abs($currentRent - $previousRent) ?: abs($currentTotal - $previousTotal)),
-                },
-            };
-
-            if ($quantity === 0 && $type !== 'returns' && $action !== 'note') {
+            if (!$countChanged && !$hasAction) {
                 continue;
             }
 
@@ -162,7 +136,7 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
                 'category' => $category['name'],
                 'item' => $item,
                 'line' => $line,
-                'quantity' => $quantity,
+                'previous_line' => $previousLine,
                 'description' => implode(' · ', array_filter($descriptionBits, static fn ($value) => trim((string) $value) !== '')),
             ];
         }
@@ -790,36 +764,58 @@ if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
         </div>
       </div>
       <p class="page-heading">REVISION SUMMARY</p>
-      <p class="page-note">NOTE: Not everything is included here; see full revision for complete accessories, etc.</p>
-      <table class="word-table">
+      <p class="page-note">Only lines with changed counts or explicit revision actions are listed here.</p>
+      <div class="equipment-table-wrap">
+      <table class="word-table equipment-table">
         <thead>
           <tr>
             <th class="col-line">LINE</th>
             <th class="col-item">ITEM</th>
             <th class="col-description">DESCRIPTION</th>
-            <th class="col-action">ACTION</th>
-            <th class="col-qty">QTY.</th>
+            <th class="col-used">USED</th>
+            <th class="col-spare">SPARE</th>
+            <th class="col-total">TOTAL</th>
+            <th class="col-notes">NOTES</th>
           </tr>
         </thead>
         <tbody>
           <?php if ($summaryRows): ?>
           <?php foreach ($summaryRows as $index => $row): ?>
+          <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
           <tr style="<?= h(export_row_style($index, $revision, $row['item'], $row['line'], $equipmentZebraGray)) ?>">
             <td class="line-cell"><?= h((string) ($index + 1)) ?></td>
-            <td><?= h($row['item']['name']) ?></td>
-            <td><?= h($row['description']) ?></td>
-            <td><?= h(strtoupper((string) ($row['line']['action'] ?: 'change'))) ?></td>
-            <td><?= h((string) $row['quantity']) ?></td>
+            <td class="item-cell"><?= h($row['item']['name']) ?></td>
+            <td class="description-cell"><?= h($row['description']) ?></td>
+            <td><?= h((string) ($row['line']['rent_quantity'] ?? 0)) ?></td>
+            <td><?= h((string) ($row['line']['spare_quantity'] ?? 0)) ?></td>
+            <td>
+              <?= $type === 'returns' ? '__________' : h((string) ($row['line']['total_quantity'] ?? 0)) ?>
+              <?php if ($delta !== ''): ?><span class="delta <?= str_starts_with($delta, '-') ? 'delta-negative' : 'delta-positive' ?>"><?= h($delta) ?></span><?php endif; ?>
+            </td>
+            <td class="notes-cell">
+              <?php
+                $summaryNotes = [];
+                if (!empty($row['line']['action'])) {
+                    $summaryNotes[] = strtoupper((string) $row['line']['action']);
+                }
+                $equipmentNote = export_equipment_note($row['item'], $row['line']);
+                if ($equipmentNote !== '') {
+                    $summaryNotes[] = $equipmentNote;
+                }
+              ?>
+              <?= h(implode(' · ', $summaryNotes)) ?>
+            </td>
           </tr>
           <?php endforeach; ?>
           <?php else: ?>
           <tr>
             <td class="line-cell">1</td>
-            <td colspan="4">No line-item changes recorded for this revision.</td>
+            <td colspan="6">No line-item changes recorded for this revision.</td>
           </tr>
           <?php endif; ?>
         </tbody>
       </table>
+      </div>
       </div>
       <div class="footer">
         <span><?= h($layout['layout.footer_text']) ?></span>
