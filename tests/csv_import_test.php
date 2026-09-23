@@ -265,6 +265,14 @@ assert_true((int) ($thirdLine['spare_quantity'] ?? 0) === 1, 'Expected later rev
 assert_true(($thirdLine['action'] ?? '') === '', 'Expected later revisions to reset the latest action marker back to blank.');
 assert_true(($thirdLine['line_note'] ?? '') === 'Latest revision should clone from here.', 'Expected later revisions to clone the latest note.');
 
+$uploadFailure = store_resource_upload([
+    'error' => UPLOAD_ERR_CANT_WRITE,
+    'tmp_name' => '',
+    'name' => 'broken.pdf',
+]);
+assert_true($uploadFailure['ok'] === false, 'Expected failed PHP upload errors to be rejected.');
+assert_true(($uploadFailure['message'] ?? '') === 'Choose a PDF file to upload.', 'Expected failed PHP upload errors to surface the missing upload warning.');
+
 $createRuleResult = save_rule([
     'trigger_item_id' => $fixtureItemId,
     'trigger_quantity' => 2,

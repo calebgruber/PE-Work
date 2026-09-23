@@ -114,10 +114,19 @@
         signal: abortController.signal
       })
         .then(function (response) {
-          if (!response.ok) {
-            throw new Error('Validation failed');
-          }
-          return response.json();
+          return response.json()
+            .catch(function () {
+              return null;
+            })
+            .then(function (payload) {
+              if (!response.ok) {
+                const message = Array.isArray(payload?.warnings) && payload.warnings[0]?.message
+                  ? payload.warnings[0].message
+                  : 'Unable to validate this revision right now. Please try again.';
+                throw new Error(message);
+              }
+              return payload;
+            });
         })
         .then(function (payload) {
           if (validationRun !== latestValidationRun) {
@@ -129,7 +138,7 @@
             callback(warnings);
           }
         })
-        .catch(function () {
+        .catch(function (error) {
           if (abortController.signal.aborted) {
             return;
           }
@@ -138,7 +147,7 @@
           }
           renderWarnings([{
             type: 'rule',
-            message: 'Unable to validate this revision right now. Please try again.'
+            message: error?.message || 'Unable to validate this revision right now. Please try again.'
           }]);
         });
     }

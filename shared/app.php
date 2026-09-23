@@ -660,40 +660,41 @@ function create_initial_revision(int $showId): int
 function create_next_revision(int $showId): int
 {
     $pdo = db();
-    $nextIndex = null;
-    $code = null;
+    $attempts = 0;
 
-    try {
-        $pdo->beginTransaction();
-        $latest = find_latest_revision($showId);
-        if (!$latest || (int) ($latest['is_initial'] ?? 0) !== 1 && !find_initial_revision($showId)) {
-            throw new RuntimeException('Create the initial order before adding revisions.');
-        }
-
-        $nextIndex = (int) $latest['revision_index'] + 1;
-        $code = revision_code_for_index($nextIndex);
-
-        $stmt = $pdo->prepare(
-            'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)
-             VALUES (?, ?, ?, ?, ?, ?)'
-        );
-        $stmt->execute([$showId, $code, $nextIndex, date('Y-m-d'), 0, 'Revision created from ' . $latest['revision_code']]);
-        $revisionId = (int) $pdo->lastInsertId();
-        seed_revision_items($revisionId, (int) $latest['id'], true);
-        $pdo->commit();
-        return $revisionId;
-    } catch (Throwable $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        if (is_unique_constraint_violation($e) && $code !== null && $nextIndex !== null) {
-            $existing = find_revision_by_identity($showId, $code, $nextIndex);
-            if ($existing) {
-                return (int) $existing['id'];
+    while ($attempts < 3) {
+        $attempts++;
+        try {
+            $pdo->beginTransaction();
+            $latest = find_latest_revision($showId);
+            if (!$latest || ((int) ($latest['is_initial'] ?? 0) !== 1 && !find_initial_revision($showId))) {
+                throw new RuntimeException('Create the initial order before adding revisions.');
             }
+
+            $nextIndex = (int) $latest['revision_index'] + 1;
+            $code = revision_code_for_index($nextIndex);
+
+            $stmt = $pdo->prepare(
+                'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)
+                 VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$showId, $code, $nextIndex, date('Y-m-d'), 0, 'Revision created from ' . $latest['revision_code']]);
+            $revisionId = (int) $pdo->lastInsertId();
+            seed_revision_items($revisionId, (int) $latest['id'], true);
+            $pdo->commit();
+            return $revisionId;
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            if (is_unique_constraint_violation($e) && $attempts < 3) {
+                continue;
+            }
+            throw $e;
         }
-        throw $e;
     }
+
+    throw new RuntimeException('Unable to create the next revision right now. Please try again.');
 }
 
 function seed_revision_items(int $revisionId, ?int $sourceRevisionId = null, bool $resetRevisionMarkers = false): void
