@@ -68,13 +68,17 @@ $descriptors = [
     2 => ['file', '/tmp/pe-work-settings-server.log', 'a'],
 ];
 $process = proc_open('php -S 127.0.0.1:8099 router.php', $descriptors, $pipes, $repoRoot);
+$serverReady = false;
 for ($attempt = 0; $attempt < 20; $attempt++) {
     $probe = @file_get_contents('http://127.0.0.1:8099/settings?tab=inventory');
     if ($probe !== false) {
+        $serverReady = true;
         break;
     }
     usleep(250000);
 }
+
+settings_assert($serverReady, 'Expected local PHP server to start before running import requests.', $repoRoot, $localConfig, $localBackup, $process, $pipes, [$csvPath]);
 
 $cookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-');
 $command = sprintf(

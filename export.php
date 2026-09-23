@@ -58,6 +58,7 @@ $titleMap = [
     'returns' => 'Return Checklist',
 ];
 $pageTitle = $titleMap[$type] ?? $titleMap['order'];
+$backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -75,7 +76,7 @@ $pageTitle = $titleMap[$type] ?? $titleMap['order'];
 <body>
   <div class="print-shell">
     <div class="print-toolbar">
-      <a class="btn btn-ghost" href="<?= h(url_for('show?show_id=' . $showId . '&revision_id=' . (int) $revision['id'])) ?>">
+      <a class="btn btn-ghost" href="<?= h(url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'])) ?>">
         <span class="material-symbols-outlined">arrow_back</span>
         Back
       </a>

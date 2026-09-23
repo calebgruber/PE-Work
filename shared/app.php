@@ -1129,6 +1129,12 @@ function store_resource_upload(array $file, string $title = ''): array
         return ['ok' => false, 'message' => 'Choose a PDF file to upload.'];
     }
 
+    $isUploadedFile = is_uploaded_file((string) $file['tmp_name']);
+    $allowTestUpload = defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS') && ALLOW_LOCAL_UPLOADS_FOR_TESTS && PHP_SAPI === 'cli' && is_file((string) $file['tmp_name']);
+    if (!$isUploadedFile && !$allowTestUpload) {
+        return ['ok' => false, 'message' => 'Choose a valid uploaded PDF file.'];
+    }
+
     $originalName = (string) ($file['name'] ?? 'resource.pdf');
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
     $mimeType = '';
@@ -1151,7 +1157,7 @@ function store_resource_upload(array $file, string $title = ''): array
     if (!move_uploaded_file($file['tmp_name'], $destination)) {
         $tmpPath = (string) $file['tmp_name'];
         $moved = false;
-        if (defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS') && ALLOW_LOCAL_UPLOADS_FOR_TESTS && PHP_SAPI === 'cli' && is_file($tmpPath)) {
+        if ($allowTestUpload) {
             $moved = @rename($tmpPath, $destination) || @copy($tmpPath, $destination);
         }
         if (!$moved) {

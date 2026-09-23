@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tmpPath = (string) ($upload['tmp_name'] ?? '');
             $uploadError = (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE);
             $pasteCsv = trim((string) ($_POST['inventory_csv_text'] ?? ''));
-            $isUploadedFile = $tmpPath !== '' && (PHP_SAPI === 'cli' || is_uploaded_file($tmpPath));
+            $isUploadedFile = $tmpPath !== '' && is_uploaded_file($tmpPath);
             if ($pasteCsv !== '') {
                 $result = import_inventory_csv_text($pasteCsv);
             } elseif ($uploadError !== UPLOAD_ERR_OK || !$isUploadedFile) {
