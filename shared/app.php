@@ -1049,6 +1049,37 @@ function next_inventory_item_sort_order(?int $categoryId): int
     return (int) db()->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM inventory_items')->fetchColumn();
 }
 
+function unique_inventory_item_name(int $categoryId, string $baseName): string
+{
+    $baseName = trim($baseName) !== '' ? trim($baseName) : 'Spacer';
+    $name = $baseName;
+    $suffix = 2;
+    $stmt = db()->prepare('SELECT COUNT(*) FROM inventory_items WHERE category_id = ? AND name = ? AND is_active = 1');
+
+    while (true) {
+        $stmt->execute([$categoryId, $name]);
+        if ((int) $stmt->fetchColumn() === 0) {
+            return $name;
+        }
+        $name = $baseName . ' ' . $suffix;
+        $suffix++;
+    }
+}
+
+function shift_inventory_item_sort_orders(int $categoryId, int $minimumSortOrder): void
+{
+    if (!table_column_exists('inventory_items', 'sort_order')) {
+        return;
+    }
+
+    $stmt = db()->prepare(
+        'UPDATE inventory_items
+         SET sort_order = sort_order + 1, updated_at = CURRENT_TIMESTAMP
+         WHERE category_id = ? AND COALESCE(sort_order, 0) >= ?'
+    );
+    $stmt->execute([$categoryId, $minimumSortOrder]);
+}
+
 function create_category(string $name): array
 {
     $name = trim($name);
@@ -1141,6 +1172,49 @@ function create_inventory_item(array $input): array
 
     if ($name === '' || $categoryId <= 0) {
         return ['ok' => false, 'message' => 'Choose a category and enter an item name.'];
+    }
+
+    function create_spacer_near_inventory_item(int $itemId, string $position): array
+    {
+        if (!table_column_exists('inventory_items', 'sort_order') || !table_column_exists('inventory_items', 'is_spacer')) {
+            return ['ok' => false, 'message' => 'Run the latest migrations before inserting spacer rows.'];
+        }
+
+        if (!in_array($position, ['above', 'below'], true)) {
+            return ['ok' => false, 'message' => 'Choose where to place the spacer.'];
+        }
+
+        $stmt = db()->prepare('SELECT id, category_id, sort_order, name FROM inventory_items WHERE id = ? AND is_active = 1');
+        $stmt->execute([$itemId]);
+        $item = $stmt->fetch();
+        if (!$item) {
+            return ['ok' => false, 'message' => 'Inventory item not found.'];
+        }
+
+        $categoryId = (int) $item['category_id'];
+        $baseSortOrder = (int) ($item['sort_order'] ?? 0);
+        $insertSortOrder = $position === 'above' ? $baseSortOrder : $baseSortOrder + 1;
+
+        $pdo = db();
+        $pdo->beginTransaction();
+        try {
+            shift_inventory_item_sort_orders($categoryId, $insertSortOrder);
+            $name = unique_inventory_item_name($categoryId, 'Spacer');
+            $insert = $pdo->prepare(
+                'INSERT INTO inventory_items (
+                    category_id, name, sort_order, shop_quantity, unit, default_note, description, is_spacer
+                 ) VALUES (?, ?, ?, 0, ?, ?, ?, 1)'
+            );
+            $insert->execute([$categoryId, $name, $insertSortOrder, '', '', '']);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        return ['ok' => true, 'message' => 'Spacer added ' . $position . ' this item.'];
     }
 
     $categoryLookup = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE id = ?');

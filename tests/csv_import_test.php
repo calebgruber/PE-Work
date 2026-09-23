@@ -342,6 +342,28 @@ $stmt->execute(['Stagepin to True1 Adapter']);
 assert_true($stmt->fetch() === false, 'Expected deleted inventory item to be removed from storage.');
 assert_true((int) db()->query('SELECT COUNT(*) FROM revision_items WHERE inventory_item_id = ' . (int) $adapterItemId)->fetchColumn() === 0, 'Expected deleted inventory item to remove related revision lines.');
 
+$fixtureMetaStmt = db()->prepare('SELECT category_id, sort_order FROM inventory_items WHERE id = ?');
+$fixtureMetaStmt->execute([$fixtureItemId]);
+$fixtureMeta = $fixtureMetaStmt->fetch() ?: ['category_id' => 0, 'sort_order' => 0];
+$originalFixtureSortOrder = (int) ($fixtureMeta['sort_order'] ?? 0);
+$fixtureCategoryId = (int) ($fixtureMeta['category_id'] ?? 0);
+
+$spacerAboveResult = create_spacer_near_inventory_item($fixtureItemId, 'above');
+assert_true($spacerAboveResult['ok'] === true, 'Expected spacer-above action to succeed.');
+$spacerLookup = db()->prepare('SELECT is_spacer FROM inventory_items WHERE category_id = ? AND sort_order = ? ORDER BY id DESC LIMIT 1');
+$spacerLookup->execute([$fixtureCategoryId, $originalFixtureSortOrder]);
+$spacerAbove = $spacerLookup->fetch() ?: [];
+assert_true(($spacerAbove['is_spacer'] ?? 0) == 1, 'Expected spacer-above action to create a spacer row.');
+
+$fixtureMetaStmt->execute([$fixtureItemId]);
+$fixtureMetaAfterAbove = $fixtureMetaStmt->fetch() ?: ['sort_order' => 0];
+$fixtureSortOrderAfterAbove = (int) ($fixtureMetaAfterAbove['sort_order'] ?? 0);
+$spacerBelowResult = create_spacer_near_inventory_item($fixtureItemId, 'below');
+assert_true($spacerBelowResult['ok'] === true, 'Expected spacer-below action to succeed.');
+$spacerLookup->execute([$fixtureCategoryId, $fixtureSortOrderAfterAbove + 1]);
+$spacerBelow = $spacerLookup->fetch() ?: [];
+assert_true(($spacerBelow['is_spacer'] ?? 0) == 1, 'Expected spacer-below action to create a spacer row directly after the item.');
+
 $clearCatalogItemId = ensure_catalog_item('Accessories', 'Cable Crate', 8, 'ea');
 $clearInventoryResult = clear_inventory_items();
 assert_true($clearInventoryResult['ok'] === true, 'Expected clear inventory action to succeed.');

@@ -258,6 +258,49 @@
   padding: 1rem;
 }
 
+.inventory-item-accordion {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.inventory-item-trigger {
+  padding: 0.875rem 1rem;
+  font-size: 0.9rem;
+  background: var(--surface-raised);
+}
+
+.inventory-item-trigger-copy {
+  display: grid;
+  gap: 0.2rem;
+  text-align: left;
+}
+
+.inventory-item-trigger-copy strong {
+  font-size: 0.95rem;
+}
+
+.inventory-item-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.inventory-item-form-actions form {
+  margin: 0;
+}
+
+.inventory-item-delete {
+  margin-top: 0.25rem;
+}
+
+.inventory-item-form-actions {
+  flex-wrap: wrap;
+}
+
 .inventory-item-grid,
 .resource-grid {
   display: grid;

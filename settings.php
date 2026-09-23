@@ -77,6 +77,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        if ($action === 'add_item_spacer') {
+            $result = create_spacer_near_inventory_item((int) ($_POST['item_id'] ?? 0), (string) ($_POST['position'] ?? ''));
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=inventory'));
+            exit;
+        }
+
         if ($action === 'clear_inventory') {
             $result = clear_inventory_items();
             flash($result['ok'] ? 'success' : 'warning', $result['message']);
@@ -227,68 +234,103 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <div class="inventory-item-grid">
                 <?php foreach ($category['items'] as $item): ?>
                 <div class="inventory-item-wrap" data-inventory-item data-item-name="<?= h(strtolower($item['name'] . ' ' . ($item['description'] ?? '') . ' ' . ($item['default_note'] ?? ''))) ?>">
-                  <form method="post" class="inventory-item-card">
-                    <?= csrf_input() ?>
-                    <input type="hidden" name="action" value="save_inventory_item">
-                    <div class="inventory-item-header">
-                      <div>
-                        <h3><?= h($item['name']) ?></h3>
-                        <?php if (!empty($item['description'])): ?><div class="muted"><?= h($item['description']) ?></div><?php endif; ?>
-                        <?php if (!empty($item['is_spacer'])): ?><div class="helper-text">Spacer row</div><?php endif; ?>
-                      </div>
-                      <div class="inventory-item-actions">
-                        <?php if (!empty($item['default_note'])): ?>
-                        <button type="button" class="icon-link" data-note-trigger data-note-title="<?= h($item['name']) ?> note" data-note-body="<?= h($item['default_note']) ?>">
-                          <span class="material-symbols-outlined">visibility</span>
-                        </button>
-                        <?php endif; ?>
-                      </div>
-                    </div>
-                    <div class="inventory-item-fields">
-                      <div class="form-group">
-                        <label>Shop Has</label>
-                        <input class="form-control compact-input" type="number" min="0" name="items[<?= h((string) $item['id']) ?>][shop_quantity]" value="<?= h((string) $item['shop_quantity']) ?>">
-                      </div>
-                      <div class="form-group">
-                        <label>Order</label>
-                        <input class="form-control compact-input" type="number" min="0" name="items[<?= h((string) $item['id']) ?>][sort_order]" value="<?= h((string) ($item['sort_order'] ?? 0)) ?>">
-                      </div>
-                      <div class="form-group">
-                        <label>Unit</label>
-                        <input class="form-control compact-input" name="items[<?= h((string) $item['id']) ?>][unit]" value="<?= h($item['unit'] ?? '') ?>">
-                      </div>
-                    </div>
-                    <div class="form-group">
-                      <input type="hidden" name="items[<?= h((string) $item['id']) ?>][is_spacer]" value="0">
-                      <label class="check-label">
-                        <input type="checkbox" name="items[<?= h((string) $item['id']) ?>][is_spacer]" value="1" <?= !empty($item['is_spacer']) ? 'checked' : '' ?>>
-                        Spacer row
-                      </label>
-                    </div>
-                    <div class="form-group">
-                      <label>Item Note</label>
-                      <textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][default_note]"><?= h($item['default_note'] ?? '') ?></textarea>
-                    </div>
-                    <div class="form-group">
-                      <label>Description</label>
-                      <textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][description]"><?= h($item['description'] ?? '') ?></textarea>
-                    </div>
-                    <div class="form-actions">
-                      <button type="submit" class="btn btn-primary btn-sm">
-                        <span class="material-symbols-outlined">save</span>
-                        Save
-                      </button>
-                    </div>
-                  </form>
-                  <form method="post" class="inventory-item-delete">
-                    <?= csrf_input() ?>
-                    <input type="hidden" name="action" value="delete_inventory_item">
-                    <input type="hidden" name="item_id" value="<?= h((string) $item['id']) ?>">
-                    <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE ITEM" data-confirm="Type REMOVE ITEM to permanently remove this inventory item.">
-                      <span class="material-symbols-outlined">delete</span>
-                      Remove
+                  <section class="inventory-item-accordion">
+                    <button type="button" class="inventory-accordion-trigger inventory-item-trigger" data-accordion-trigger aria-expanded="false">
+                      <span class="inventory-item-trigger-copy">
+                        <strong><?= h($item['name']) ?></strong>
+                        <span class="muted">
+                          <?= !empty($item['is_spacer']) ? 'Spacer row' : ('Shop has ' . h((string) $item['shop_quantity']) . (!empty($item['unit']) ? ' ' . h($item['unit']) : '')) ?>
+                        </span>
+                      </span>
+                      <span class="material-symbols-outlined">expand_more</span>
                     </button>
-                  </form>
+                    <div class="inventory-accordion-panel hidden" data-accordion-panel>
+                      <form method="post" class="inventory-item-card">
+                        <?= csrf_input() ?>
+                        <input type="hidden" name="action" value="save_inventory_item">
+                        <div class="inventory-item-header">
+                          <div>
+                            <h3><?= h($item['name']) ?></h3>
+                            <?php if (!empty($item['description'])): ?><div class="muted"><?= h($item['description']) ?></div><?php endif; ?>
+                            <?php if (!empty($item['is_spacer'])): ?><div class="helper-text">Spacer row</div><?php endif; ?>
+                          </div>
+                          <div class="inventory-item-actions">
+                            <?php if (!empty($item['default_note'])): ?>
+                            <button type="button" class="icon-link" data-note-trigger data-note-title="<?= h($item['name']) ?> note" data-note-body="<?= h($item['default_note']) ?>">
+                              <span class="material-symbols-outlined">visibility</span>
+                            </button>
+                            <?php endif; ?>
+                          </div>
+                        </div>
+                        <div class="inventory-item-fields">
+                          <div class="form-group">
+                            <label>Shop Has</label>
+                            <input class="form-control compact-input" type="number" min="0" name="items[<?= h((string) $item['id']) ?>][shop_quantity]" value="<?= h((string) $item['shop_quantity']) ?>">
+                          </div>
+                          <div class="form-group">
+                            <label>Order</label>
+                            <input class="form-control compact-input" type="number" min="0" name="items[<?= h((string) $item['id']) ?>][sort_order]" value="<?= h((string) ($item['sort_order'] ?? 0)) ?>">
+                          </div>
+                          <div class="form-group">
+                            <label>Unit</label>
+                            <input class="form-control compact-input" name="items[<?= h((string) $item['id']) ?>][unit]" value="<?= h($item['unit'] ?? '') ?>">
+                          </div>
+                        </div>
+                        <div class="form-group">
+                          <input type="hidden" name="items[<?= h((string) $item['id']) ?>][is_spacer]" value="0">
+                          <label class="check-label">
+                            <input type="checkbox" name="items[<?= h((string) $item['id']) ?>][is_spacer]" value="1" <?= !empty($item['is_spacer']) ? 'checked' : '' ?>>
+                            Spacer row
+                          </label>
+                        </div>
+                        <div class="form-group">
+                          <label>Item Note</label>
+                          <textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][default_note]"><?= h($item['default_note'] ?? '') ?></textarea>
+                        </div>
+                        <div class="form-group">
+                          <label>Description</label>
+                          <textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][description]"><?= h($item['description'] ?? '') ?></textarea>
+                        </div>
+                        <div class="form-actions">
+                          <button type="submit" class="btn btn-primary btn-sm">
+                            <span class="material-symbols-outlined">save</span>
+                            Save
+                          </button>
+                        </div>
+                      </form>
+                      <div class="inventory-item-form-actions">
+                        <form method="post">
+                          <?= csrf_input() ?>
+                          <input type="hidden" name="action" value="add_item_spacer">
+                          <input type="hidden" name="item_id" value="<?= h((string) $item['id']) ?>">
+                          <input type="hidden" name="position" value="above">
+                          <button type="submit" class="btn btn-ghost btn-sm">
+                            <span class="material-symbols-outlined">vertical_align_top</span>
+                            Spacer Above
+                          </button>
+                        </form>
+                        <form method="post">
+                          <?= csrf_input() ?>
+                          <input type="hidden" name="action" value="add_item_spacer">
+                          <input type="hidden" name="item_id" value="<?= h((string) $item['id']) ?>">
+                          <input type="hidden" name="position" value="below">
+                          <button type="submit" class="btn btn-ghost btn-sm">
+                            <span class="material-symbols-outlined">vertical_align_bottom</span>
+                            Spacer Below
+                          </button>
+                        </form>
+                      </div>
+                      <form method="post" class="inventory-item-delete">
+                        <?= csrf_input() ?>
+                        <input type="hidden" name="action" value="delete_inventory_item">
+                        <input type="hidden" name="item_id" value="<?= h((string) $item['id']) ?>">
+                        <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE ITEM" data-confirm="Type REMOVE ITEM to permanently remove this inventory item.">
+                          <span class="material-symbols-outlined">delete</span>
+                          Remove
+                        </button>
+                      </form>
+                    </div>
+                  </section>
                 </div>
                 <?php endforeach; ?>
               </div>
