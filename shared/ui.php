@@ -85,30 +85,20 @@ function ui_head(string $pageTitle, string $appSlug = '', string $appHeading = '
 function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, string $userLogoutUrl = ''): void
 {
     _ui_context($appHeading, $headerIcon);
-
-    $user = current_user();
-    $display = $user['display_name'] ?? $user['username'] ?? 'User';
-    $initials = strtoupper(function_exists('mb_substr') ? mb_substr($display, 0, 2, 'UTF-8') : substr($display, 0, 2));
     ?>
   <div class="topbar">
-    <a href="<?= h(url_for('')) ?>" class="topbar-launcher">
-      <span class="material-symbols-outlined">home</span>
-      Launcher
-    </a>
-    <span class="topbar-sep">›</span>
-    <span class="topbar-app">
+    <button type="button" id="mobile-menu-btn" class="topbar-btn topbar-menu" aria-label="Open navigation">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+    <a href="<?= h(url_for('')) ?>" class="topbar-app topbar-app-link">
       <span class="material-symbols-outlined"><?= h($headerIcon) ?></span>
       <?= h($appHeading) ?>
-    </span>
+    </a>
 
     <div class="topbar-right">
       <button id="theme-toggle" class="topbar-btn" title="Toggle theme" aria-label="Toggle theme">
         <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
       </button>
-      <span class="topbar-user">
-        <div class="topbar-avatar"><?= h($initials) ?></div>
-        <span class="hidden" style="display:none" id="topbar-username"><?= h($display) ?></span>
-      </span>
     </div>
   </div>
 
@@ -134,16 +124,6 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
 <?php endif; ?>
 <?php endforeach; ?>
     </nav>
-
-    <div class="sidebar-footer">
-      <div class="user-info" style="cursor:default;">
-        <div class="user-avatar"><?= h($initials) ?></div>
-        <div class="user-details">
-          <div class="user-name truncate"><?= h($display) ?></div>
-          <div class="user-role"><?= h(ucfirst($user['role'] ?? 'admin')) ?></div>
-        </div>
-      </div>
-    </div>
   </aside>
 
   <main class="content">
@@ -157,8 +137,7 @@ function ui_page_header(string $title, string $breadcrumb = '', string $extraHtm
     <div class="page-header">
       <div>
         <?php if ($ctx['heading']): ?>
-        <div class="app-context-badge">
-          <span class="material-symbols-outlined"><?= h($ctx['icon']) ?></span>
+        <div class="page-app-name">
           <?= h($ctx['heading']) ?>
         </div>
         <?php endif; ?>

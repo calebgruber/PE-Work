@@ -122,9 +122,79 @@
     });
   }
 
+  function initAccordion() {
+    document.querySelectorAll('[data-accordion-trigger]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        const panel = button.closest('[data-inventory-category]')?.querySelector('[data-accordion-panel]');
+        if (!panel) return;
+
+        const isOpen = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+        panel.classList.toggle('hidden', isOpen);
+      });
+    });
+  }
+
+  function initInventoryFilters() {
+    const search = document.querySelector('[data-inventory-search]');
+    const filter = document.querySelector('[data-category-filter]');
+    if (!search && !filter) return;
+
+    const categories = Array.prototype.slice.call(document.querySelectorAll('[data-inventory-category]'));
+
+    function applyFilters() {
+      const searchTerm = (search?.value || '').trim().toLowerCase();
+      const categoryFilter = filter?.value || '';
+
+      categories.forEach(function (category) {
+        const categoryId = category.getAttribute('data-category-id') || '';
+        const categoryName = category.getAttribute('data-category-name') || '';
+        const categoryMatches = !categoryFilter || categoryId === categoryFilter;
+        let visibleItems = 0;
+
+        category.querySelectorAll('[data-inventory-item]').forEach(function (item) {
+          const haystack = item.getAttribute('data-item-name') || '';
+          const match = (!searchTerm && categoryMatches) || (categoryMatches && (haystack.indexOf(searchTerm) !== -1 || categoryName.indexOf(searchTerm) !== -1));
+          item.classList.toggle('hidden', !match);
+          const deleteForm = item.nextElementSibling;
+          if (deleteForm && deleteForm.classList.contains('inventory-item-delete')) {
+            deleteForm.classList.toggle('hidden', !match);
+          }
+          if (match) visibleItems += 1;
+        });
+
+        category.classList.toggle('hidden', visibleItems === 0 || !categoryMatches);
+      });
+    }
+
+    if (search) {
+      search.addEventListener('input', applyFilters);
+    }
+    if (filter) {
+      filter.addEventListener('change', applyFilters);
+    }
+    applyFilters();
+  }
+
+  function initConfirmCodes() {
+    document.querySelectorAll('[data-confirm-code]').forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        const expected = button.getAttribute('data-confirm-code') || '';
+        const message = button.getAttribute('data-confirm') || ('Type ' + expected + ' to continue.');
+        const entered = window.prompt(message, '');
+        if (entered !== expected) {
+          event.preventDefault();
+        }
+      });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     initRevisionRows();
     initNoteModal();
     initPrintActions();
+    initAccordion();
+    initInventoryFilters();
+    initConfirmCodes();
   });
 })();

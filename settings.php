@@ -34,14 +34,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($action === 'add_category') {
-            create_category($_POST['category_name'] ?? '');
-            flash('success', 'Category added.');
+            $result = create_category($_POST['category_name'] ?? '');
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=inventory'));
+            exit;
+        }
+
+        if ($action === 'update_category') {
+            $result = update_category($_POST);
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=inventory'));
+            exit;
+        }
+
+        if ($action === 'delete_category') {
+            $result = delete_category((int) ($_POST['category_id'] ?? 0));
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
             header('Location: ' . url_for('settings?tab=inventory'));
             exit;
         }
 
         if ($action === 'add_item') {
             $result = create_inventory_item($_POST);
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=inventory'));
+            exit;
+        }
+
+        if ($action === 'delete_inventory_item') {
+            $result = delete_inventory_item((int) ($_POST['item_id'] ?? 0));
             flash($result['ok'] ? 'success' : 'warning', $result['message']);
             header('Location: ' . url_for('settings?tab=inventory'));
             exit;
@@ -71,6 +92,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . url_for('settings?tab=layout'));
             exit;
         }
+
+        if ($action === 'upload_resource') {
+            $result = store_resource_upload($_FILES['resource_pdf'] ?? [], $_POST['resource_title'] ?? '');
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=resources'));
+            exit;
+        }
+
+        if ($action === 'delete_resource') {
+            $result = delete_resource((int) ($_POST['resource_id'] ?? 0));
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=resources'));
+            exit;
+        }
     }
 }
 
@@ -80,9 +115,10 @@ $rules = schema_ready() ? fetch_rules() : [];
 $layout = export_layout_settings();
 $applied = applied_migrations();
 $migrationFiles = migration_files();
+$resources = schema_ready() ? fetch_resources() : [];
 
 ui_head('Settings', '', APP_NAME, 'settings');
-ui_sidebar(APP_NAME, 'settings', nav_items('settings'));
+ui_sidebar(APP_NAME, 'settings', nav_items($tab === 'resources' ? 'resources' : 'settings'));
 ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and database migrations.', '');
 ?>
 <div class="page-body">
@@ -90,6 +126,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
 
   <div class="tabs">
     <a class="tab<?= $tab === 'inventory' ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=inventory')) ?>"><span class="material-symbols-outlined">inventory_2</span>Inventory</a>
+    <a class="tab<?= $tab === 'resources' ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=resources')) ?>"><span class="material-symbols-outlined">folder</span>Resources</a>
     <a class="tab<?= $tab === 'rules' ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=rules')) ?>"><span class="material-symbols-outlined">rule</span>Rules</a>
     <a class="tab<?= $tab === 'layout' ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=layout')) ?>"><span class="material-symbols-outlined">dashboard_customize</span>Layout</a>
     <a class="tab<?= $tab === 'migrations' ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=migrations')) ?>"><span class="material-symbols-outlined">database</span>Migrations</a>
@@ -106,54 +143,125 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
       <?php ui_card_close(); ?>
     <?php else: ?>
       <?php ui_card_open('inventory_2', 'Inventory Catalog'); ?>
-        <form method="post">
-          <input type="hidden" name="action" value="save_inventory">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Category</th>
-                  <th>Item</th>
-                  <th>Shop Has</th>
-                  <th>Unit</th>
-                  <th>Item Note</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php foreach ($catalog as $category): ?>
-                  <?php foreach ($category['items'] as $item): ?>
-                  <tr class="inventory-row">
-                    <td><?= h($category['name']) ?></td>
-                    <td><strong><?= h($item['name']) ?></strong></td>
-                    <td><input class="form-control compact-input" type="number" min="0" name="items[<?= h((string) $item['id']) ?>][shop_quantity]" value="<?= h((string) $item['shop_quantity']) ?>"></td>
-                    <td><input class="form-control compact-input" name="items[<?= h((string) $item['id']) ?>][unit]" value="<?= h($item['unit'] ?? '') ?>"></td>
-                    <td>
-                      <textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][default_note]"><?= h($item['default_note'] ?? '') ?></textarea>
+        <div class="inventory-toolbar">
+          <div class="form-group">
+            <label for="inventory-search">Live Search</label>
+            <input class="form-control" id="inventory-search" type="search" placeholder="Search inventory..." data-inventory-search>
+          </div>
+          <div class="form-group">
+            <label for="inventory-category-filter">Filter by Category</label>
+            <select class="form-control" id="inventory-category-filter" data-category-filter>
+              <option value="">All categories</option>
+              <?php foreach ($categories as $category): ?>
+              <option value="<?= h((string) $category['id']) ?>"><?= h($category['name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+
+        <div class="inventory-accordion-list">
+          <?php foreach ($catalog as $category): ?>
+          <section class="inventory-accordion" data-inventory-category data-category-id="<?= h((string) $category['id']) ?>" data-category-name="<?= h(strtolower($category['name'])) ?>">
+            <button type="button" class="inventory-accordion-trigger" data-accordion-trigger aria-expanded="false">
+              <span><?= h($category['name']) ?></span>
+              <span class="material-symbols-outlined">expand_more</span>
+            </button>
+            <div class="inventory-accordion-panel hidden" data-accordion-panel>
+              <div class="inventory-item-grid">
+                <?php foreach ($category['items'] as $item): ?>
+                <form method="post" class="inventory-item-card" data-inventory-item data-item-name="<?= h(strtolower($item['name'] . ' ' . ($item['description'] ?? '') . ' ' . ($item['default_note'] ?? ''))) ?>">
+                  <input type="hidden" name="action" value="save_inventory">
+                  <div class="inventory-item-header">
+                    <div>
+                      <h3><?= h($item['name']) ?></h3>
+                      <?php if (!empty($item['description'])): ?><div class="muted"><?= h($item['description']) ?></div><?php endif; ?>
+                    </div>
+                    <div class="inventory-item-actions">
                       <?php if (!empty($item['default_note'])): ?>
                       <button type="button" class="icon-link" data-note-trigger data-note-title="<?= h($item['name']) ?> note" data-note-body="<?= h($item['default_note']) ?>">
                         <span class="material-symbols-outlined">visibility</span>
                       </button>
                       <?php endif; ?>
-                    </td>
-                    <td><textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][description]"><?= h($item['description'] ?? '') ?></textarea></td>
-                  </tr>
-                  <?php endforeach; ?>
+                    </div>
+                  </div>
+                  <div class="inventory-item-fields">
+                    <div class="form-group">
+                      <label>Shop Has</label>
+                      <input class="form-control compact-input" type="number" min="0" name="items[<?= h((string) $item['id']) ?>][shop_quantity]" value="<?= h((string) $item['shop_quantity']) ?>">
+                    </div>
+                    <div class="form-group">
+                      <label>Unit</label>
+                      <input class="form-control compact-input" name="items[<?= h((string) $item['id']) ?>][unit]" value="<?= h($item['unit'] ?? '') ?>">
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Item Note</label>
+                    <textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][default_note]"><?= h($item['default_note'] ?? '') ?></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][description]"><?= h($item['description'] ?? '') ?></textarea>
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                      <span class="material-symbols-outlined">save</span>
+                      Save
+                    </button>
+                  </div>
+                </form>
+                <form method="post" class="inventory-item-delete">
+                  <input type="hidden" name="action" value="delete_inventory_item">
+                  <input type="hidden" name="item_id" value="<?= h((string) $item['id']) ?>">
+                  <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE ITEM" data-confirm="Type REMOVE ITEM to permanently remove this inventory item.">
+                    <span class="material-symbols-outlined">delete</span>
+                    Remove
+                  </button>
+                </form>
                 <?php endforeach; ?>
-              </tbody>
-            </table>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-              <span class="material-symbols-outlined">save</span>
-              Save Inventory
-            </button>
-          </div>
-        </form>
+              </div>
+            </div>
+          </section>
+          <?php endforeach; ?>
+        </div>
       <?php ui_card_close(); ?>
 
-      <div class="card-grid">
-        <?php ui_card_open('add_box', 'Add Category / Item'); ?>
+      <div class="card-grid card-grid-2">
+        <?php ui_card_open('list', 'Categories'); ?>
+          <div class="stack">
+            <?php foreach ($categories as $category): ?>
+            <form method="post" class="category-editor">
+              <input type="hidden" name="action" value="update_category">
+              <input type="hidden" name="category_id" value="<?= h((string) $category['id']) ?>">
+              <div class="category-editor-grid">
+                <div class="form-group">
+                  <label>Name</label>
+                  <input class="form-control" name="name" value="<?= h($category['name']) ?>">
+                </div>
+                <div class="form-group">
+                  <label>Sort Order</label>
+                  <input class="form-control compact-input" type="number" min="0" name="sort_order" value="<?= h((string) $category['sort_order']) ?>">
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-sm">
+                  <span class="material-symbols-outlined">save</span>
+                  Update
+                </button>
+              </div>
+            </form>
+            <form method="post" class="category-delete-form">
+              <input type="hidden" name="action" value="delete_category">
+              <input type="hidden" name="category_id" value="<?= h((string) $category['id']) ?>">
+              <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE CATEGORY" data-confirm="Type REMOVE CATEGORY to delete this category.">
+                <span class="material-symbols-outlined">delete</span>
+                Remove Category
+              </button>
+            </form>
+            <?php endforeach; ?>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0;">
+
           <form method="post" class="stack">
             <input type="hidden" name="action" value="add_category">
             <div class="form-group">
@@ -167,9 +275,9 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               </button>
             </div>
           </form>
+        <?php ui_card_close(); ?>
 
-          <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0;">
-
+        <?php ui_card_open('add_box', 'Add Inventory / Import'); ?>
           <form method="post" class="stack">
             <input type="hidden" name="action" value="add_item">
             <div class="form-group">
@@ -210,9 +318,9 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               </button>
             </div>
           </form>
-        <?php ui_card_close(); ?>
 
-        <?php ui_card_open('upload_file', 'Import From Excel-Style CSV'); ?>
+          <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0;">
+
           <p class="helper-text">Upload a CSV exported from Excel with columns: <code>category,name,shop_quantity,unit,default_note,description</code>.</p>
           <form method="post" enctype="multipart/form-data">
             <input type="hidden" name="action" value="import_inventory">
@@ -230,6 +338,74 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
         <?php ui_card_close(); ?>
       </div>
     <?php endif; ?>
+  <?php elseif ($tab === 'resources'): ?>
+    <?php ui_card_open('folder', 'Resources'); ?>
+      <div class="card-grid card-grid-2">
+        <div class="summary-block">
+          <strong>Upload PDF Resources</strong>
+          <form method="post" enctype="multipart/form-data" class="stack" style="margin-top:1rem;">
+            <input type="hidden" name="action" value="upload_resource">
+            <div class="form-group">
+              <label for="resource_title">Title</label>
+              <input class="form-control" id="resource_title" name="resource_title" placeholder="Vectorworks guide">
+            </div>
+            <div class="form-group">
+              <label for="resource_pdf">PDF File</label>
+              <input class="form-control" type="file" id="resource_pdf" name="resource_pdf" accept="application/pdf,.pdf">
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-outlined">upload_file</span>
+                Upload Resource
+              </button>
+            </div>
+          </form>
+        </div>
+        <div class="summary-block">
+          <strong>Use Cases</strong>
+          <div class="stack" style="margin-top:1rem;">
+            <div class="muted">Upload shop paperwork references, diagrams, manuals, or PDF examples.</div>
+            <div class="muted">Each uploaded PDF can be previewed directly in the page on desktop or downloaded on mobile.</div>
+          </div>
+        </div>
+      </div>
+
+      <?php if ($resources): ?>
+      <div class="resource-grid">
+        <?php foreach ($resources as $resource): ?>
+        <article class="resource-card">
+          <div class="resource-card-header">
+            <div>
+              <h3><?= h($resource['title']) ?></h3>
+              <div class="muted"><?= h($resource['original_name']) ?></div>
+            </div>
+            <form method="post">
+              <input type="hidden" name="action" value="delete_resource">
+              <input type="hidden" name="resource_id" value="<?= h((string) $resource['id']) ?>">
+              <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE RESOURCE" data-confirm="Type REMOVE RESOURCE to delete this PDF.">
+                <span class="material-symbols-outlined">delete</span>
+                Remove
+              </button>
+            </form>
+          </div>
+          <div class="resource-actions">
+            <a class="btn btn-ghost btn-sm" href="<?= h(url_for('resource_file?id=' . (int) $resource['id'])) ?>" target="_blank" rel="noopener">
+              <span class="material-symbols-outlined">open_in_new</span>
+              Open PDF
+            </a>
+          </div>
+          <iframe class="resource-frame" src="<?= h(url_for('resource_file?id=' . (int) $resource['id'])) ?>" title="<?= h($resource['title']) ?>"></iframe>
+        </article>
+        <?php endforeach; ?>
+      </div>
+      <?php else: ?>
+      <div class="empty-state">
+        <span class="material-symbols-outlined">folder</span>
+        <h3>No resources uploaded</h3>
+        <p>Upload PDFs here to keep shop references and paperwork examples inside the app.</p>
+      </div>
+      <?php endif; ?>
+    <?php ui_card_close(); ?>
   <?php elseif ($tab === 'rules'): ?>
     <?php ui_card_open('rule', 'Global Auto-Pull Rules'); ?>
       <?php if (!schema_ready()): ?>

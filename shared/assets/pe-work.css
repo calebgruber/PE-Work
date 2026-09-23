@@ -4,9 +4,28 @@
   font-size: 0.8125rem;
 }
 
+.page-body > .card,
+.page-body > .card-grid,
+.page-body > .print-shell {
+  margin-bottom: 1.5rem;
+}
+
+.page-body .card-grid {
+  gap: 1.25rem;
+}
+
 .stack {
   display: grid;
   gap: 1rem;
+}
+
+.page-app-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.375rem;
 }
 
 .show-summary {
@@ -124,6 +143,112 @@
   flex-wrap: wrap;
 }
 
+.inventory-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.inventory-accordion-list {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.inventory-accordion {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.inventory-accordion-trigger {
+  width: 100%;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.125rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.inventory-accordion-trigger .material-symbols-outlined {
+  transition: transform var(--transition);
+}
+
+.inventory-accordion-trigger[aria-expanded="true"] .material-symbols-outlined {
+  transform: rotate(180deg);
+}
+
+.inventory-accordion-panel {
+  border-top: 1px solid var(--border);
+  padding: 1rem;
+}
+
+.inventory-item-grid,
+.resource-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.inventory-item-card,
+.resource-card,
+.category-editor {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  padding: 1rem;
+}
+
+.inventory-item-header,
+.resource-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.inventory-item-header h3,
+.resource-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.inventory-item-fields,
+.category-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.875rem;
+}
+
+.inventory-item-delete,
+.category-delete-form {
+  margin-top: -0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.resource-actions {
+  margin-bottom: 0.75rem;
+}
+
+.resource-frame {
+  width: 100%;
+  min-height: 420px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.topbar-menu {
+  display: none;
+}
+
 .print-shell {
   max-width: 1100px;
   margin: 0 auto;
@@ -175,5 +300,38 @@
   .print-shell {
     max-width: none;
     padding: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .resource-frame {
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar-menu {
+    display: inline-flex;
+  }
+
+  .topbar-app-link {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .page-body > .card,
+  .page-body > .card-grid {
+    margin-bottom: 1rem;
+  }
+
+  .inventory-accordion-panel,
+  .inventory-item-card,
+  .resource-card,
+  .category-editor {
+    padding: 0.875rem;
+  }
+
+  .resource-frame {
+    min-height: 240px;
   }
 }

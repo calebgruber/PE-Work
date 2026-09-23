@@ -50,6 +50,7 @@ function nav_items(string $active = 'dashboard'): array
         ['icon' => 'home', 'label' => 'Dashboard', 'href' => url_for(''), 'active' => $active === 'dashboard'],
         ['icon' => 'theater_comedy', 'label' => 'Shows', 'href' => url_for('show'), 'active' => $active === 'shows'],
         ['icon' => 'settings', 'label' => 'Settings', 'href' => url_for('settings'), 'active' => $active === 'settings'],
+        ['icon' => 'folder', 'label' => 'Resources', 'href' => url_for('settings?tab=resources'), 'active' => $active === 'resources'],
     ];
 }
 
@@ -608,22 +609,67 @@ function save_inventory_batch(array $items): void
     }
 }
 
-function create_category(string $name): void
+function create_category(string $name): array
 {
     $name = trim($name);
     if ($name === '') {
-        return;
+        return ['ok' => false, 'message' => 'Category name is required.'];
     }
 
     $stmt = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE name = ?');
     $stmt->execute([$name]);
     if ((int) $stmt->fetchColumn() > 0) {
-        return;
+        return ['ok' => false, 'message' => 'That category already exists.'];
     }
 
     $sortOrder = (int) db()->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM inventory_categories')->fetchColumn();
     $insert = db()->prepare('INSERT INTO inventory_categories (name, sort_order) VALUES (?, ?)');
     $insert->execute([$name, $sortOrder]);
+    return ['ok' => true, 'message' => 'Category added.'];
+}
+
+function update_category(array $input): array
+{
+    $categoryId = (int) ($input['category_id'] ?? 0);
+    $name = trim((string) ($input['name'] ?? ''));
+    $sortOrder = max(0, (int) ($input['sort_order'] ?? 0));
+
+    if ($categoryId <= 0 || $name === '') {
+        return ['ok' => false, 'message' => 'Category name is required.'];
+    }
+
+    $lookup = db()->prepare('SELECT id FROM inventory_categories WHERE id = ?');
+    $lookup->execute([$categoryId]);
+    if (!$lookup->fetchColumn()) {
+        return ['ok' => false, 'message' => 'Category not found.'];
+    }
+
+    $dup = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE name = ? AND id != ?');
+    $dup->execute([$name, $categoryId]);
+    if ((int) $dup->fetchColumn() > 0) {
+        return ['ok' => false, 'message' => 'Another category already uses that name.'];
+    }
+
+    $stmt = db()->prepare('UPDATE inventory_categories SET name = ?, sort_order = ? WHERE id = ?');
+    $stmt->execute([$name, $sortOrder, $categoryId]);
+    return ['ok' => true, 'message' => 'Category updated.'];
+}
+
+function delete_category(int $categoryId): array
+{
+    if ($categoryId <= 0) {
+        return ['ok' => false, 'message' => 'Category not found.'];
+    }
+
+    $count = db()->prepare('SELECT COUNT(*) FROM inventory_items WHERE category_id = ? AND is_active = 1');
+    $count->execute([$categoryId]);
+    if ((int) $count->fetchColumn() > 0) {
+        return ['ok' => false, 'message' => 'Remove or reassign the inventory in this category before deleting it.'];
+    }
+
+    $stmt = db()->prepare('DELETE FROM inventory_categories WHERE id = ?');
+    $stmt->execute([$categoryId]);
+    return ['ok' => true, 'message' => 'Category removed.'];
 }
 
 function create_inventory_item(array $input): array
@@ -776,6 +822,126 @@ function save_rule(array $input): array
     ]);
 
     return ['ok' => true, 'message' => 'Rule saved.'];
+}
+
+function delete_inventory_item(int $itemId): array
+{
+    if ($itemId <= 0) {
+        return ['ok' => false, 'message' => 'Inventory item not found.'];
+    }
+
+    $lookup = db()->prepare('SELECT COUNT(*) FROM inventory_items WHERE id = ? AND is_active = 1');
+    $lookup->execute([$itemId]);
+    if ((int) $lookup->fetchColumn() !== 1) {
+        return ['ok' => false, 'message' => 'Inventory item not found.'];
+    }
+
+    $stmt = db()->prepare('UPDATE inventory_items SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $stmt->execute([$itemId]);
+    return ['ok' => true, 'message' => 'Inventory item removed.'];
+}
+
+function upload_dir(string $subdir = ''): string
+{
+    $path = __DIR__ . '/../storage/uploads';
+    if ($subdir !== '') {
+        $path .= '/' . trim($subdir, '/');
+    }
+    if (!is_dir($path)) {
+        mkdir($path, 0775, true);
+    }
+    return $path;
+}
+
+function fetch_resources(): array
+{
+    if (!table_exists('resources')) {
+        return [];
+    }
+
+    return db()->query('SELECT * FROM resources ORDER BY created_at DESC, id DESC')->fetchAll();
+}
+
+function store_resource_upload(array $file, string $title = ''): array
+{
+    if (!table_exists('resources')) {
+        return ['ok' => false, 'message' => 'Run migrations before uploading resources.'];
+    }
+
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || empty($file['tmp_name'])) {
+        return ['ok' => false, 'message' => 'Choose a PDF file to upload.'];
+    }
+
+    $originalName = (string) ($file['name'] ?? 'resource.pdf');
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $mimeType = '';
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo) {
+            $mimeType = (string) finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+        }
+    }
+
+    if ($extension !== 'pdf' || !in_array($mimeType, ['', 'application/pdf'], true)) {
+        return ['ok' => false, 'message' => 'Only PDF resources are supported.'];
+    }
+
+    $storedName = date('YmdHis') . '-' . bin2hex(random_bytes(6)) . '.pdf';
+    $destination = upload_dir('resources') . '/' . $storedName;
+
+    if (!move_uploaded_file($file['tmp_name'], $destination) && !rename($file['tmp_name'], $destination)) {
+        return ['ok' => false, 'message' => 'Unable to store the uploaded PDF.'];
+    }
+
+    $resourceTitle = trim($title) !== '' ? trim($title) : pathinfo($originalName, PATHINFO_FILENAME);
+    $stmt = db()->prepare(
+        'INSERT INTO resources (title, original_name, stored_name, mime_type, file_size)
+         VALUES (?, ?, ?, ?, ?)'
+    );
+    $stmt->execute([
+        $resourceTitle,
+        $originalName,
+        $storedName,
+        'application/pdf',
+        max(0, (int) ($file['size'] ?? filesize($destination))),
+    ]);
+
+    return ['ok' => true, 'message' => 'Resource uploaded.'];
+}
+
+function find_resource(int $resourceId): ?array
+{
+    if (!table_exists('resources')) {
+        return null;
+    }
+
+    $stmt = db()->prepare('SELECT * FROM resources WHERE id = ?');
+    $stmt->execute([$resourceId]);
+    $resource = $stmt->fetch();
+    return $resource ?: null;
+}
+
+function resource_path(array $resource): string
+{
+    return upload_dir('resources') . '/' . $resource['stored_name'];
+}
+
+function delete_resource(int $resourceId): array
+{
+    $resource = find_resource($resourceId);
+    if (!$resource) {
+        return ['ok' => false, 'message' => 'Resource not found.'];
+    }
+
+    $path = resource_path($resource);
+    if (is_file($path)) {
+        @unlink($path);
+    }
+
+    $stmt = db()->prepare('DELETE FROM resources WHERE id = ?');
+    $stmt->execute([$resourceId]);
+    return ['ok' => true, 'message' => 'Resource removed.'];
 }
 
 function export_layout_settings(): array
