@@ -1174,49 +1174,6 @@ function create_inventory_item(array $input): array
         return ['ok' => false, 'message' => 'Choose a category and enter an item name.'];
     }
 
-    function create_spacer_near_inventory_item(int $itemId, string $position): array
-    {
-        if (!table_column_exists('inventory_items', 'sort_order') || !table_column_exists('inventory_items', 'is_spacer')) {
-            return ['ok' => false, 'message' => 'Run the latest migrations before inserting spacer rows.'];
-        }
-
-        if (!in_array($position, ['above', 'below'], true)) {
-            return ['ok' => false, 'message' => 'Choose where to place the spacer.'];
-        }
-
-        $stmt = db()->prepare('SELECT id, category_id, sort_order, name FROM inventory_items WHERE id = ? AND is_active = 1');
-        $stmt->execute([$itemId]);
-        $item = $stmt->fetch();
-        if (!$item) {
-            return ['ok' => false, 'message' => 'Inventory item not found.'];
-        }
-
-        $categoryId = (int) $item['category_id'];
-        $baseSortOrder = (int) ($item['sort_order'] ?? 0);
-        $insertSortOrder = $position === 'above' ? $baseSortOrder : $baseSortOrder + 1;
-
-        $pdo = db();
-        $pdo->beginTransaction();
-        try {
-            shift_inventory_item_sort_orders($categoryId, $insertSortOrder);
-            $name = unique_inventory_item_name($categoryId, 'Spacer');
-            $insert = $pdo->prepare(
-                'INSERT INTO inventory_items (
-                    category_id, name, sort_order, shop_quantity, unit, default_note, description, is_spacer
-                 ) VALUES (?, ?, ?, 0, ?, ?, ?, 1)'
-            );
-            $insert->execute([$categoryId, $name, $insertSortOrder, '', '', '']);
-            $pdo->commit();
-        } catch (Throwable $e) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
-            throw $e;
-        }
-
-        return ['ok' => true, 'message' => 'Spacer added ' . $position . ' this item.'];
-    }
-
     $categoryLookup = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE id = ?');
     $categoryLookup->execute([$categoryId]);
     if ((int) $categoryLookup->fetchColumn() !== 1) {
@@ -1261,6 +1218,49 @@ function create_inventory_item(array $input): array
     $stmt->execute($params);
 
     return ['ok' => true, 'message' => 'Item added.'];
+}
+
+function create_spacer_near_inventory_item(int $itemId, string $position): array
+{
+    if (!table_column_exists('inventory_items', 'sort_order') || !table_column_exists('inventory_items', 'is_spacer')) {
+        return ['ok' => false, 'message' => 'Run the latest migrations before inserting spacer rows.'];
+    }
+
+    if (!in_array($position, ['above', 'below'], true)) {
+        return ['ok' => false, 'message' => 'Choose where to place the spacer.'];
+    }
+
+    $stmt = db()->prepare('SELECT id, category_id, sort_order FROM inventory_items WHERE id = ? AND is_active = 1');
+    $stmt->execute([$itemId]);
+    $item = $stmt->fetch();
+    if (!$item) {
+        return ['ok' => false, 'message' => 'Inventory item not found.'];
+    }
+
+    $categoryId = (int) $item['category_id'];
+    $baseSortOrder = (int) ($item['sort_order'] ?? 0);
+    $insertSortOrder = $position === 'above' ? $baseSortOrder : $baseSortOrder + 1;
+
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        shift_inventory_item_sort_orders($categoryId, $insertSortOrder);
+        $name = unique_inventory_item_name($categoryId, 'Spacer');
+        $insert = $pdo->prepare(
+            'INSERT INTO inventory_items (
+                category_id, name, sort_order, shop_quantity, unit, default_note, description, is_spacer
+             ) VALUES (?, ?, ?, 0, ?, ?, ?, 1)'
+        );
+        $insert->execute([$categoryId, $name, $insertSortOrder, '', '', '']);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+
+    return ['ok' => true, 'message' => 'Spacer added ' . $position . ' this item.'];
 }
 
 function category_id_for_name(string $name): int
