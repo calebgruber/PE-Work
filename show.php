@@ -238,11 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('success', 'Order changes saved.');
 
             $returnTab = revision_return_tab($revision);
-            if (isset($_POST['finish_revision'])) {
-                header('Location: ' . url_for('show?show_id=' . $showId . '&tab=' . $returnTab));
-            } else {
-                header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=' . $returnTab . '&revision_id=' . $revisionId));
-            }
+            header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=' . $returnTab . '&revision_id=' . $revisionId));
             exit;
         }
     }
@@ -301,7 +297,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
     $backTab = revision_return_tab($currentRevision);
     $actions = '<a class="btn btn-ghost" href="' . h(url_for('show?show_id=' . $showId . '&tab=' . $backTab)) . '"><span class="material-symbols-outlined">arrow_back</span>Back</a>';
     $actions .= '<a class="btn btn-primary" href="' . h(url_for('export?show_id=' . $showId . '&revision_id=' . (int) $currentRevision['id'])) . '"><span class="material-symbols-outlined">print</span>Exports</a>';
-    ui_page_header(($show['show_name'] ?: 'Show Workspace') . ' · ' . revision_display_code($currentRevision), 'Edit line items in a focused workspace. Search, review warnings, then click Done when you are finished.', $actions);
+    ui_page_header(($show['show_name'] ?: 'Show Workspace') . ' · ' . revision_display_code($currentRevision), 'Edit line items in a focused workspace. Search, review warnings, and save anytime while keeping this revision editable.', $actions);
 } else {
     ui_page_header($showId ? ($show['show_name'] ?: 'Show Workspace') : 'Create Show', 'Required contacts are enforced; dates, addresses, and image are optional.', $actions);
 }
@@ -348,7 +344,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
 
         <div class="revision-alerts hidden" data-revision-warnings-wrap>
           <strong>Blocking warnings</strong>
-          <div class="muted">Every required rule and every stock overage must be fixed before you can save or finish this order.</div>
+          <div class="muted">Every required rule and every stock overage must be fixed before you can save this order.</div>
           <div class="revision-alert-list" data-revision-warnings></div>
         </div>
 
@@ -446,13 +442,9 @@ if ($mode === 'edit' && $showId && $currentRevision) {
         </div>
 
         <div class="form-actions">
-          <button type="submit" class="btn btn-ghost" name="save_continue" value="1" data-revision-submit>
+          <button type="submit" class="btn btn-primary" data-revision-submit>
             <span class="material-symbols-outlined">save</span>
-            Save &amp; Keep Editing
-          </button>
-          <button type="submit" class="btn btn-primary" name="finish_revision" value="1" data-revision-submit>
-            <span class="material-symbols-outlined">done</span>
-            Done
+            Save Changes
           </button>
         </div>
       </form>

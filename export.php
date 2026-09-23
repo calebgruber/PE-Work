@@ -159,12 +159,21 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
             if (!empty($item['description'])) {
                 $descriptionBits[] = $item['description'];
             }
+            $dateNotes = [];
+            if (!empty($line['pickup_date'])) {
+                $dateNotes[] = 'Pull ' . $line['pickup_date'];
+            }
+            if (!empty($line['return_date'])) {
+                $dateNotes[] = 'Return ' . $line['return_date'];
+            }
+
             $rows[] = [
                 'category' => $category['name'],
                 'item' => $item,
                 'line' => $line,
                 'quantity' => $quantity,
                 'description' => implode(' · ', array_filter($descriptionBits, static fn ($value) => trim((string) $value) !== '')),
+                'notes' => implode(' · ', $dateNotes),
             ];
         }
     }
@@ -248,6 +257,8 @@ if ($renderSummaryPage) {
 }
 $pageNumbers['equipment'] = $nextPageNumber;
 $totalPages = count($pageNumbers);
+$headerOrganization = export_value((string) ($layout['layout.organization_text'] ?? ''), (string) ($show['theatre_name'] ?? ''));
+$theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -299,18 +310,39 @@ $totalPages = count($pageNumbers);
     .page:last-child { page-break-after: auto; }
     .top-rule {
       border-bottom: 1px solid #000;
-      padding-bottom: 0.08in;
-      margin-bottom: 0.12in;
+      padding-bottom: 0.1in;
+      margin-bottom: 0.18in;
     }
     .top-rule p,
     .page p { margin: 0 0 0.08in; }
-    .tabbed-right {
-      white-space: pre;
+    .page-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.3in;
+    }
+    .page-header-title {
+      min-width: 0;
+    }
+    .page-header-title strong {
+      display: block;
+      font-size: 13pt;
+    }
+    .page-header-subtitle {
+      margin-top: 0.03in;
+      font-size: 9pt;
+      color: #4b5563;
+    }
+    .page-header-meta {
+      min-width: 1.55in;
+      text-align: right;
+      font-size: 9pt;
+      line-height: 1.35;
     }
     .center-title {
       text-align: center;
-      margin-top: 0.45in;
-      margin-bottom: 0.2in;
+      margin-top: 0.32in;
+      margin-bottom: 0.3in;
     }
     .center-title .show-name {
       font-size: 20pt;
@@ -322,12 +354,21 @@ $totalPages = count($pageNumbers);
       margin-top: 0.22in;
       text-decoration: underline;
     }
-    .detail-block {
-      width: 3.95in;
-      margin-left: 2.2in;
-      margin-bottom: 0.14in;
+    .contact-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.16in 0.2in;
+      margin-bottom: 0.22in;
     }
-    .detail-gap { margin-bottom: 0.2in; }
+    .detail-block {
+      margin-bottom: 0;
+      padding: 0.12in 0.14in;
+      border: 1px solid #d1d5db;
+      background: #f8fafc;
+    }
+    .detail-block-wide {
+      grid-column: 1 / -1;
+    }
     .detail-row {
       display: grid;
       grid-template-columns: 1.3in minmax(0, 1fr);
@@ -341,9 +382,16 @@ $totalPages = count($pageNumbers);
     .detail-subline {
       display: block;
       padding-left: calc(1.3in + 0.08in);
+      color: #374151;
+    }
+    .shop-team-list {
+      display: grid;
+      gap: 0.05in;
+      padding-left: calc(1.3in + 0.08in);
+      color: #374151;
     }
     .notes-heading {
-      margin-top: 0.45in;
+      margin-top: 0.28in;
       text-decoration: underline;
       font-weight: 600;
     }
@@ -355,7 +403,7 @@ $totalPages = count($pageNumbers);
     .page-heading {
       text-align: center;
       font-weight: 700;
-      margin-top: 0.2in;
+      margin-top: 0.08in;
       margin-bottom: 0.15in;
       letter-spacing: 0.01em;
     }
@@ -388,6 +436,7 @@ $totalPages = count($pageNumbers);
     .col-description { width: 1.65in; }
     .col-action { width: 1.1in; }
     .col-qty { width: 0.7in; }
+    .col-summary-notes { width: 1.7in; }
     .col-used,
     .col-spare,
     .col-total { width: 0.6in; }
@@ -419,7 +468,7 @@ $totalPages = count($pageNumbers);
       right: 0.7in;
       bottom: 0.28in;
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       font-size: 9pt;
       color: #374151;
     }
@@ -439,7 +488,17 @@ $totalPages = count($pageNumbers);
   <div class="document">
     <section class="page">
       <div class="top-rule">
-        <p><strong><?= h($layout['layout.header_text']) ?></strong><span style="float:right;"><?= h(export_value((string) ($layout['layout.organization_text'] ?? ''), (string) ($show['theatre_name'] ?? ''))) ?></span></p>
+        <div class="page-header-bar">
+          <div class="page-header-title">
+            <strong><?= h($layout['layout.header_text']) ?></strong>
+            <div><?= h($headerOrganization) ?></div>
+            <?php if ($theatreAddress !== ''): ?><div class="page-header-subtitle"><?= h($theatreAddress) ?></div><?php endif; ?>
+          </div>
+          <div class="page-header-meta">
+            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
+            <div><strong>Page</strong> 1 of <?= h((string) $totalPages) ?></div>
+          </div>
+        </div>
       </div>
       <p><?= h(export_value((string) ($show['shop_name'] ?? ''))) ?><span style="float:right;">Phone: <?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></span></p>
       <p><?= h(export_value((string) ($show['shop_address'] ?? ''))) ?><span style="float:right;">Email: <?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?></span></p>
@@ -450,38 +509,34 @@ $totalPages = count($pageNumbers);
         <p class="revised">REVISION <?= h($revisionCode) ?> · <?= !empty($revision['is_initial']) ? 'INITIAL ORDER' : 'REVISED' ?> <?= h($revision['revision_date']) ?></p>
       </div>
 
-      <div class="detail-block">
-        <p class="detail-row"><span class="detail-label">Designer:</span><span><?= h(export_value((string) ($show['ld_name'] ?? ''))) ?></span></p>
-        <p class="detail-subline"><?= h(export_value((string) ($show['ld_email'] ?? ''))) ?></p>
-        <p class="detail-subline"><?= h(export_value((string) ($show['ld_phone'] ?? ''))) ?></p>
-      </div>
-      <div class="detail-block detail-gap">
-        <p class="detail-row"><span class="detail-label">Assistant Designer:</span><span><?= h(export_value((string) ($show['assistant_ld_name'] ?? ''))) ?></span></p>
-        <p class="detail-subline"><?= h(export_value((string) ($show['assistant_ld_email'] ?? ''))) ?></p>
-        <p class="detail-subline"><?= h(export_value((string) ($show['assistant_ld_phone'] ?? ''))) ?></p>
-      </div>
-      <div class="detail-block detail-gap">
-        <p class="detail-row"><span class="detail-label">Production Electrician:</span><span><?= h(export_value((string) ($show['production_electrician_name'] ?? ''))) ?></span></p>
-        <p class="detail-subline"><?= h(export_value((string) ($show['production_electrician_email'] ?? ''))) ?></p>
-        <p class="detail-subline"><?= h(export_value((string) ($show['production_electrician_phone'] ?? ''))) ?></p>
-      </div>
-      <div class="detail-block detail-gap">
-        <p class="detail-row"><span class="detail-label">Shop Manager:</span><span><?= h(export_value((string) ($show['shop_manager_name'] ?? ''))) ?></span></p>
-        <p class="detail-subline"><?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?></p>
-        <p class="detail-subline"><?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></p>
-      </div>
-      <div class="detail-block detail-gap">
-        <p class="detail-row"><span class="detail-label">Assistant Shop Manager:</span><span><?= h(export_value((string) ($show['assistant_shop_manager_name'] ?? ''))) ?></span></p>
-        <p class="detail-subline"><?= h(export_value((string) ($show['assistant_shop_manager_email'] ?? ''))) ?></p>
-        <p class="detail-subline"><?= h(export_value((string) ($show['assistant_shop_manager_phone'] ?? ''))) ?></p>
-      </div>
-      <div class="detail-block detail-gap">
-        <p class="detail-row"><span class="detail-label">Load-In:</span><span><u><?= h(export_value((string) ($show['pull_date'] ?? ''))) ?></u></span></p>
-        <p><?= h(export_value((string) ($show['theatre_address'] ?? ''))) ?></p>
-      </div>
-      <div class="detail-block">
-        <p class="detail-row"><span class="detail-label">Opening:</span><span><?= h(export_value((string) ($show['opening_date'] ?? ''))) ?></span></p>
-        <p class="detail-row"><span class="detail-label">Strike:</span><span><?= h(export_value((string) ($show['strike_date'] ?? ''))) ?></span></p>
+      <div class="contact-grid">
+        <div class="detail-block">
+          <p class="detail-row"><span class="detail-label">Designer</span><span><?= h(export_value((string) ($show['ld_name'] ?? ''))) ?></span></p>
+          <p class="detail-subline"><?= h(export_value((string) ($show['ld_email'] ?? ''))) ?></p>
+          <p class="detail-subline"><?= h(export_value((string) ($show['ld_phone'] ?? ''))) ?></p>
+        </div>
+        <div class="detail-block">
+          <p class="detail-row"><span class="detail-label">Assistant Designer</span><span><?= h(export_value((string) ($show['assistant_ld_name'] ?? ''))) ?></span></p>
+          <p class="detail-subline"><?= h(export_value((string) ($show['assistant_ld_email'] ?? ''))) ?></p>
+          <p class="detail-subline"><?= h(export_value((string) ($show['assistant_ld_phone'] ?? ''))) ?></p>
+        </div>
+        <div class="detail-block">
+          <p class="detail-row"><span class="detail-label">Production Electrician</span><span><?= h(export_value((string) ($show['production_electrician_name'] ?? ''))) ?></span></p>
+          <p class="detail-subline"><?= h(export_value((string) ($show['production_electrician_email'] ?? ''))) ?></p>
+          <p class="detail-subline"><?= h(export_value((string) ($show['production_electrician_phone'] ?? ''))) ?></p>
+        </div>
+        <div class="detail-block">
+          <p class="detail-row"><span class="detail-label">Schedule</span><span>Load-In <?= h(export_value((string) ($show['pull_date'] ?? ''))) ?></span></p>
+          <p class="detail-subline">Opening <?= h(export_value((string) ($show['opening_date'] ?? ''))) ?></p>
+          <p class="detail-subline">Strike <?= h(export_value((string) ($show['strike_date'] ?? ''))) ?></p>
+        </div>
+        <div class="detail-block detail-block-wide">
+          <p class="detail-row"><span class="detail-label">Shop Team</span><span><?= h(export_value((string) ($show['shop_name'] ?? ''))) ?></span></p>
+          <div class="shop-team-list">
+            <div><strong>Manager:</strong> <?= h(export_value((string) ($show['shop_manager_name'] ?? ''))) ?> · <?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?> · <?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></div>
+            <div><strong>Assistant:</strong> <?= h(export_value((string) ($show['assistant_shop_manager_name'] ?? ''))) ?> · <?= h(export_value((string) ($show['assistant_shop_manager_email'] ?? ''))) ?> · <?= h(export_value((string) ($show['assistant_shop_manager_phone'] ?? ''))) ?></div>
+          </div>
+        </div>
       </div>
 
       <p class="notes-heading">IMPORTANT NOTES:</p>
@@ -493,12 +548,23 @@ $totalPages = count($pageNumbers);
 
       <div class="footer">
         <span><?= h($layout['layout.footer_text']) ?></span>
-        <?php if ($layout['layout.show_page_numbers'] === '1'): ?><span>Page 1 of <?= h((string) $totalPages) ?></span><?php endif; ?>
       </div>
     </section>
 
     <?php if ($renderSummaryPage): ?>
     <section class="page">
+      <div class="top-rule">
+        <div class="page-header-bar">
+          <div class="page-header-title">
+            <strong><?= h($layout['layout.header_text']) ?></strong>
+            <div><?= h($show['show_name']) ?></div>
+          </div>
+          <div class="page-header-meta">
+            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
+            <div><strong>Page</strong> <?= h((string) $pageNumbers['summary']) ?> of <?= h((string) $totalPages) ?></div>
+          </div>
+        </div>
+      </div>
       <p class="page-heading">REVISION SUMMARY · <?= h($revisionCode) ?></p>
       <p class="page-note">NOTE: Not everything is included here; see full revision for complete accessories, etc.</p>
       <table class="word-table">
@@ -509,6 +575,7 @@ $totalPages = count($pageNumbers);
             <th class="col-description">DESCRIPTION</th>
             <th class="col-action">ACTION</th>
             <th class="col-qty">QTY.</th>
+            <th class="col-summary-notes">NOTES</th>
           </tr>
         </thead>
         <tbody>
@@ -519,18 +586,30 @@ $totalPages = count($pageNumbers);
             <td><?= h($row['description']) ?></td>
             <td><?= h(strtoupper((string) ($row['line']['action'] ?: 'change'))) ?></td>
             <td><?= h((string) $row['quantity']) ?></td>
+            <td><?= h($row['notes'] !== '' ? $row['notes'] : '—') ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
       </table>
       <div class="footer">
         <span><?= h($layout['layout.footer_text']) ?></span>
-        <?php if ($layout['layout.show_page_numbers'] === '1'): ?><span>Page <?= h((string) $pageNumbers['summary']) ?> of <?= h((string) $totalPages) ?></span><?php endif; ?>
       </div>
     </section>
     <?php endif; ?>
 
     <section class="page">
+      <div class="top-rule">
+        <div class="page-header-bar">
+          <div class="page-header-title">
+            <strong><?= h($layout['layout.header_text']) ?></strong>
+            <div><?= h($show['show_name']) ?></div>
+          </div>
+          <div class="page-header-meta">
+            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
+            <div><strong>Page</strong> <?= h((string) $pageNumbers['equipment']) ?> of <?= h((string) $totalPages) ?></div>
+          </div>
+        </div>
+      </div>
       <p class="page-heading"><?= h($labels['equipment_heading']) ?> · <?= h($revisionCode) ?></p>
       <table class="word-table">
         <thead>
@@ -570,7 +649,6 @@ $totalPages = count($pageNumbers);
       </table>
       <div class="footer">
         <span><?= h($layout['layout.footer_text']) ?></span>
-        <?php if ($layout['layout.show_page_numbers'] === '1'): ?><span>Page <?= h((string) $pageNumbers['equipment']) ?> of <?= h((string) $totalPages) ?></span><?php endif; ?>
       </div>
     </section>
   </div>
