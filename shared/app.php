@@ -1126,8 +1126,7 @@ function is_trusted_uploaded_file(string $tmpPath): bool
 
     $allowLocalTestUpload = defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS')
         && ALLOW_LOCAL_UPLOADS_FOR_TESTS
-        && PHP_SAPI === 'cli'
-        && !isset($_SERVER['REQUEST_METHOD'])
+        && in_array(PHP_SAPI, ['cli', 'cli-server'], true)
         && is_file($tmpPath);
 
     return $allowLocalTestUpload;
@@ -1155,8 +1154,7 @@ function store_resource_upload(array $file, string $title = ''): array
     $isUploadedFile = is_trusted_uploaded_file((string) $file['tmp_name']);
     $allowTestUpload = defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS')
         && ALLOW_LOCAL_UPLOADS_FOR_TESTS
-        && PHP_SAPI === 'cli'
-        && !isset($_SERVER['REQUEST_METHOD'])
+        && in_array(PHP_SAPI, ['cli', 'cli-server'], true)
         && is_file((string) $file['tmp_name']);
     if (!$isUploadedFile && !$allowTestUpload) {
         return ['ok' => false, 'message' => 'Choose a valid uploaded PDF file.'];
@@ -1223,6 +1221,11 @@ function find_resource(int $resourceId): ?array
 function resource_path(array $resource): string
 {
     return upload_dir('resources') . '/' . $resource['stored_name'];
+}
+
+function resource_access_token(array $resource): string
+{
+    return hash_hmac('sha256', (string) $resource['id'] . '|' . (string) $resource['stored_name'], session_id());
 }
 
 function is_unique_constraint_violation(Throwable $e): bool

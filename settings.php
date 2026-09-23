@@ -405,6 +405,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
       <?php if ($resources): ?>
       <div class="resource-grid">
         <?php foreach ($resources as $resource): ?>
+        <?php $resourceUrl = url_for('resource_file?id=' . (int) $resource['id'] . '&token=' . rawurlencode(resource_access_token($resource))); ?>
         <article class="resource-card">
           <div class="resource-card-header">
             <div>
@@ -421,16 +422,18 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             </form>
           </div>
           <div class="resource-actions">
-            <a class="btn btn-ghost btn-sm" href="<?= h(url_for('resource_file?id=' . (int) $resource['id'])) ?>" target="_blank" rel="noopener">
+            <a class="btn btn-ghost btn-sm" href="<?= h($resourceUrl) ?>" target="_blank" rel="noopener">
               <span class="material-symbols-outlined">open_in_new</span>
               Open PDF
             </a>
-            <a class="btn btn-ghost btn-sm" href="<?= h(url_for('resource_file?id=' . (int) $resource['id'] . '&download=1')) ?>">
+            <a class="btn btn-ghost btn-sm" href="<?= h($resourceUrl . '&download=1') ?>">
               <span class="material-symbols-outlined">download</span>
               Download
             </a>
           </div>
-          <iframe class="resource-frame" src="<?= h(url_for('resource_file?id=' . (int) $resource['id'])) ?>" title="<?= h($resource['title']) ?>"></iframe>
+          <iframe class="resource-frame" src="<?= h($resourceUrl) ?>" title="<?= h($resource['title']) ?>">
+            PDF preview unavailable. Use the Open PDF or Download buttons above.
+          </iframe>
         </article>
         <?php endforeach; ?>
       </div>

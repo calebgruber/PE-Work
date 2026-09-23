@@ -123,7 +123,7 @@ $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
             <th>Category</th>
             <th>Item</th>
             <?php if ($type !== 'returns'): ?><th>Rent</th><?php endif; ?>
-            <th>Spares</th>
+            <?php if ($type !== 'returns'): ?><th>Spares</th><?php endif; ?>
             <?php if ($type === 'returns'): ?><th>Return Qty</th><?php else: ?><th>Total</th><?php endif; ?>
             <th>Action</th>
             <th>Item Pull</th>
@@ -137,7 +137,7 @@ $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
             <td><?= h($row['category']) ?></td>
             <td><?= h($row['item']['name']) ?></td>
             <?php if ($type !== 'returns'): ?><td><?= h((string) $row['line']['rent_quantity']) ?></td><?php endif; ?>
-            <td><?= h((string) $row['line']['spare_quantity']) ?></td>
+            <?php if ($type !== 'returns'): ?><td><?= h((string) $row['line']['spare_quantity']) ?></td><?php endif; ?>
             <?php if ($type === 'returns'): ?><td>__________</td><?php else: ?><td><?= h((string) $row['line']['total_quantity']) ?></td><?php endif; ?>
             <td><?= action_badge((string) ($row['line']['action'] ?? '')) ?></td>
             <td><?= h($row['line']['pickup_date'] ?: ($show['pull_date'] ?: '—')) ?></td>

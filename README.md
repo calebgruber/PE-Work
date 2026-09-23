@@ -64,7 +64,7 @@ This starter already supports:
 - initial shop orders and saved revisions
 - per-item rent, spares, total, notes, and item-specific pull/return dates
 - color-coded revision actions (add / return / exchange / see notes)
-- rule suggestions for accessory planning
+- live rule warnings for accessory planning inside the revision editor
 - print-friendly export views that can be saved to PDF from the browser
 
 The drag-and-drop paperwork editor mentioned in the issue is not fully built yet, but the starter now includes a migration-backed layout settings tab so that feature can grow without reworking the database foundation.

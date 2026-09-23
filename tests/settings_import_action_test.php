@@ -31,6 +31,13 @@ function settings_test_cleanup(string $repoRoot, string $localConfig, string $lo
 
     if (is_resource($process)) {
         proc_terminate($process);
+        for ($attempt = 0; $attempt < 20; $attempt++) {
+            $status = proc_get_status($process);
+            if (!$status['running']) {
+                break;
+            }
+            usleep(100000);
+        }
         proc_close($process);
     }
 
@@ -92,14 +99,14 @@ $cookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-');
 $headersPath = tempnam(sys_get_temp_dir(), 'pew-headers-');
 $responsePath = tempnam(sys_get_temp_dir(), 'pew-response-');
 $command = sprintf(
-    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=import_inventory' -F 'inventory_csv=@%s;type=text/csv' 'http://127.0.0.1:8099/settings?tab=inventory'",
+    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=import_inventory' -F 'inventory_csv=@%s;type=text/csv' %s",
     escapeshellarg($responsePath),
     escapeshellarg($headersPath),
     escapeshellarg($cookieJar),
     escapeshellarg($cookieJar),
-    escapeshellarg($csvPath)
+    escapeshellarg($csvPath),
+    escapeshellarg($baseUrl . '/settings?tab=inventory')
 );
-$command = str_replace('http://127.0.0.1:8099', $baseUrl, $command);
 exec($command, $output, $curlStatus);
 
 $headers = is_file($headersPath) ? file_get_contents($headersPath) : '';
@@ -122,13 +129,13 @@ $testPaths[] = $warningCookieJar;
 $testPaths[] = $warningHeadersPath;
 $testPaths[] = $warningResponsePath;
 $warningCommand = sprintf(
-    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=import_inventory' 'http://127.0.0.1:8099/settings?tab=inventory'",
+    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=import_inventory' %s",
     escapeshellarg($warningResponsePath),
     escapeshellarg($warningHeadersPath),
     escapeshellarg($warningCookieJar),
-    escapeshellarg($warningCookieJar)
+    escapeshellarg($warningCookieJar),
+    escapeshellarg($baseUrl . '/settings?tab=inventory')
 );
-$warningCommand = str_replace('http://127.0.0.1:8099', $baseUrl, $warningCommand);
 exec($warningCommand, $warningOutput, $warningStatus);
 $warningHeaders = is_file($warningHeadersPath) ? file_get_contents($warningHeadersPath) : '';
 $warningBody = is_file($warningResponsePath) ? file_get_contents($warningResponsePath) : '';
@@ -145,15 +152,15 @@ $testPaths[] = $pasteHeadersPath;
 $testPaths[] = $pasteResponsePath;
 $pastePayload = "category,name,shop_quantity,unit,default_note,description\nFIXTURES,Pasted Item,9,ea,.,.\n";
 $pasteCommand = sprintf(
-    "curl -isS -o %s -D %s -L -c %s -b %s --data-urlencode %s --data-urlencode %s 'http://127.0.0.1:8099/settings?tab=inventory'",
+    "curl -isS -o %s -D %s -L -c %s -b %s --data-urlencode %s --data-urlencode %s %s",
     escapeshellarg($pasteResponsePath),
     escapeshellarg($pasteHeadersPath),
     escapeshellarg($pasteCookieJar),
     escapeshellarg($pasteCookieJar),
     escapeshellarg('action=import_inventory'),
-    escapeshellarg('inventory_csv_text=' . $pastePayload)
+    escapeshellarg('inventory_csv_text=' . $pastePayload),
+    escapeshellarg($baseUrl . '/settings?tab=inventory')
 );
-$pasteCommand = str_replace('http://127.0.0.1:8099', $baseUrl, $pasteCommand);
 exec($pasteCommand, $pasteOutput, $pasteStatus);
 $pasteHeaders = is_file($pasteHeadersPath) ? file_get_contents($pasteHeadersPath) : '';
 $pasteBody = is_file($pasteResponsePath) ? file_get_contents($pasteResponsePath) : '';

@@ -16,6 +16,12 @@ if (!$resource) {
     exit('Not found');
 }
 
+$providedToken = (string) ($_GET['token'] ?? '');
+if ($providedToken === '' || !hash_equals(resource_access_token($resource), $providedToken)) {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 $path = resource_path($resource);
 if (!is_file($path)) {
     http_response_code(404);
