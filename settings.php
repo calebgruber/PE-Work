@@ -68,8 +68,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        if ($action === 'import_inventory' && !empty($_FILES['inventory_csv']['tmp_name'])) {
-            $result = import_inventory_csv($_FILES['inventory_csv']['tmp_name']);
+        if ($action === 'import_inventory') {
+            $tmpPath = $_FILES['inventory_csv']['tmp_name'] ?? '';
+            $result = $tmpPath !== '' ? import_inventory_csv($tmpPath) : ['ok' => false, 'message' => 'Choose a CSV file to import.'];
             flash($result['ok'] ? 'success' : 'warning', $result['message']);
             header('Location: ' . url_for('settings?tab=inventory'));
             exit;

@@ -14,6 +14,7 @@ file_put_contents(
     . "define('DB_DRIVER', 'sqlite');\n"
     . "define('DB_SQLITE_PATH', '" . addslashes($testDbPath) . "');\n"
     . "define('APP_BASE_URL', '/');\n"
+    . "define('ALLOW_LOCAL_UPLOADS_FOR_TESTS', true);\n"
 );
 
 require_once $repoRoot . '/shared/config.php';
@@ -63,7 +64,13 @@ $descriptors = [
     2 => ['file', '/tmp/pe-work-settings-server.log', 'a'],
 ];
 $process = proc_open('php -S 127.0.0.1:8099 router.php', $descriptors, $pipes, $repoRoot);
-usleep(800000);
+for ($attempt = 0; $attempt < 20; $attempt++) {
+    $probe = @file_get_contents('http://127.0.0.1:8099/settings?tab=inventory');
+    if ($probe !== false) {
+        break;
+    }
+    usleep(250000);
+}
 
 $cookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-');
 $command = sprintf(

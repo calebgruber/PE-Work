@@ -23,6 +23,7 @@ if (!is_file($path)) {
 }
 
 header('Content-Type: application/pdf');
+header('X-Content-Type-Options: nosniff');
 header('Content-Length: ' . (string) filesize($path));
 $filename = (string) $resource['original_name'];
 $asciiFilename = preg_replace('/[^A-Za-z0-9.\-_ ]/', '_', $filename) ?: 'resource.pdf';

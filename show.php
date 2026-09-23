@@ -5,6 +5,107 @@ require_once __DIR__ . '/shared/db.php';
 require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
+function render_show_form(array $show): void
+{
+    $people = [
+        ['key' => 'ld', 'label' => 'LD'],
+        ['key' => 'assistant_ld', 'label' => 'Assistant LD'],
+        ['key' => 'production_electrician', 'label' => 'Production Electrician'],
+        ['key' => 'shop_manager', 'label' => 'Shop Manager'],
+        ['key' => 'assistant_shop_manager', 'label' => 'Assistant Shop Manager'],
+    ];
+    ?>
+      <form method="post" class="stack">
+        <input type="hidden" name="action" value="save_show">
+
+        <div class="section-label">Required</div>
+        <div class="card-grid">
+          <div class="form-group">
+            <label for="show_name">Show Name</label>
+            <input class="form-control" id="show_name" name="show_name" required value="<?= h($show['show_name'] ?? '') ?>">
+          </div>
+          <div class="form-group">
+            <label for="theatre_name">Theatre Name</label>
+            <input class="form-control" id="theatre_name" name="theatre_name" required value="<?= h($show['theatre_name'] ?? '') ?>">
+          </div>
+          <div class="form-group">
+            <label for="shop_name">Shop Name</label>
+            <input class="form-control" id="shop_name" name="shop_name" required value="<?= h($show['shop_name'] ?? '') ?>">
+          </div>
+        </div>
+
+        <div class="card-grid">
+          <?php foreach ($people as $person): ?>
+          <div class="summary-block">
+            <strong><?= h($person['label']) ?></strong>
+            <div class="form-group">
+              <label><?= h($person['label']) ?> Name</label>
+              <input class="form-control" name="<?= h($person['key']) ?>_name" required value="<?= h($show[$person['key'] . '_name'] ?? '') ?>">
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input class="form-control" type="email" name="<?= h($person['key']) ?>_email" required value="<?= h($show[$person['key'] . '_email'] ?? '') ?>">
+            </div>
+            <div class="form-group">
+              <label>Phone</label>
+              <input class="form-control" name="<?= h($person['key']) ?>_phone" required value="<?= h($show[$person['key'] . '_phone'] ?? '') ?>">
+            </div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+
+        <div class="section-label">Optional</div>
+        <div class="card-grid">
+          <div class="form-group">
+            <label for="show_image_url">Show Image Path</label>
+            <input class="form-control" id="show_image_url" name="show_image_url" placeholder="images/hamlet.jpg" value="<?= h($show['show_image_url'] ?? '') ?>">
+            <div class="helper-text">Use an app-relative path only. External image URLs are blocked.</div>
+          </div>
+          <div class="form-group">
+            <label for="pull_date">Pull Date</label>
+            <input class="form-control" type="date" id="pull_date" name="pull_date" value="<?= h($show['pull_date'] ?? '') ?>">
+          </div>
+          <div class="form-group">
+            <label for="return_date">Return Date</label>
+            <input class="form-control" type="date" id="return_date" name="return_date" value="<?= h($show['return_date'] ?? '') ?>">
+          </div>
+          <div class="form-group">
+            <label for="strike_date">Strike Date</label>
+            <input class="form-control" type="date" id="strike_date" name="strike_date" value="<?= h($show['strike_date'] ?? '') ?>">
+          </div>
+          <div class="form-group">
+            <label for="opening_date">Opening Date</label>
+            <input class="form-control" type="date" id="opening_date" name="opening_date" value="<?= h($show['opening_date'] ?? '') ?>">
+          </div>
+          <div class="form-group">
+            <label for="closing_date">Closing Date</label>
+            <input class="form-control" type="date" id="closing_date" name="closing_date" value="<?= h($show['closing_date'] ?? '') ?>">
+          </div>
+          <div class="form-group">
+            <label for="theatre_address">Theatre Address</label>
+            <textarea class="form-control" id="theatre_address" name="theatre_address"><?= h($show['theatre_address'] ?? '') ?></textarea>
+          </div>
+          <div class="form-group">
+            <label for="shop_address">Shop Address</label>
+            <textarea class="form-control" id="shop_address" name="shop_address"><?= h($show['shop_address'] ?? '') ?></textarea>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="show_notes">Show Notes</label>
+          <textarea class="form-control" id="show_notes" name="show_notes"><?= h($show['show_notes'] ?? '') ?></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <span class="material-symbols-outlined">save</span>
+            Save Show
+          </button>
+        </div>
+      </form>
+    <?php
+}
+
 if (!schema_ready()) {
     header('Location: ' . url_for('setup'));
     exit;
@@ -97,204 +198,12 @@ ui_page_header($showId ? ($show['show_name'] ?: 'Show Workspace') : 'Create Show
 
   <?php if (!$showId): ?>
     <?php ui_card_open('theater_comedy', 'Create Show'); ?>
-      <form method="post" class="stack">
-        <input type="hidden" name="action" value="save_show">
-
-        <div class="section-label">Required</div>
-        <div class="card-grid">
-          <div class="form-group">
-            <label for="show_name">Show Name</label>
-            <input class="form-control" id="show_name" name="show_name" required value="<?= h($show['show_name'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="theatre_name">Theatre Name</label>
-            <input class="form-control" id="theatre_name" name="theatre_name" required value="<?= h($show['theatre_name'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="shop_name">Shop Name</label>
-            <input class="form-control" id="shop_name" name="shop_name" required value="<?= h($show['shop_name'] ?? '') ?>">
-          </div>
-        </div>
-
-        <div class="card-grid">
-          <?php
-          $people = [
-              ['key' => 'ld', 'label' => 'LD'],
-              ['key' => 'assistant_ld', 'label' => 'Assistant LD'],
-              ['key' => 'production_electrician', 'label' => 'Production Electrician'],
-              ['key' => 'shop_manager', 'label' => 'Shop Manager'],
-              ['key' => 'assistant_shop_manager', 'label' => 'Assistant Shop Manager'],
-          ];
-          foreach ($people as $person):
-          ?>
-          <div class="summary-block">
-            <strong><?= h($person['label']) ?></strong>
-            <div class="form-group">
-              <label><?= h($person['label']) ?> Name</label>
-              <input class="form-control" name="<?= h($person['key']) ?>_name" required value="<?= h($show[$person['key'] . '_name'] ?? '') ?>">
-            </div>
-            <div class="form-group">
-              <label>Email</label>
-              <input class="form-control" type="email" name="<?= h($person['key']) ?>_email" required value="<?= h($show[$person['key'] . '_email'] ?? '') ?>">
-            </div>
-            <div class="form-group">
-              <label>Phone</label>
-              <input class="form-control" name="<?= h($person['key']) ?>_phone" required value="<?= h($show[$person['key'] . '_phone'] ?? '') ?>">
-            </div>
-          </div>
-          <?php endforeach; ?>
-        </div>
-
-        <div class="section-label">Optional</div>
-        <div class="card-grid">
-          <div class="form-group">
-            <label for="show_image_url">Show Image Path</label>
-            <input class="form-control" id="show_image_url" name="show_image_url" placeholder="images/hamlet.jpg" value="<?= h($show['show_image_url'] ?? '') ?>">
-            <div class="helper-text">Use an app-relative path only. External image URLs are blocked.</div>
-          </div>
-          <div class="form-group">
-            <label for="pull_date">Pull Date</label>
-            <input class="form-control" type="date" id="pull_date" name="pull_date" value="<?= h($show['pull_date'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="return_date">Return Date</label>
-            <input class="form-control" type="date" id="return_date" name="return_date" value="<?= h($show['return_date'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="strike_date">Strike Date</label>
-            <input class="form-control" type="date" id="strike_date" name="strike_date" value="<?= h($show['strike_date'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="opening_date">Opening Date</label>
-            <input class="form-control" type="date" id="opening_date" name="opening_date" value="<?= h($show['opening_date'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="closing_date">Closing Date</label>
-            <input class="form-control" type="date" id="closing_date" name="closing_date" value="<?= h($show['closing_date'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="theatre_address">Theatre Address</label>
-            <textarea class="form-control" id="theatre_address" name="theatre_address"><?= h($show['theatre_address'] ?? '') ?></textarea>
-          </div>
-          <div class="form-group">
-            <label for="shop_address">Shop Address</label>
-            <textarea class="form-control" id="shop_address" name="shop_address"><?= h($show['shop_address'] ?? '') ?></textarea>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="show_notes">Show Notes</label>
-          <textarea class="form-control" id="show_notes" name="show_notes"><?= h($show['show_notes'] ?? '') ?></textarea>
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">
-            <span class="material-symbols-outlined">save</span>
-            Save Show
-          </button>
-        </div>
-      </form>
+      <?php render_show_form($show); ?>
     <?php ui_card_close(); ?>
   <?php else: ?>
   <div class="card-grid">
     <?php ui_card_open('theater_comedy', 'Show Information'); ?>
-      <form method="post" class="stack">
-        <input type="hidden" name="action" value="save_show">
-
-        <div class="section-label">Required</div>
-        <div class="card-grid">
-          <div class="form-group">
-            <label for="show_name">Show Name</label>
-            <input class="form-control" id="show_name" name="show_name" required value="<?= h($show['show_name'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="theatre_name">Theatre Name</label>
-            <input class="form-control" id="theatre_name" name="theatre_name" required value="<?= h($show['theatre_name'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="shop_name">Shop Name</label>
-            <input class="form-control" id="shop_name" name="shop_name" required value="<?= h($show['shop_name'] ?? '') ?>">
-          </div>
-        </div>
-
-        <div class="card-grid">
-          <?php
-          $people = [
-              ['key' => 'ld', 'label' => 'LD'],
-              ['key' => 'assistant_ld', 'label' => 'Assistant LD'],
-              ['key' => 'production_electrician', 'label' => 'Production Electrician'],
-              ['key' => 'shop_manager', 'label' => 'Shop Manager'],
-              ['key' => 'assistant_shop_manager', 'label' => 'Assistant Shop Manager'],
-          ];
-          foreach ($people as $person):
-          ?>
-          <div class="summary-block">
-            <strong><?= h($person['label']) ?></strong>
-            <div class="form-group">
-              <label><?= h($person['label']) ?> Name</label>
-              <input class="form-control" name="<?= h($person['key']) ?>_name" required value="<?= h($show[$person['key'] . '_name'] ?? '') ?>">
-            </div>
-            <div class="form-group">
-              <label>Email</label>
-              <input class="form-control" type="email" name="<?= h($person['key']) ?>_email" required value="<?= h($show[$person['key'] . '_email'] ?? '') ?>">
-            </div>
-            <div class="form-group">
-              <label>Phone</label>
-              <input class="form-control" name="<?= h($person['key']) ?>_phone" required value="<?= h($show[$person['key'] . '_phone'] ?? '') ?>">
-            </div>
-          </div>
-          <?php endforeach; ?>
-        </div>
-
-        <div class="section-label">Optional</div>
-        <div class="card-grid">
-          <div class="form-group">
-            <label for="show_image_url">Show Image Path</label>
-            <input class="form-control" id="show_image_url" name="show_image_url" placeholder="images/hamlet.jpg" value="<?= h($show['show_image_url'] ?? '') ?>">
-            <div class="helper-text">Use an app-relative path only. External image URLs are blocked.</div>
-          </div>
-          <div class="form-group">
-            <label for="pull_date">Pull Date</label>
-            <input class="form-control" type="date" id="pull_date" name="pull_date" value="<?= h($show['pull_date'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="return_date">Return Date</label>
-            <input class="form-control" type="date" id="return_date" name="return_date" value="<?= h($show['return_date'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="strike_date">Strike Date</label>
-            <input class="form-control" type="date" id="strike_date" name="strike_date" value="<?= h($show['strike_date'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="opening_date">Opening Date</label>
-            <input class="form-control" type="date" id="opening_date" name="opening_date" value="<?= h($show['opening_date'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="closing_date">Closing Date</label>
-            <input class="form-control" type="date" id="closing_date" name="closing_date" value="<?= h($show['closing_date'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="theatre_address">Theatre Address</label>
-            <textarea class="form-control" id="theatre_address" name="theatre_address"><?= h($show['theatre_address'] ?? '') ?></textarea>
-          </div>
-          <div class="form-group">
-            <label for="shop_address">Shop Address</label>
-            <textarea class="form-control" id="shop_address" name="shop_address"><?= h($show['shop_address'] ?? '') ?></textarea>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="show_notes">Show Notes</label>
-          <textarea class="form-control" id="show_notes" name="show_notes"><?= h($show['show_notes'] ?? '') ?></textarea>
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">
-            <span class="material-symbols-outlined">save</span>
-            Save Show
-          </button>
-        </div>
-      </form>
+      <?php render_show_form($show); ?>
     <?php ui_card_close(); ?>
 
     <?php ui_card_open('history', 'Revisions'); ?>

@@ -719,7 +719,11 @@ function category_id_for_name(string $name): int
         return (int) $id;
     }
 
-    create_category($trimmed);
+    try {
+        create_category($trimmed);
+    } catch (Throwable $e) {
+        // Another request may have created the category concurrently.
+    }
     $stmt->execute([$trimmed]);
     return (int) $stmt->fetchColumn();
 }
@@ -915,7 +919,7 @@ function store_resource_upload(array $file, string $title = ''): array
     if (!move_uploaded_file($file['tmp_name'], $destination)) {
         $tmpPath = (string) $file['tmp_name'];
         $moved = false;
-        if (PHP_SAPI === 'cli' && is_file($tmpPath)) {
+        if (defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS') && ALLOW_LOCAL_UPLOADS_FOR_TESTS && PHP_SAPI === 'cli' && is_file($tmpPath)) {
             $moved = @rename($tmpPath, $destination) || @copy($tmpPath, $destination);
         }
         if (!$moved) {

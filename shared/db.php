@@ -147,7 +147,10 @@ function run_pending_migrations(): array
         }
 
         try {
-            db()->beginTransaction();
+            $useTransaction = db_driver() !== 'mysql';
+            if ($useTransaction) {
+                db()->beginTransaction();
+            }
             foreach ($statements as $statement) {
                 $sql = trim((string) $statement);
                 if ($sql !== '') {
@@ -157,7 +160,9 @@ function run_pending_migrations(): array
 
             $stmt = db()->prepare('INSERT INTO schema_migrations (name) VALUES (?)');
             $stmt->execute([$name]);
-            db()->commit();
+            if ($useTransaction && db()->inTransaction()) {
+                db()->commit();
+            }
 
             $logs[] = [
                 'name' => $name,
@@ -165,7 +170,7 @@ function run_pending_migrations(): array
                 'message' => 'Migration applied successfully.',
             ];
         } catch (Throwable $e) {
-            if (db()->inTransaction()) {
+            if (db_driver() !== 'mysql' && db()->inTransaction()) {
                 db()->rollBack();
             }
 
