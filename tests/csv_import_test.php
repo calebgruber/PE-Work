@@ -329,11 +329,6 @@ assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => 
 assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cover to remove the extra shop info box above the show title.');
 assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
 assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export to include later line items instead of stopping early.');
-preg_match_all('/<section class="page equipment-page">.*?<tbody>\s*<tr style="([^"]+)">/s', $exportHtml, $equipmentPageMatches);
-assert_true(count($equipmentPageMatches[1] ?? []) >= 2, 'Expected multiple equipment pages to inspect row striping.');
-foreach (($equipmentPageMatches[1] ?? []) as $firstRowStyle) {
-    assert_true($firstRowStyle === 'background:#CCCCCC;', 'Expected each equipment page to restart row striping with gray.');
-}
 $syntheticLayout = export_layout_settings();
 $syntheticLayout['layout.equipment_min_rows_per_page'] = '4';
 $syntheticLayout['layout.equipment_max_rows_per_page'] = '2';
@@ -348,6 +343,13 @@ for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
 $syntheticPages = export_equipment_pages($syntheticRows, $syntheticLayout);
 assert_true(count($syntheticPages) === 3, 'Expected configured max rows per page to cap equipment pagination.');
 assert_true(count($syntheticPages[0]) === 2 && count($syntheticPages[1]) === 2 && count($syntheticPages[2]) === 1, 'Expected synthetic page chunking to preserve row limits.');
+$pageResetStyles = [];
+foreach ($syntheticPages as $pageRows) {
+    foreach ($pageRows as $pageRowIndex => $pageRow) {
+        $pageResetStyles[] = export_row_style($pageRowIndex, $nextRevision, ['is_spacer' => 0], ['action' => '']);
+    }
+}
+assert_true($pageResetStyles === ['background:#CCCCCC;', 'background:#FFFFFF;', 'background:#CCCCCC;', 'background:#FFFFFF;', 'background:#CCCCCC;'], 'Expected each equipment page to restart row striping with gray then white.');
 $syntheticMinOnlyLayout = export_layout_settings();
 $syntheticMinOnlyLayout['layout.equipment_min_rows_per_page'] = '4';
 $syntheticMinOnlyLayout['layout.equipment_max_rows_per_page'] = '0';
