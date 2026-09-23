@@ -319,9 +319,7 @@ save_export_layout([
     'equipment_zebra_gray' => '#BBBBBB',
     'equipment_row_padding' => '0.016',
     'equipment_header_row_padding' => '0.280',
-    'equipment_header_line_height' => '1.45',
     'equipment_category_row_padding' => '0.360',
-    'equipment_category_line_height' => '1.7',
     'equipment_category_gap' => '0.222',
     'equipment_header_fill' => '#ABCDEF',
     'equipment_category_fill' => '#FEDCBA',
@@ -395,7 +393,7 @@ assert_true(!str_contains($exportHtml, 'col-summary-notes'), 'Expected revision 
 assert_true(str_contains($exportHtml, 'Pull 10/02/26'), 'Expected equipment breakdown notes to include item-specific pull dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Return 10/16/26'), 'Expected equipment breakdown notes to include item-specific return dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Latest revision should clone from here.'), 'Expected order or revision line notes to print on the breakdown paperwork.');
-assert_true((bool) preg_match('/<div class="notes-section">.*?SolaFrame 3000: Profile moving light.*?SolaFrame 3000: Latest revision should clone from here\..*?Late Added Feeder: Late note.*?Late Added Feeder: Changed without an explicit action\./s', $exportHtml), 'Expected item default notes and line notes to appear in the paperwork notes section.');
+assert_true((bool) preg_match('/<div class="notes-section">.*?SolaFrame 3000: Profile moving light.*?SolaFrame 3000: Latest revision should clone from here\..*?Late Added Feeder: Late note.*?Late Added Feeder: Changed without an explicit action\./s', $exportHtml), 'Expected visible item default notes and line notes to appear in the paperwork notes section.');
 assert_true(str_contains($exportHtml, '<p class="cover-show-title">Revision Clone Test</p>'), 'Expected the cover page to show the title above the cover image area when enabled.');
 assert_true(str_contains($exportHtml, '<p class="cover-venue-name">Mainstage</p>'), 'Expected the cover page to show the theatre name on its own line.');
 assert_true(str_contains($exportHtml, '<p class="cover-venue-address">123 Theatre Way</p>'), 'Expected the cover page to show the theatre address on a separate line.');
@@ -432,7 +430,9 @@ assert_true(str_contains($exportHtml, '<strong>Page</strong> 2 of '), 'Expected 
 assert_true(str_contains($exportHtml, '<strong>Revision</strong> 1.1'), 'Expected page headers to include the current revision.');
 assert_true(str_contains($exportHtml, 'background: #ABCDEF;'), 'Expected export header rows to use the saved header color.');
 assert_true(str_contains($exportHtml, 'background: #FEDCBA;'), 'Expected export category rows to use the saved category color.');
+assert_true(str_contains($exportHtml, 'table.word-table thead tr {') && str_contains($exportHtml, 'height: 0.280in;'), 'Expected export header rows to apply the saved height at the row level.');
 assert_true(str_contains($exportHtml, 'height: 0.280in;'), 'Expected export header rows to use the saved header row height.');
+assert_true(str_contains($exportHtml, '.category-header-row {') && str_contains($exportHtml, 'height: 0.360in;'), 'Expected category rows to apply the saved height at the row level.');
 assert_true(str_contains($exportHtml, 'height: 0.360in;'), 'Expected export category rows to use the saved category row height.');
 assert_true((bool) preg_match('/table\\.word-table tbody tr:not\\(\\.category-gap-row\\):not\\(\\.category-header-row\\):not\\(\\.category-column-header-row\\) td \\{[^}]*line-height: 1\\.10;/s', $exportHtml), 'Expected normal row line height to be applied only to non-header, non-category rows.');
 assert_true(!(bool) preg_match('/table\\.word-table\\.equipment-table \\{[^}]*line-height:/s', $exportHtml), 'Expected table-level line height to stay off the whole equipment table so header/category line heights remain separate.');
@@ -613,6 +613,8 @@ assert_true(array_key_exists('layout.equipment_min_rows_per_page', $layoutDefaul
 assert_true(array_key_exists('layout.equipment_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment max rows per page.');
 assert_true(array_key_exists('layout.equipment_zebra_gray', $layoutDefaults), 'Expected export layout defaults to include equipment zebra gray.');
 assert_true(array_key_exists('layout.equipment_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment line height.');
+assert_true(!array_key_exists('layout.equipment_header_line_height', $layoutDefaults), 'Expected export layout defaults to stop exposing the old header line-height setting.');
+assert_true(!array_key_exists('layout.equipment_category_line_height', $layoutDefaults), 'Expected export layout defaults to stop exposing the old category line-height setting.');
 save_export_layout([
     'header_text' => 'Custom Header',
     'organization_text' => 'Top Right Copy',

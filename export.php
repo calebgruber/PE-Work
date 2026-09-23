@@ -141,46 +141,30 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
     return $rows;
 }
 
-function export_notes_list(array $layout, array $show, array $catalog = []): array
+function export_item_notes(array $rows): array
+{
+    $itemNotes = [];
+    foreach ($rows as $row) {
+        $item = $row['item'] ?? [];
+        $line = $row['line'] ?? [];
+        $itemName = trim((string) ($item['name'] ?? ''));
+        foreach ([trim((string) ($item['default_note'] ?? '')), trim((string) ($line['line_note'] ?? ''))] as $note) {
+            if ($note === '') {
+                continue;
+            }
+            $itemNotes[] = $itemName !== '' ? ($itemName . ': ' . $note) : $note;
+        }
+    }
+    return array_values(array_unique($itemNotes));
+}
+
+function export_notes_list(array $layout, array $show, array $rows = []): array
 {
     $notes = preg_split('/\r\n|\r|\n/', (string) ($layout['layout.export_notes'] ?? '')) ?: [];
     $showNotes = preg_split('/\r\n|\r|\n/', (string) ($show['show_notes'] ?? '')) ?: [];
-    $itemNotes = [];
-    foreach ($catalog as $category) {
-        foreach (($category['items'] ?? []) as $item) {
-            if (!empty($item['is_spacer'])) {
-                continue;
-            }
-            $line = $item['line'] ?? [];
-            $totalQuantity = (int) ($line['total_quantity'] ?? 0);
-            if ($totalQuantity <= 0) {
-                continue;
-            }
-
-            $itemName = trim((string) ($item['name'] ?? ''));
-            $defaultNote = trim((string) ($item['default_note'] ?? ''));
-            if ($defaultNote !== '') {
-                $itemNotes[] = $itemName !== '' ? ($itemName . ': ' . $defaultNote) : $defaultNote;
-            }
-
-            $lineNote = trim((string) ($line['line_note'] ?? ''));
-            if ($lineNote !== '') {
-                $itemNotes[] = $itemName !== '' ? ($itemName . ': ' . $lineNote) : $lineNote;
-            }
-        }
-    }
-
-    $combined = array_merge($notes, $showNotes, $itemNotes);
+    $combined = array_merge($notes, $showNotes, export_item_notes($rows));
     $combined = array_map(static fn ($note) => trim((string) $note), $combined);
-    $deduped = [];
-    foreach ($combined as $note) {
-        if ($note === '' || in_array($note, $deduped, true)) {
-            continue;
-        }
-        $deduped[] = $note;
-    }
-
-    return $deduped;
+    return array_values(array_filter(array_unique($combined), static fn ($note) => $note !== ''));
 }
 
 function export_row_background(array $revision, array $item, array $line): string
@@ -461,7 +445,7 @@ $revisionHistory = export_revision_history($showId, $revision);
 $equipmentRows = export_equipment_rows($catalog, $type);
 $equipmentPages = export_equipment_pages($equipmentRows, $layout);
 $summaryRows = !empty($revision['is_initial']) ? [] : export_summary_rows($catalog, $revision, $type);
-$notes = export_notes_list($layout, $show, $catalog);
+$notes = export_notes_list($layout, $show, $equipmentRows);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'] . '&export_type=' . rawurlencode((string) $type));
 $renderSummaryPage = empty($revision['is_initial']);
@@ -805,6 +789,9 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     table.word-table td:first-child {
       padding-left: 0.08in;
     }
+    table.word-table thead tr {
+      height: <?= h(number_format(export_equipment_header_row_height($equipmentMetrics), 3, '.', '')) ?>in;
+    }
     table.word-table thead th {
       border-bottom: 1px solid #666;
       text-decoration: underline;
@@ -813,6 +800,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       padding-top: 0;
       padding-bottom: 0;
       line-height: 1.1;
+      box-sizing: border-box;
       background: <?= h($equipmentHeaderFill) ?>;
     }
     .col-line { width: <?= h(number_format($equipmentMetrics['line_width'], 3, '.', '')) ?>%; }
@@ -856,12 +844,16 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       border: 0;
       background: #fff;
     }
+    .category-header-row {
+      height: <?= h(number_format(export_equipment_category_row_height($equipmentMetrics), 3, '.', '')) ?>in;
+    }
     .category-header-row td {
       height: <?= h(number_format(export_equipment_category_row_height($equipmentMetrics), 3, '.', '')) ?>in;
       min-height: <?= h(number_format(export_equipment_category_row_height($equipmentMetrics), 3, '.', '')) ?>in;
       padding-top: 0;
       padding-bottom: 0;
       line-height: 1.1;
+      box-sizing: border-box;
       font-weight: 700;
       letter-spacing: 0.03em;
       text-transform: uppercase;
@@ -869,12 +861,16 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       border-bottom: 1px solid #9ca3af;
       background: <?= h($equipmentCategoryFill) ?>;
     }
+    .category-column-header-row {
+      height: <?= h(number_format(export_equipment_header_row_height($equipmentMetrics), 3, '.', '')) ?>in;
+    }
     .category-column-header-row td {
       height: <?= h(number_format(export_equipment_header_row_height($equipmentMetrics), 3, '.', '')) ?>in;
       min-height: <?= h(number_format(export_equipment_header_row_height($equipmentMetrics), 3, '.', '')) ?>in;
       padding-top: 0;
       padding-bottom: 0;
       line-height: 1.1;
+      box-sizing: border-box;
       border-bottom: 1px solid #666;
       text-decoration: underline;
       font-weight: 700;
