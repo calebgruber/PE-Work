@@ -301,6 +301,8 @@ assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDO
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
 assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => '']) === 'background:#CCCCCC;', 'Expected export zebra striping to use the darker gray.');
 assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 2, 'Expected long equipment breakdowns to spill onto additional pages.');
+assert_true(str_contains($exportHtml, '<strong>Page</strong> 3 of 4'), 'Expected the first equipment breakdown page number to account for fixed pagination.');
+assert_true(str_contains($exportHtml, '<strong>Page</strong> 4 of 4'), 'Expected the second equipment breakdown page number to account for fixed pagination.');
 
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);

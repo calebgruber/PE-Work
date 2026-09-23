@@ -249,54 +249,13 @@ function export_equipment_note(array $item, array $line): string
     return implode(' · ', $parts);
 }
 
-function export_equipment_row_units(array $row): int
-{
-    $note = export_equipment_note($row['item'], $row['line']);
-    $nameLength = strlen(trim((string) ($row['item']['name'] ?? '')));
-    $descriptionLength = strlen(trim((string) ($row['category'] ?? '')));
-    $noteLength = strlen($note);
-    $units = 1;
-
-    if ($nameLength > 24 || $descriptionLength > 18) {
-        $units++;
-    }
-    if ($nameLength > 38 || $descriptionLength > 26 || $noteLength > 30) {
-        $units++;
-    }
-    if ($noteLength > 60) {
-        $units++;
-    }
-
-    return min(4, $units);
-}
-
-function export_equipment_pages(array $rows, int $pageCapacity = 26): array
+function export_equipment_pages(array $rows, int $rowsPerPage = 25): array
 {
     if (!$rows) {
         return [[]];
     }
 
-    $pages = [];
-    $currentPage = [];
-    $currentUnits = 0;
-
-    foreach ($rows as $row) {
-        $rowUnits = export_equipment_row_units($row);
-        if ($currentPage && $currentUnits + $rowUnits > $pageCapacity) {
-            $pages[] = $currentPage;
-            $currentPage = [];
-            $currentUnits = 0;
-        }
-
-        $currentPage[] = $row;
-        $currentUnits += $rowUnits;
-    }
-
-    if ($currentPage) {
-        $pages[] = $currentPage;
-    }
-
-    return $pages;
+    return array_chunk($rows, max(1, $rowsPerPage));
 }
 
 $type = $_GET['type'] ?? 'order';
@@ -374,6 +333,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     .page:last-child { page-break-after: auto; }
     .page-content {
       flex: 1 1 auto;
+      min-height: 0;
     }
     .top-rule {
       border-bottom: 1px solid #000;
@@ -523,14 +483,15 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       font-size: 9pt;
     }
     table.word-table.equipment-table {
-      width: 6.95in;
-      max-width: 100%;
+      width: 100%;
+      max-width: 7.08in;
       margin: 0 auto;
     }
     .equipment-table-wrap {
       display: flex;
       justify-content: center;
       width: 100%;
+      margin: 0 auto;
     }
     table.word-table th,
     table.word-table td {
@@ -549,15 +510,15 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       text-decoration: underline;
       font-weight: 700;
     }
-    .col-line { width: 6%; }
-    .col-item { width: 31%; }
-    .col-description { width: 21%; }
-    .col-action { width: 18%; }
+    .col-line { width: 5%; }
+    .col-item { width: 36%; }
+    .col-description { width: 17%; }
+    .col-action { width: 17%; }
     .col-qty { width: 13%; }
     .col-used,
-    .col-spare { width: 7%; }
+    .col-spare { width: 6%; }
     .col-total { width: 10%; }
-    .col-notes { width: 18%; }
+    .col-notes { width: 19%; }
     .notes-cell {
       white-space: normal;
       overflow-wrap: anywhere;
@@ -565,7 +526,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     .line-cell {
       text-align: right;
       font-weight: 700;
-      font-size: 8pt;
+      font-size: 7.5pt;
       padding-right: 0.04in;
     }
     .delta {
