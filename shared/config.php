@@ -5,6 +5,46 @@ if (file_exists($localConfig)) {
     require_once $localConfig;
 }
 
+function app_secret_value(): string
+{
+    $configured = getenv('APP_SECRET');
+    if (is_string($configured) && trim($configured) !== '') {
+        return trim($configured);
+    }
+
+    $secretPaths = [
+        __DIR__ . '/../storage/.app_secret',
+        rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . '/pe-work-app-secret-' . sha1(__DIR__),
+    ];
+
+    foreach ($secretPaths as $path) {
+        if (is_file($path)) {
+            $value = trim((string) @file_get_contents($path));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+    }
+
+    try {
+        $secret = bin2hex(random_bytes(32));
+    } catch (Throwable $e) {
+        $secret = hash('sha256', uniqid((string) mt_rand(), true));
+    }
+
+    foreach ($secretPaths as $path) {
+        $directory = dirname($path);
+        if (!is_dir($directory)) {
+            @mkdir($directory, 0775, true);
+        }
+        if (is_dir($directory) && @file_put_contents($path, $secret, LOCK_EX) !== false) {
+            return $secret;
+        }
+    }
+
+    return $secret;
+}
+
 defined('APP_NAME') || define('APP_NAME', getenv('APP_NAME') ?: 'PE Work');
 defined('APP_VERSION') || define('APP_VERSION', '0.1.0');
 defined('APP_TIMEZONE') || define('APP_TIMEZONE', getenv('APP_TIMEZONE') ?: 'America/New_York');
@@ -20,7 +60,7 @@ defined('DB_CHARSET') || define('DB_CHARSET', 'utf8mb4');
 defined('DB_SQLITE_PATH') || define('DB_SQLITE_PATH', __DIR__ . '/../storage/pe-work.sqlite');
 
 defined('SESSION_NAME') || define('SESSION_NAME', 'pe_work_session');
-defined('APP_SECRET') || define('APP_SECRET', getenv('APP_SECRET') ?: hash('sha256', __DIR__ . '|' . DB_DRIVER . '|' . DB_NAME . '|' . DB_SQLITE_PATH . '|' . SESSION_NAME));
+defined('APP_SECRET') || define('APP_SECRET', app_secret_value());
 defined('ALLOW_SQLITE_FOR_TESTS') || define('ALLOW_SQLITE_FOR_TESTS', false);
 
 date_default_timezone_set(APP_TIMEZONE);

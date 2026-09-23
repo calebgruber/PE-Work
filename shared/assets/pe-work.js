@@ -313,7 +313,10 @@
   function initConfirmCodes() {
     document.querySelectorAll('[data-confirm-code]').forEach(function (button) {
       const form = button.closest('form');
+      let lastSubmitter = null;
       function confirmAction(event) {
+        const submitter = event.submitter || lastSubmitter;
+        if (submitter !== button) return;
         const expected = button.getAttribute('data-confirm-code') || '';
         const message = button.getAttribute('data-confirm') || ('Type ' + expected + ' to continue.');
         const entered = window.prompt(message, '');
@@ -324,6 +327,9 @@
       }
 
       if (form) {
+        button.addEventListener('click', function () {
+          lastSubmitter = button;
+        });
         form.addEventListener('submit', confirmAction);
       } else {
         button.addEventListener('click', confirmAction);
@@ -334,7 +340,10 @@
   function initSimpleConfirms() {
     document.querySelectorAll('[data-confirm-message]').forEach(function (button) {
       const form = button.closest('form');
+      let lastSubmitter = null;
       function confirmAction(event) {
+        const submitter = event.submitter || lastSubmitter;
+        if (submitter !== button) return;
         if (!window.confirm(button.getAttribute('data-confirm-message') || 'Are you sure?')) {
           event.preventDefault();
           event.stopPropagation();
@@ -342,6 +351,9 @@
       }
 
       if (form) {
+        button.addEventListener('click', function () {
+          lastSubmitter = button;
+        });
         form.addEventListener('submit', confirmAction);
       } else {
         button.addEventListener('click', confirmAction);

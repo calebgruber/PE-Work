@@ -8,6 +8,10 @@ require_once __DIR__ . '/shared/ui.php';
 $logs = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
+        http_response_code(403);
+        exit('Invalid CSRF token.');
+    }
     $logs = run_pending_migrations();
 }
 
@@ -46,6 +50,7 @@ $dbReady = schema_ready();
       </div>
 
       <form method="post">
+        <?= csrf_input() ?>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">
             <span class="material-symbols-outlined">rocket_launch</span>

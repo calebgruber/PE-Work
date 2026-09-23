@@ -989,7 +989,7 @@ function import_inventory_csv(string $tmpPath): array
 {
     $handle = csv_stream_handle($tmpPath);
     if (!$handle) {
-        return ['ok' => false, 'message' => 'Unable to read uploaded CSV.'];
+        return ['ok' => false, 'message' => 'Unable to read the CSV source.'];
     }
 
     return import_inventory_csv_from_handle($handle);

@@ -123,7 +123,12 @@ if (!schema_ready()) {
 }
 
 $showIdParam = $_GET['show_id'] ?? null;
-if ($showIdParam !== null && (!ctype_digit((string) $showIdParam) || (int) $showIdParam <= 0)) {
+if (is_array($showIdParam)) {
+    http_response_code(404);
+    exit('Show not found.');
+}
+$showIdParam = $showIdParam !== null ? trim((string) $showIdParam) : null;
+if ($showIdParam !== null && ($showIdParam === '' || !ctype_digit($showIdParam) || (int) $showIdParam <= 0)) {
     http_response_code(404);
     exit('Show not found.');
 }
