@@ -220,8 +220,22 @@ $initialRevision = find_revision($initialRevisionId);
 assert_true(($initialRevision['revision_code'] ?? '') === '1.0', 'Expected initial revision code to be 1.0.');
 $fixtureItemId = ensure_catalog_item('Fixtures', 'SolaFrame 3000', 12, 'ea', 'Profile moving light', 'Manual test fixture row');
 $adapterItemId = ensure_catalog_item('Power', 'Stagepin to True1 Adapter', 20, 'ea', 'Adapter note', 'Manual rule pairing row');
+$lateAddedItemId = ensure_catalog_item('Cable', 'Late Added Feeder', 8, 'ea', 'Late note', 'Added after initial revision exists');
 assert_true($fixtureItemId > 0, 'Expected test inventory item to exist for revision cloning.');
 assert_true($adapterItemId > 0, 'Expected adapter inventory item to exist for rule tests.');
+assert_true($lateAddedItemId > 0, 'Expected newly added inventory item to exist for current revisions.');
+$initialCatalog = catalog_for_revision($initialRevisionId);
+$lateItemFound = false;
+foreach ($initialCatalog as $category) {
+    foreach ($category['items'] as $item) {
+        if ((int) ($item['id'] ?? 0) !== $lateAddedItemId) {
+            continue;
+        }
+        $lateItemFound = true;
+        assert_true((int) ($item['line']['total_quantity'] ?? -1) === 0, 'Expected newly added inventory item to appear in existing revisions with a blank line.');
+    }
+}
+assert_true($lateItemFound, 'Expected newly added inventory item to appear in the existing revision catalog.');
 
 save_revision_lines($initialRevisionId, [
     $fixtureItemId => [
@@ -237,7 +251,18 @@ save_revision_lines($initialRevisionId, [
         'spare_quantity' => 0,
         'action' => 'add',
     ],
+    $lateAddedItemId => [
+        'rent_quantity' => 2,
+        'spare_quantity' => 1,
+        'action' => 'add',
+        'line_note' => 'Late-added inventory should save into the order.',
+    ],
 ]);
+$lateLineStmt = db()->prepare('SELECT rent_quantity, spare_quantity, total_quantity, line_note FROM revision_items WHERE revision_id = ? AND inventory_item_id = ?');
+$lateLineStmt->execute([$initialRevisionId, $lateAddedItemId]);
+$lateSavedLine = $lateLineStmt->fetch() ?: [];
+assert_true((int) ($lateSavedLine['total_quantity'] ?? 0) === 3, 'Expected newly added inventory items to save into existing shop orders.');
+assert_true(($lateSavedLine['line_note'] ?? '') === 'Late-added inventory should save into the order.', 'Expected newly added inventory item notes to persist.');
 
 $nextRevisionId = create_next_revision($showId);
 $nextRevision = find_revision($nextRevisionId);
@@ -302,7 +327,7 @@ assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expe
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
 assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => '']) === 'background:#CCCCCC;', 'Expected export zebra striping to use the darker gray.');
 assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cover to remove the extra shop info box above the show title.');
-assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
+assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 7, 'Expected long equipment breakdowns to honor the configured max rows per page while spilling onto additional pages as needed.');
 assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export to include later line items instead of stopping early.');
 
 $thirdRevisionId = create_next_revision($showId);
@@ -435,6 +460,7 @@ $layoutDefaults = export_layout_settings();
 assert_true(array_key_exists('layout.organization_text', $layoutDefaults), 'Expected export layout defaults to include organization text.');
 assert_true(array_key_exists('layout.export_notes', $layoutDefaults), 'Expected export layout defaults to include export notes.');
 assert_true(array_key_exists('layout.equipment_table_width', $layoutDefaults), 'Expected export layout defaults to include equipment table sizing.');
+assert_true(array_key_exists('layout.equipment_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment max rows per page.');
 assert_true(array_key_exists('layout.equipment_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment line height.');
 save_export_layout([
     'header_text' => 'Custom Header',
@@ -444,6 +470,7 @@ save_export_layout([
     'show_page_numbers' => '1',
     'show_revision_summary' => '1',
     'equipment_table_width' => '96',
+    'equipment_max_rows_per_page' => '12',
     'equipment_row_padding' => '0.02',
     'equipment_font_size' => '7.8',
     'equipment_line_height' => '1.3',
@@ -458,6 +485,7 @@ $savedLayout = export_layout_settings();
 assert_true(($savedLayout['layout.organization_text'] ?? '') === 'Top Right Copy', 'Expected organization text to persist in export layout settings.');
 assert_true(($savedLayout['layout.export_notes'] ?? '') === "One\nTwo", 'Expected export notes to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_table_width'] ?? '') === '96', 'Expected equipment table width to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_max_rows_per_page'] ?? '') === '12', 'Expected equipment max rows per page to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_line_height'] ?? '') === '1.3', 'Expected equipment line height to persist in export layout settings.');
 
 $deleteItemResult = delete_inventory_item($adapterItemId);

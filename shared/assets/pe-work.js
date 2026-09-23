@@ -77,9 +77,6 @@
 
       warningsList.innerHTML = '';
       warningsWrap.classList.toggle('hidden', warnings.length === 0);
-      submitButtons.forEach(function (button) {
-        button.disabled = warnings.length > 0;
-      });
       warnings.forEach(function (warning) {
         const item = document.createElement('div');
         item.className = 'revision-alert revision-alert-' + warning.type;
@@ -205,11 +202,8 @@
       }
       event.preventDefault();
       runValidation(function (warnings) {
-        if (warnings.length > 0) {
-          if (warningsWrap) {
-            warningsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-          return;
+        if (warnings.length > 0 && warningsWrap) {
+          warningsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         allowValidatedSubmit = true;
         if (event.submitter && typeof editor.requestSubmit === 'function') {

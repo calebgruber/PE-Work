@@ -432,6 +432,8 @@ $validationInvalidHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-inva
 $validationInvalidResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-invalid-response-');
 $validationPersistedHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-persisted-headers-');
 $validationPersistedResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-persisted-response-');
+$validationSaveHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-save-headers-');
+$validationSaveResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-save-response-');
 $testPaths[] = $validationPagePath;
 $testPaths[] = $validationHeadersPath;
 $testPaths[] = $validationResponsePath;
@@ -439,6 +441,8 @@ $testPaths[] = $validationInvalidHeadersPath;
 $testPaths[] = $validationInvalidResponsePath;
 $testPaths[] = $validationPersistedHeadersPath;
 $testPaths[] = $validationPersistedResponsePath;
+$testPaths[] = $validationSaveHeadersPath;
+$testPaths[] = $validationSaveResponsePath;
 exec(sprintf(
     "curl -fsS -o %s -c %s -b %s %s",
     escapeshellarg($validationPagePath),
@@ -486,12 +490,32 @@ exec(sprintf(
     escapeshellarg('revision_id=' . $validationRevisionId),
     escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&mode=edit&tab=orders&revision_id=' . $validationRevisionId)
 ), $validationPersistedOutput, $validationPersistedStatus);
+exec(sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
+    escapeshellarg($validationSaveResponsePath),
+    escapeshellarg($validationSaveHeadersPath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg('csrf_token=' . $validationCsrfToken),
+    escapeshellarg('action=save_revision'),
+    escapeshellarg('revision_id=' . $validationRevisionId),
+    escapeshellarg('items[' . $validationFixtureId . '][rent_quantity]=3'),
+    escapeshellarg('items[' . $validationFixtureId . '][spare_quantity]=4'),
+    escapeshellarg('items[' . $validationCableId . '][rent_quantity]=0'),
+    escapeshellarg('items[' . $validationCableId . '][spare_quantity]=0'),
+    escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&mode=edit&tab=orders&revision_id=' . $validationRevisionId)
+), $validationSaveOutput, $validationSaveStatus);
 $validationHeaders = is_file($validationHeadersPath) ? file_get_contents($validationHeadersPath) : '';
 $validationBody = is_file($validationResponsePath) ? file_get_contents($validationResponsePath) : '';
 $validationInvalidHeaders = is_file($validationInvalidHeadersPath) ? file_get_contents($validationInvalidHeadersPath) : '';
 $validationInvalidBody = is_file($validationInvalidResponsePath) ? file_get_contents($validationInvalidResponsePath) : '';
 $validationPersistedHeaders = is_file($validationPersistedHeadersPath) ? file_get_contents($validationPersistedHeadersPath) : '';
 $validationPersistedBody = is_file($validationPersistedResponsePath) ? file_get_contents($validationPersistedResponsePath) : '';
+$validationSaveHeaders = is_file($validationSaveHeadersPath) ? file_get_contents($validationSaveHeadersPath) : '';
+$validationSaveBody = is_file($validationSaveResponsePath) ? file_get_contents($validationSaveResponsePath) : '';
+$savedValidationLineStmt = db()->prepare('SELECT rent_quantity, spare_quantity, total_quantity FROM revision_items WHERE revision_id = ? AND inventory_item_id = ?');
+$savedValidationLineStmt->execute([$validationRevisionId, $validationFixtureId]);
+$savedValidationLine = $savedValidationLineStmt->fetch() ?: [];
 
 settings_assert($validationPageStatus === 0 && $validationCsrfToken !== '', 'Expected validation edit page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($validationStatus === 0, 'Expected validation endpoint request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
@@ -504,6 +528,11 @@ settings_assert(str_contains($validationInvalidBody, 'Revision not found for thi
 settings_assert($validationPersistedStatus === 0, 'Expected persisted-state validation endpoint request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationPersistedHeaders, 'Content-Type: application/json'), 'Expected persisted-state validation request to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(!str_contains($validationPersistedBody, 'Rule required:'), 'Expected omitted-items validation to preserve the saved revision state.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($validationSaveStatus === 0, 'Expected revision save request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationSaveHeaders, 'Location: /show?show_id=' . $validationShowId . '&mode=edit&tab=orders&revision_id=' . $validationRevisionId), 'Expected revision save to redirect back to the editor.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert((int) ($savedValidationLine['rent_quantity'] ?? 0) === 3 && (int) ($savedValidationLine['spare_quantity'] ?? 0) === 4 && (int) ($savedValidationLine['total_quantity'] ?? 0) === 7, 'Expected revision save to persist order changes even when warnings exist.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationSaveBody, 'Order changes saved.'), 'Expected saved revision response to confirm the order changes were saved.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationSaveBody, 'exceeds shop stock'), 'Expected saved revision response to still show validation warnings.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
 settings_test_cleanup($repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 echo "settings import action test passed\n";

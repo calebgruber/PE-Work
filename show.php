@@ -241,18 +241,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $revisionOverrideItems = is_array($_POST['items'] ?? null) ? $_POST['items'] : [];
         $validationWarnings = revision_validation_warnings(revision_input_snapshot($revisionId, $revisionOverrideItems));
-        if ($validationWarnings) {
-            foreach ($validationWarnings as $warning) {
-                flash('danger', $warning['message']);
-            }
-        } else {
-            save_revision_lines($revisionId, $revisionOverrideItems);
-            flash('success', 'Order changes saved.');
-
-            $returnTab = revision_return_tab($revision);
-            header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=' . $returnTab . '&revision_id=' . $revisionId));
-            exit;
+        save_revision_lines($revisionId, $revisionOverrideItems);
+        flash('success', 'Order changes saved.');
+        foreach ($validationWarnings as $warning) {
+            flash('warning', $warning['message']);
         }
+
+        $returnTab = revision_return_tab($revision);
+        header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=' . $returnTab . '&revision_id=' . $revisionId));
+        exit;
     }
 }
 
@@ -351,13 +348,13 @@ if ($mode === 'edit' && $showId && $currentRevision) {
           </div>
           <div class="revision-editor-helper">
             <span class="material-symbols-outlined">info</span>
-            <span>Blocking warnings update live as you edit. You cannot save until stock and rule requirements are corrected.</span>
+            <span>Warnings update live as you edit. Saving still keeps your order changes while flagging stock and rule follow-up.</span>
           </div>
         </div>
 
         <div class="revision-alerts hidden" data-revision-warnings-wrap>
-          <strong>Blocking warnings</strong>
-          <div class="muted">Every required rule and every stock overage must be fixed before you can save this order.</div>
+          <strong>Warnings</strong>
+          <div class="muted">Review these before sending paperwork, but your edits will still save.</div>
           <div class="revision-alert-list" data-revision-warnings></div>
         </div>
 

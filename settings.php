@@ -824,6 +824,11 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <input class="form-control" id="equipment_table_width" type="number" min="70" max="100" step="0.1" name="equipment_table_width" value="<?= h($layout['layout.equipment_table_width'] ?? '100') ?>">
           </div>
           <div class="form-group">
+            <label for="equipment_max_rows_per_page">Max Rows Per Page</label>
+            <input class="form-control" id="equipment_max_rows_per_page" type="number" min="0" max="100" step="1" name="equipment_max_rows_per_page" value="<?= h($layout['layout.equipment_max_rows_per_page'] ?? '0') ?>">
+            <div class="helper-text">Set to 0 to let page sizing decide automatically.</div>
+          </div>
+          <div class="form-group">
             <label for="equipment_row_padding">Row Padding (in)</label>
             <input class="form-control" id="equipment_row_padding" type="number" min="0.008" max="0.04" step="0.001" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
           </div>

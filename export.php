@@ -252,6 +252,7 @@ function export_equipment_note(array $item, array $line): string
 function export_equipment_layout_metrics(array $layout): array
 {
     $tableWidth = max(70.0, min(100.0, (float) ($layout['layout.equipment_table_width'] ?? 100)));
+    $maxRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_max_rows_per_page'] ?? 0)));
     $rowPadding = max(0.008, min(0.04, (float) ($layout['layout.equipment_row_padding'] ?? 0.016)));
     $fontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
     $lineHeight = max(0.9, min(2.2, (float) ($layout['layout.equipment_line_height'] ?? 1.1)));
@@ -272,6 +273,7 @@ function export_equipment_layout_metrics(array $layout): array
 
     return [
         'table_width' => $tableWidth,
+        'max_rows_per_page' => $maxRowsPerPage,
         'row_padding' => $rowPadding,
         'font_size' => $fontSize,
         'line_height' => $lineHeight,
@@ -327,7 +329,8 @@ function export_equipment_pages(array $rows, array $layout): array
 
     foreach ($rows as $row) {
         $rowHeight = export_equipment_page_row_height($row, $metrics);
-        if ($currentPage !== [] && ($currentHeight + $rowHeight) > $availableHeight) {
+        $reachesRowCap = $metrics['max_rows_per_page'] > 0 && count($currentPage) >= $metrics['max_rows_per_page'];
+        if ($currentPage !== [] && ($reachesRowCap || ($currentHeight + $rowHeight) > $availableHeight)) {
             $pages[] = $currentPage;
             $currentPage = [];
             $currentHeight = 0.0;
