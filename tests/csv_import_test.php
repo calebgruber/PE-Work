@@ -283,7 +283,7 @@ assert_true(str_contains($exportHtml, 'Return 2026-10-16'), 'Expected equipment 
 assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
-assert_true(str_contains($exportHtml, 'background:#CCCCCC;'), 'Expected export zebra striping to use the darker gray.');
+assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => '']) === 'background:#CCCCCC;', 'Expected export zebra striping to use the darker gray.');
 
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);
