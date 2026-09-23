@@ -141,11 +141,26 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
     return $rows;
 }
 
-function export_notes_list(array $layout, array $show): array
+function export_notes_list(array $layout, array $show, array $catalog = []): array
 {
     $notes = preg_split('/\r\n|\r|\n/', (string) ($layout['layout.export_notes'] ?? '')) ?: [];
     $showNotes = preg_split('/\r\n|\r|\n/', (string) ($show['show_notes'] ?? '')) ?: [];
-    $combined = array_merge($notes, $showNotes);
+    $lineNotes = [];
+    foreach ($catalog as $entry) {
+        $item = $entry['item'] ?? [];
+        $line = $entry['line'] ?? [];
+        if (!empty($item['is_spacer'])) {
+            continue;
+        }
+        $lineNote = trim((string) ($line['line_note'] ?? ''));
+        if ($lineNote === '') {
+            continue;
+        }
+        $itemName = trim((string) ($item['name'] ?? ''));
+        $lineNotes[] = $itemName !== '' ? ($itemName . ': ' . $lineNote) : $lineNote;
+    }
+    $combined = array_merge($notes, $showNotes, $lineNotes);
+    $combined = array_values(array_unique($combined));
     return array_values(array_filter(array_map('trim', $combined), static fn ($note) => $note !== ''));
 }
 
@@ -433,7 +448,7 @@ $revisionHistory = export_revision_history($showId, $revision);
 $equipmentRows = export_equipment_rows($catalog, $type);
 $equipmentPages = export_equipment_pages($equipmentRows, $layout);
 $summaryRows = !empty($revision['is_initial']) ? [] : export_summary_rows($catalog, $revision, $type);
-$notes = export_notes_list($layout, $show);
+$notes = export_notes_list($layout, $show, $catalog);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'] . '&export_type=' . rawurlencode((string) $type));
 $renderSummaryPage = empty($revision['is_initial']);
@@ -755,7 +770,6 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       max-width: 100%;
       margin: 0 auto;
       font-size: <?= h(number_format($equipmentMetrics['font_size'], 2, '.', '')) ?>pt;
-      line-height: <?= h(number_format($equipmentMetrics['line_height'], 2, '.', '')) ?>;
     }
     .equipment-table-wrap {
       display: flex;
@@ -772,6 +786,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     }
     table.word-table tbody tr:not(.category-gap-row):not(.category-header-row):not(.category-column-header-row) td {
       min-height: <?= h(number_format(max(0.0, $equipmentMetrics['row_padding'] * 2), 3, '.', '')) ?>in;
+      line-height: <?= h(number_format($equipmentMetrics['line_height'], 2, '.', '')) ?>;
     }
     table.word-table th:first-child,
     table.word-table td:first-child {
