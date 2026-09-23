@@ -397,6 +397,56 @@ settings_assert(str_contains($resourceForbiddenHeaders, '403 Forbidden'), 'Expec
 settings_assert($resourceInvalidStatus === 0, 'Expected invalid-token resource request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($resourceInvalidHeaders, '403 Forbidden'), 'Expected invalid token resource request to be rejected.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
+$imagePath = tempnam(sys_get_temp_dir(), 'pew-resource-image-');
+file_put_contents($imagePath, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0mQAAAAASUVORK5CYII='));
+$imageHeadersPath = tempnam(sys_get_temp_dir(), 'pew-image-resource-headers-');
+$imageResponsePath = tempnam(sys_get_temp_dir(), 'pew-image-resource-response-');
+$imageFetchHeadersPath = tempnam(sys_get_temp_dir(), 'pew-image-fetch-headers-');
+$imageFetchPath = tempnam(sys_get_temp_dir(), 'pew-image-fetch-');
+$testPaths[] = $imagePath;
+$testPaths[] = $imageHeadersPath;
+$testPaths[] = $imageResponsePath;
+$testPaths[] = $imageFetchHeadersPath;
+$testPaths[] = $imageFetchPath;
+$imageUploadCommand = sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F %s -F 'action=upload_resource' -F 'resource_title=Image Resource' -F 'resource_pdf=@%s;type=image/png;filename=resource.png' %s",
+    escapeshellarg($imageResponsePath),
+    escapeshellarg($imageHeadersPath),
+    escapeshellarg($resourceCookieJar),
+    escapeshellarg($resourceCookieJar),
+    escapeshellarg('csrf_token=' . $resourceCsrfToken),
+    escapeshellarg('folder_id=' . $resourceSubfolderId),
+    escapeshellarg($imagePath),
+    escapeshellarg($baseUrl . '/settings?tab=resources')
+);
+exec($imageUploadCommand, $imageUploadOutput, $imageUploadStatus);
+$imageHeaders = is_file($imageHeadersPath) ? file_get_contents($imageHeadersPath) : '';
+$imageBody = is_file($imageResponsePath) ? file_get_contents($imageResponsePath) : '';
+$resourceStmt->execute(['Image Resource']);
+$imageResourceRow = $resourceStmt->fetch() ?: [];
+$imageStoredName = (string) ($imageResourceRow['stored_name'] ?? '');
+if ($imageStoredName !== '') {
+    $testPaths[] = upload_dir('resources') . '/' . $imageStoredName;
+}
+$imageResourceUrl = $baseUrl . '/resource_file?id=' . (int) ($imageResourceRow['id'] ?? 0) . '&token=' . rawurlencode(resource_access_token($imageResourceRow));
+exec(sprintf(
+    "curl -fsS -o %s -D %s %s",
+    escapeshellarg($imageFetchPath),
+    escapeshellarg($imageFetchHeadersPath),
+    escapeshellarg($imageResourceUrl)
+), $imageFetchOutput, $imageFetchStatus);
+$imageFetchHeaders = is_file($imageFetchHeadersPath) ? file_get_contents($imageFetchHeadersPath) : '';
+$imageFetchBody = is_file($imageFetchPath) ? file_get_contents($imageFetchPath) : '';
+
+settings_assert($imageUploadStatus === 0, 'Expected image resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($imageHeaders, 'Location: /settings?tab=resources'), 'Expected image resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($imageStoredName !== '', 'Expected image resource upload action to persist the uploaded image.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($imageBody, 'Resource uploaded.'), 'Expected redirected resources page to show the image upload success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($imageBody, 'resource-image-preview'), 'Expected redirected resources page to render an image preview card.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($imageFetchStatus === 0, 'Expected signed image resource URL to be fetchable.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($imageFetchHeaders, 'Content-Type: image/png'), 'Expected signed image resource URL to return an image response.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(substr($imageFetchBody, 0, 8) === "\x89PNG\x0D\x0A\x1A\x0A", 'Expected signed image resource URL to stream the uploaded image.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+
 $textPath = tempnam(sys_get_temp_dir(), 'pew-resource-text-');
 file_put_contents($textPath, "not a pdf");
 $badResourceHeadersPath = tempnam(sys_get_temp_dir(), 'pew-bad-resource-headers-');
@@ -423,7 +473,7 @@ $badStoredName = $resourceStmt->fetchColumn();
 settings_assert($badResourceStatus === 0, 'Expected invalid resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($badResourceHeaders, 'Location: /settings?tab=resources'), 'Expected invalid resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($badStoredName === false, 'Expected invalid resource upload to avoid persisting a resource row.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($badResourceBody, 'Only PDF resources are supported.'), 'Expected redirected resources page to show the non-PDF warning.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($badResourceBody, 'Only PDF and image resources are supported.'), 'Expected redirected resources page to show the unsupported-file warning.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
 $validationPagePath = tempnam(sys_get_temp_dir(), 'pew-validation-page-');
 $validationHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-headers-');

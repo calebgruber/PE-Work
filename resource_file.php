@@ -44,15 +44,9 @@ if (!is_file($path)) {
     exit('Not found');
 }
 
-$mimeType = '';
-if (function_exists('finfo_open')) {
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    if ($finfo) {
-        $mimeType = (string) finfo_file($finfo, $path);
-        finfo_close($finfo);
-    }
-}
-if (!pdf_signature_is_valid($path) || ($mimeType !== '' && !is_allowed_pdf_mime_type($mimeType))) {
+$mimeType = detected_upload_mime_type($path);
+$extension = strtolower(pathinfo((string) ($resource['original_name'] ?? $resource['stored_name'] ?? ''), PATHINFO_EXTENSION));
+if (!resource_file_is_valid($path, $mimeType, $extension)) {
     http_response_code(404);
     exit('Not found');
 }
@@ -61,14 +55,14 @@ while (ob_get_level() > 0) {
     ob_end_clean();
 }
 
-header('Content-Type: application/pdf');
+header('Content-Type: ' . ($mimeType !== '' ? $mimeType : (string) ($resource['mime_type'] ?? 'application/octet-stream')));
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
 header('Content-Length: ' . (string) filesize($path));
 $filename = (string) $resource['original_name'];
-$asciiFilename = preg_replace('/[^A-Za-z0-9.\-_ ]/', '_', $filename) ?: 'resource.pdf';
+$asciiFilename = preg_replace('/[^A-Za-z0-9.\-_ ]/', '_', $filename) ?: 'resource';
 $disposition = isset($_GET['download']) && $_GET['download'] === '1' ? 'attachment' : 'inline';
 header('Content-Disposition: ' . $disposition . '; filename="' . str_replace('"', '', $asciiFilename) . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
 readfile($path);

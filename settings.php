@@ -527,7 +527,6 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           <div class="summary-block">
             <strong>Folders</strong>
             <div class="resource-folder-list">
-              <a class="tab<?= $selectedResourceFolderId === null ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=resources')) ?>">All PDFs</a>
               <div class="resource-folder-row">
                 <a class="tab<?= $selectedResourceFolderId === null ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=resources')) ?>">
                   <span class="material-symbols-outlined">home_storage</span>
@@ -581,7 +580,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
         <div class="resource-main">
           <div class="card-grid card-grid-2">
             <div class="summary-block">
-              <strong>Upload PDF Resource</strong>
+              <strong>Upload Resource</strong>
               <form method="post" enctype="multipart/form-data" class="stack" style="margin-top:1rem;">
                 <?= csrf_input() ?>
                 <input type="hidden" name="action" value="upload_resource">
@@ -599,8 +598,8 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                   </select>
                 </div>
                 <div class="form-group">
-                  <label for="resource_pdf">PDF File</label>
-                  <input class="form-control" type="file" id="resource_pdf" name="resource_pdf" accept="application/pdf,.pdf">
+                  <label for="resource_pdf">PDF or Image File</label>
+                  <input class="form-control" type="file" id="resource_pdf" name="resource_pdf" accept="application/pdf,.pdf,image/png,image/jpeg,image/gif,image/webp">
                 </div>
                 <div class="form-actions">
                   <button type="submit" class="btn btn-primary">
@@ -613,8 +612,8 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <div class="summary-block">
               <strong>Library View</strong>
               <div class="stack" style="margin-top:1rem;">
-                <div class="muted">Use folders and subfolders to separate shop paperwork, diagrams, manuals, and reference PDFs.</div>
-                <div class="muted">Open, download, move, and preview PDFs from one place without leaving the app.</div>
+                <div class="muted">Use folders and subfolders to separate shop paperwork, diagrams, manuals, images, and reference files.</div>
+                <div class="muted">Open, download, move, and preview PDFs and images from one place without leaving the app.</div>
               </div>
             </div>
           </div>
@@ -643,7 +642,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <div class="resource-actions">
                 <a class="btn btn-ghost btn-sm" href="<?= h($resourceUrl) ?>" target="_blank" rel="noopener">
                   <span class="material-symbols-outlined">open_in_new</span>
-                  Open PDF
+                  Open Resource
                 </a>
                 <a class="btn btn-ghost btn-sm" href="<?= h($resourceUrl . '&download=1') ?>">
                   <span class="material-symbols-outlined">download</span>
@@ -670,9 +669,14 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                   </button>
                 </div>
               </form>
+              <?php $resourceMime = strtolower((string) ($resource['mime_type'] ?? '')); ?>
+              <?php if (str_starts_with($resourceMime, 'image/')): ?>
+              <img class="resource-image-preview" src="<?= h($resourceUrl) ?>" alt="<?= h($resource['title']) ?>">
+              <?php else: ?>
               <iframe class="resource-frame" src="<?= h($resourceUrl) ?>" title="<?= h($resource['title']) ?>">
-                PDF preview unavailable. Use the Open PDF or Download buttons above.
+                Resource preview unavailable. Use the Open Resource or Download buttons above.
               </iframe>
+              <?php endif; ?>
             </article>
             <?php endforeach; ?>
           </div>
@@ -680,7 +684,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           <div class="empty-state">
             <span class="material-symbols-outlined">folder</span>
             <h3>No resources here yet</h3>
-            <p>Upload PDFs and organize them into folders to build out the resource library.</p>
+            <p>Upload PDFs or images and organize them into folders to build out the resource library.</p>
           </div>
           <?php endif; ?>
         </div>

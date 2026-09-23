@@ -598,6 +598,17 @@
   background: #fff;
 }
 
+.resource-image-preview {
+  display: block;
+  width: 100%;
+  min-height: 240px;
+  max-height: 520px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
 .topbar-menu {
   display: none;
 }

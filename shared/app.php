@@ -1560,6 +1560,54 @@ function is_allowed_pdf_mime_type(string $mimeType): bool
     return in_array($mimeType, ['application/pdf', 'application/x-pdf'], true);
 }
 
+function is_allowed_image_mime_type(string $mimeType): bool
+{
+    return in_array($mimeType, ['image/png', 'image/jpeg', 'image/gif', 'image/webp'], true);
+}
+
+function resource_extension_mime_map(): array
+{
+    return [
+        'pdf' => ['application/pdf', 'application/x-pdf'],
+        'png' => ['image/png'],
+        'jpg' => ['image/jpeg'],
+        'jpeg' => ['image/jpeg'],
+        'gif' => ['image/gif'],
+        'webp' => ['image/webp'],
+    ];
+}
+
+function detected_upload_mime_type(string $path): string
+{
+    if ($path === '' || !is_file($path) || !function_exists('finfo_open')) {
+        return '';
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    if (!$finfo) {
+        return '';
+    }
+
+    $mimeType = (string) finfo_file($finfo, $path);
+    finfo_close($finfo);
+    return $mimeType;
+}
+
+function resource_file_is_valid(string $path, string $mimeType, string $extension): bool
+{
+    $extension = strtolower($extension);
+    if ($extension === 'pdf') {
+        return pdf_signature_is_valid($path) && ($mimeType === '' || is_allowed_pdf_mime_type($mimeType));
+    }
+
+    if (!array_key_exists($extension, resource_extension_mime_map()) || !is_allowed_image_mime_type($mimeType)) {
+        return false;
+    }
+
+    $imageInfo = @getimagesize($path);
+    return is_array($imageInfo) && !empty($imageInfo[0]) && !empty($imageInfo[1]);
+}
+
 function upload_root_dir(): string
 {
     $path = RESOURCE_STORAGE_PATH;
@@ -1820,31 +1868,29 @@ function store_resource_upload(array $file, string $title = '', ?int $folderId =
     }
 
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || empty($file['tmp_name'])) {
-        return ['ok' => false, 'message' => 'Choose a PDF file to upload.'];
+        return ['ok' => false, 'message' => 'Choose a PDF or image file to upload.'];
     }
 
     $isUploadedFile = is_trusted_uploaded_file((string) $file['tmp_name']);
     if (!$isUploadedFile) {
-        return ['ok' => false, 'message' => 'Choose a valid uploaded PDF file.'];
+        return ['ok' => false, 'message' => 'Choose a valid uploaded resource file.'];
     }
     $allowLocalTestUpload = !is_uploaded_file((string) $file['tmp_name']) && $isUploadedFile;
 
     $originalName = (string) ($file['name'] ?? 'resource.pdf');
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-    $mimeType = '';
-    if (function_exists('finfo_open')) {
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        if ($finfo) {
-            $mimeType = (string) finfo_file($finfo, $file['tmp_name']);
-            finfo_close($finfo);
-        }
+    $mimeType = detected_upload_mime_type((string) $file['tmp_name']);
+    if (!resource_file_is_valid((string) $file['tmp_name'], $mimeType, $extension)) {
+        return ['ok' => false, 'message' => 'Only PDF and image resources are supported.'];
     }
 
-    if ($extension !== 'pdf' || ($mimeType !== '' && !is_allowed_pdf_mime_type($mimeType)) || !pdf_signature_is_valid((string) $file['tmp_name'])) {
-        return ['ok' => false, 'message' => 'Only PDF resources are supported.'];
+    $normalizedMimeType = $mimeType;
+    if ($normalizedMimeType === '') {
+        $mimeOptions = resource_extension_mime_map()[$extension] ?? [];
+        $normalizedMimeType = $mimeOptions[0] ?? 'application/octet-stream';
     }
 
-    $storedName = date('YmdHis') . '-' . upload_random_suffix() . '.pdf';
+    $storedName = date('YmdHis') . '-' . upload_random_suffix() . '.' . $extension;
     $destination = upload_dir('resources') . '/' . $storedName;
 
     if (!move_uploaded_file($file['tmp_name'], $destination)) {
@@ -1858,7 +1904,7 @@ function store_resource_upload(array $file, string $title = '', ?int $folderId =
             }
         }
         if (!$moved) {
-            return ['ok' => false, 'message' => 'Unable to store the uploaded PDF.'];
+            return ['ok' => false, 'message' => 'Unable to store the uploaded resource.'];
         }
     }
 
@@ -1873,7 +1919,7 @@ function store_resource_upload(array $file, string $title = '', ?int $folderId =
             $resourceTitle,
             $originalName,
             $storedName,
-            'application/pdf',
+            $normalizedMimeType,
             max(0, (int) ($file['size'] ?? filesize($destination))),
         ];
         if ($supportsFolders) {
