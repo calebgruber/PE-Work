@@ -43,6 +43,8 @@ function settings_test_cleanup(string $repoRoot, string $localConfig, string $lo
         unlink($localConfig);
     }
     @unlink(DB_SQLITE_PATH);
+    @unlink(DB_SQLITE_PATH . '-wal');
+    @unlink(DB_SQLITE_PATH . '-shm');
     if (file_exists($localBackup)) {
         rename($localBackup, $localConfig);
     }

@@ -212,6 +212,8 @@ assert_true(str_contains($missingPathResult['message'], 'Unable to read'), 'Expe
 @unlink($utf16Csv);
 @unlink($emptyCsv);
 @unlink(DB_SQLITE_PATH);
+@unlink(DB_SQLITE_PATH . '-wal');
+@unlink(DB_SQLITE_PATH . '-shm');
 if (file_exists($localBackup)) {
     rename($localBackup, $localConfig);
 }

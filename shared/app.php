@@ -1114,6 +1114,25 @@ function upload_dir(string $subdir = ''): string
     return $path;
 }
 
+function is_trusted_uploaded_file(string $tmpPath): bool
+{
+    if ($tmpPath === '') {
+        return false;
+    }
+
+    if (is_uploaded_file($tmpPath)) {
+        return true;
+    }
+
+    $allowLocalTestUpload = defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS')
+        && ALLOW_LOCAL_UPLOADS_FOR_TESTS
+        && PHP_SAPI === 'cli'
+        && !isset($_SERVER['REQUEST_METHOD'])
+        && is_file($tmpPath);
+
+    return $allowLocalTestUpload;
+}
+
 function fetch_resources(): array
 {
     if (!table_exists('resources')) {
@@ -1133,8 +1152,12 @@ function store_resource_upload(array $file, string $title = ''): array
         return ['ok' => false, 'message' => 'Choose a PDF file to upload.'];
     }
 
-    $isUploadedFile = is_uploaded_file((string) $file['tmp_name']);
-    $allowTestUpload = defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS') && ALLOW_LOCAL_UPLOADS_FOR_TESTS && PHP_SAPI === 'cli' && is_file((string) $file['tmp_name']);
+    $isUploadedFile = is_trusted_uploaded_file((string) $file['tmp_name']);
+    $allowTestUpload = defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS')
+        && ALLOW_LOCAL_UPLOADS_FOR_TESTS
+        && PHP_SAPI === 'cli'
+        && !isset($_SERVER['REQUEST_METHOD'])
+        && is_file((string) $file['tmp_name']);
     if (!$isUploadedFile && !$allowTestUpload) {
         return ['ok' => false, 'message' => 'Choose a valid uploaded PDF file.'];
     }

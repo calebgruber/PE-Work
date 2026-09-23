@@ -73,8 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tmpPath = (string) ($upload['tmp_name'] ?? '');
             $uploadError = (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE);
             $pasteCsv = trim((string) ($_POST['inventory_csv_text'] ?? ''));
-            $allowLocalUpload = defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS') && ALLOW_LOCAL_UPLOADS_FOR_TESTS && is_file($tmpPath);
-            $isUploadedFile = $tmpPath !== '' && (is_uploaded_file($tmpPath) || $allowLocalUpload);
+            $isUploadedFile = is_trusted_uploaded_file($tmpPath);
             if ($pasteCsv !== '') {
                 $result = import_inventory_csv_text($pasteCsv);
             } elseif ($uploadError !== UPLOAD_ERR_OK || !$isUploadedFile) {
