@@ -285,6 +285,11 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       font-size: 11pt;
       line-height: 1.2;
     }
+      
+    .word-table-main {
+        justify-content: center;
+    }
+      
     .toolbar {
       max-width: 8.5in;
       margin: 1rem auto 0;
@@ -629,7 +634,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
         </div>
       </div>
       <p class="page-heading"><?= h($labels['equipment_heading']) ?></p>
-      <table class="word-table">
+      <table class="word-table-main">
         <thead>
           <tr>
             <th class="col-line">LINE</th>
