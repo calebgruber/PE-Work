@@ -1469,6 +1469,9 @@ function clear_inventory_items(): array
         if (table_exists('revision_items')) {
             $pdo->exec('DELETE FROM revision_items');
         }
+        if (table_exists('system_rules')) {
+            $pdo->exec('DELETE FROM system_rules');
+        }
         $pdo->exec('DELETE FROM inventory_items');
         if (table_exists('inventory_categories')) {
             $pdo->exec('DELETE FROM inventory_categories');

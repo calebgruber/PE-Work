@@ -114,19 +114,20 @@
         signal: abortController.signal
       })
         .then(function (response) {
-          return response.json()
-            .catch(function () {
-              return null;
-            })
-            .then(function (payload) {
-              if (!response.ok) {
-                const message = Array.isArray(payload?.warnings) && payload.warnings[0]?.message
-                  ? payload.warnings[0].message
-                  : 'Unable to validate this revision right now. Please try again.';
-                throw new Error(message);
-              }
-              return payload;
-            });
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          const responseBody = contentType.indexOf('application/json') !== -1
+            ? response.json().catch(function () { return null; })
+            : response.text().catch(function () { return ''; });
+
+          return responseBody.then(function (payload) {
+            if (!response.ok) {
+              const message = Array.isArray(payload?.warnings) && payload.warnings[0]?.message
+                ? payload.warnings[0].message
+                : (typeof payload === 'string' && payload.trim() !== '' ? payload.trim() : 'Unable to validate this revision right now. Please try again.');
+              throw new Error(message);
+            }
+            return payload;
+          });
         })
         .then(function (payload) {
           if (validationRun !== latestValidationRun) {
