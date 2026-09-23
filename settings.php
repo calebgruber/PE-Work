@@ -328,7 +328,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <?= csrf_input() ?>
               <input type="hidden" name="action" value="delete_category">
               <input type="hidden" name="category_id" value="<?= h((string) $category['id']) ?>">
-              <button type="submit" class="btn btn-danger btn-sm" data-confirm-message="Delete this category?">
+              <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE CATEGORY" data-confirm="Type REMOVE CATEGORY to permanently delete this category.">
                 <span class="material-symbols-outlined">delete</span>
                 Remove Category
               </button>
@@ -537,25 +537,25 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <?php foreach ($rules as $rule): ?>
               <tr>
                 <td>
-                  <select class="form-control" name="trigger_item_id" form="rule-form-<?= (int) $rule['id'] ?>">
+                  <select class="form-control" aria-label="Trigger item for rule <?= (int) $rule['id'] ?>" name="trigger_item_id" form="rule-form-<?= (int) $rule['id'] ?>">
                     <option value="">Choose an item</option>
                     <?php foreach ($ruleCatalog as $category): foreach ($category['items'] as $item): ?>
                     <option value="<?= h((string) $item['id']) ?>" <?= (int) $rule['trigger_item_id'] === (int) $item['id'] ? 'selected' : '' ?>><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
                     <?php endforeach; endforeach; ?>
                   </select>
-                  <input class="form-control" type="number" min="1" name="trigger_quantity" value="<?= h((string) $rule['trigger_quantity']) ?>" form="rule-form-<?= (int) $rule['id'] ?>" style="margin-top:0.5rem;">
+                  <input class="form-control" aria-label="Trigger quantity for rule <?= (int) $rule['id'] ?>" type="number" min="1" name="trigger_quantity" value="<?= h((string) $rule['trigger_quantity']) ?>" form="rule-form-<?= (int) $rule['id'] ?>" style="margin-top:0.5rem;">
                 </td>
                 <td>
-                  <select class="form-control" name="required_item_id" form="rule-form-<?= (int) $rule['id'] ?>">
+                  <select class="form-control" aria-label="Suggested item for rule <?= (int) $rule['id'] ?>" name="required_item_id" form="rule-form-<?= (int) $rule['id'] ?>">
                     <option value="">Choose an item</option>
                     <?php foreach ($ruleCatalog as $category): foreach ($category['items'] as $item): ?>
                     <option value="<?= h((string) $item['id']) ?>" <?= (int) $rule['required_item_id'] === (int) $item['id'] ? 'selected' : '' ?>><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
                     <?php endforeach; endforeach; ?>
                   </select>
-                  <input class="form-control" type="number" min="1" name="required_quantity" value="<?= h((string) $rule['required_quantity']) ?>" form="rule-form-<?= (int) $rule['id'] ?>" style="margin-top:0.5rem;">
+                  <input class="form-control" aria-label="Suggested quantity for rule <?= (int) $rule['id'] ?>" type="number" min="1" name="required_quantity" value="<?= h((string) $rule['required_quantity']) ?>" form="rule-form-<?= (int) $rule['id'] ?>" style="margin-top:0.5rem;">
                 </td>
                 <td>
-                  <textarea class="form-control" name="note" form="rule-form-<?= (int) $rule['id'] ?>" rows="3"><?= h($rule['note']) ?></textarea>
+                  <textarea class="form-control" aria-label="Note for rule <?= (int) $rule['id'] ?>" name="note" form="rule-form-<?= (int) $rule['id'] ?>" rows="3"><?= h($rule['note']) ?></textarea>
                 </td>
                 <td>
                   <form method="post" id="rule-form-<?= (int) $rule['id'] ?>" class="stack">

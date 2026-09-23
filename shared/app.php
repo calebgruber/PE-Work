@@ -126,11 +126,17 @@ function csv_stream_handle(string $tmpPath)
     if ($contents === false) {
         return false;
     }
-    return csv_string_handle($contents);
+    return csv_normalized_handle($contents);
 }
 
 function csv_string_handle(string $contents)
 {
+    return csv_normalized_handle($contents);
+}
+
+function csv_normalized_handle(string $contents)
+{
+    $contents = normalize_csv_contents($contents);
     $handle = fopen('php://temp', 'r+b');
     if (!$handle) {
         return false;
@@ -138,19 +144,11 @@ function csv_string_handle(string $contents)
 
     fwrite($handle, $contents);
     rewind($handle);
-
-    return csv_stream_from_handle($handle);
+    return $handle;
 }
 
-function csv_stream_from_handle($handle)
+function normalize_csv_contents(string $contents): string
 {
-    $contents = stream_get_contents($handle);
-    if ($contents === false) {
-        fclose($handle);
-        return false;
-    }
-    fclose($handle);
-
     if (str_starts_with($contents, "\xFF\xFE")) {
         $converted = @iconv('UTF-16LE', 'UTF-8//IGNORE', substr($contents, 2));
         if ($converted !== false) {
@@ -173,7 +171,19 @@ function csv_stream_from_handle($handle)
         }
     }
 
-    $contents = str_replace(["\r\n", "\r"], "\n", $contents);
+    return str_replace(["\r\n", "\r"], "\n", $contents);
+}
+
+function csv_stream_from_handle($handle)
+{
+    $contents = stream_get_contents($handle);
+    if ($contents === false) {
+        fclose($handle);
+        return false;
+    }
+    fclose($handle);
+
+    $contents = normalize_csv_contents($contents);
     $normalizedHandle = fopen('php://temp', 'r+b');
     if (!$normalizedHandle) {
         return false;
@@ -1223,6 +1233,12 @@ function clear_inventory_items(): array
     return ['ok' => true, 'message' => 'All inventory items removed.'];
 }
 
+function pdf_signature_is_valid(string $path): bool
+{
+    $signature = @file_get_contents($path, false, null, 0, 5);
+    return $signature === '%PDF-';
+}
+
 function upload_dir(string $subdir = ''): string
 {
     $path = realpath(__DIR__ . '/../storage/uploads') ?: (__DIR__ . '/../storage/uploads');
@@ -1293,8 +1309,7 @@ function store_resource_upload(array $file, string $title = ''): array
         }
     }
 
-    $signature = @file_get_contents((string) $file['tmp_name'], false, null, 0, 5);
-    if ($extension !== 'pdf' || ($mimeType !== '' && $mimeType !== 'application/pdf') || $signature !== '%PDF-') {
+    if ($extension !== 'pdf' || ($mimeType !== '' && $mimeType !== 'application/pdf') || !pdf_signature_is_valid((string) $file['tmp_name'])) {
         return ['ok' => false, 'message' => 'Only PDF resources are supported.'];
     }
 

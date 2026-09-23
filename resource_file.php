@@ -52,8 +52,7 @@ if (function_exists('finfo_open')) {
         finfo_close($finfo);
     }
 }
-$signature = @file_get_contents($path, false, null, 0, 5);
-if ($signature !== '%PDF-' || ($mimeType !== '' && $mimeType !== 'application/pdf')) {
+if (!pdf_signature_is_valid($path) || ($mimeType !== '' && $mimeType !== 'application/pdf')) {
     http_response_code(404);
     exit('Not found');
 }

@@ -39,17 +39,22 @@ function render_show_form(array $show): void
           <?php foreach ($people as $person): ?>
           <div class="summary-block">
             <strong><?= h($person['label']) ?></strong>
+            <?php
+              $nameId = $person['key'] . '_name';
+              $emailId = $person['key'] . '_email';
+              $phoneId = $person['key'] . '_phone';
+            ?>
             <div class="form-group">
-              <label><?= h($person['label']) ?> Name</label>
-              <input class="form-control" name="<?= h($person['key']) ?>_name" required value="<?= h($show[$person['key'] . '_name'] ?? '') ?>">
+              <label for="<?= h($nameId) ?>"><?= h($person['label']) ?> Name</label>
+              <input class="form-control" id="<?= h($nameId) ?>" name="<?= h($person['key']) ?>_name" required value="<?= h($show[$person['key'] . '_name'] ?? '') ?>">
             </div>
             <div class="form-group">
-              <label>Email</label>
-              <input class="form-control" type="email" name="<?= h($person['key']) ?>_email" required value="<?= h($show[$person['key'] . '_email'] ?? '') ?>">
+              <label for="<?= h($emailId) ?>">Email</label>
+              <input class="form-control" id="<?= h($emailId) ?>" type="email" name="<?= h($person['key']) ?>_email" required value="<?= h($show[$person['key'] . '_email'] ?? '') ?>">
             </div>
             <div class="form-group">
-              <label>Phone</label>
-              <input class="form-control" name="<?= h($person['key']) ?>_phone" required value="<?= h($show[$person['key'] . '_phone'] ?? '') ?>">
+              <label for="<?= h($phoneId) ?>">Phone</label>
+              <input class="form-control" id="<?= h($phoneId) ?>" name="<?= h($person['key']) ?>_phone" required value="<?= h($show[$person['key'] . '_phone'] ?? '') ?>">
             </div>
           </div>
           <?php endforeach; ?>
