@@ -304,7 +304,7 @@ save_export_layout([
 ]);
 $savedLayout = export_layout_settings();
 assert_true(($savedLayout['layout.organization_text'] ?? '') === 'Top Right Copy', 'Expected organization text to persist in export layout settings.');
-assert_true(($savedLayout['layout.export_notes'] ?? '') === \"One\\nTwo\", 'Expected export notes to persist in export layout settings.');
+assert_true(($savedLayout['layout.export_notes'] ?? '') === "One\nTwo", 'Expected export notes to persist in export layout settings.');
 
 $deleteItemResult = delete_inventory_item($adapterItemId);
 assert_true($deleteItemResult['ok'] === true, 'Expected inventory delete to hard-delete the row.');
