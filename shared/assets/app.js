@@ -157,7 +157,7 @@
       if (!link) return;
       var href = link.getAttribute('href') || '';
       if (link.target || e.ctrlKey || e.metaKey || e.shiftKey ||
-          href.charAt(0) === '#' || href.indexOf('javascript:') === 0 || href === '') return;
+          href.charAt(0) === '#' || /^(javascript|data|vbscript):/i.test(href) || href === '') return;
       startLoader();
     });
 

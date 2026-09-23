@@ -48,6 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'save_revision' && !empty($_POST['revision_id'])) {
         $revisionId = (int) $_POST['revision_id'];
+        $revision = find_revision($revisionId);
+        if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
+            http_response_code(404);
+            exit('Revision not found for this show.');
+        }
         save_revision_lines($revisionId, $_POST['items'] ?? []);
         flash('success', 'Revision line items saved.');
         header('Location: ' . url_for('show?show_id=' . $showId . '&revision_id=' . $revisionId));
@@ -59,6 +64,9 @@ $revisions = $showId ? list_revisions($showId) : [];
 $currentRevision = null;
 if (!empty($_GET['revision_id'])) {
     $currentRevision = find_revision((int) $_GET['revision_id']);
+    if ($currentRevision && $showId && (int) $currentRevision['show_id'] !== (int) $showId) {
+        $currentRevision = null;
+    }
 }
 if (!$currentRevision && $showId) {
     $currentRevision = find_latest_revision($showId);

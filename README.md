@@ -1,4 +1,4 @@
-# # PE Work
+# PE Work
 
 Pure PHP starter for theatre shop orders using the CG-Internal UI shell.
 

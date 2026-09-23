@@ -16,7 +16,7 @@ ServerSignature Off
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    RewriteRule ^(shared|db|storage)(/|$) - [F,L]
+    RewriteRule ^(db|storage)(/|$) - [F,L]
 
     RewriteCond %{THE_REQUEST} \s/+(.+?)\.php[\s?] [NC]
     RewriteRule ^ /%1 [R=301,L,NE]

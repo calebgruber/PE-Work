@@ -19,7 +19,7 @@ if (!$show) {
 }
 
 $revision = !empty($_GET['revision_id']) ? find_revision((int) $_GET['revision_id']) : find_latest_revision($showId);
-if (!$revision) {
+if (!$revision || (int) $revision['show_id'] !== $showId) {
     http_response_code(404);
     echo 'Revision not found.';
     exit;
