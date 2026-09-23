@@ -352,7 +352,7 @@ assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDO
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
 assert_true((bool) preg_match('/>\s*9\s*<span class="delta delta-positive">\(\+1\)<\/span>/', $exportHtml), 'Expected equipment breakdown totals to show total-quantity deltas in black text.');
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
-assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => '']) === 'background:#CCCCCC;', 'Expected export zebra striping to use the darker gray.');
+assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => ''], '#BBBBBB') === 'background:#BBBBBB;', 'Expected export zebra striping to use the configured gray.');
 assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cover to remove the extra shop info box above the show title.');
 assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
 assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export to include later line items instead of stopping early.');
@@ -374,10 +374,10 @@ assert_true(count($syntheticPages[0]) === 2 && count($syntheticPages[1]) === 2 &
 $pageResetStyles = [];
 foreach ($syntheticPages as $pageRows) {
     foreach ($pageRows as $pageRowIndex => $pageRow) {
-        $pageResetStyles[] = export_row_style($pageRowIndex, $nextRevision, ['is_spacer' => 0], ['action' => '']);
+        $pageResetStyles[] = export_row_style($pageRowIndex, $nextRevision, ['is_spacer' => 0], ['action' => ''], '#BBBBBB');
     }
 }
-assert_true($pageResetStyles === ['background:#CCCCCC;', 'background:#FFFFFF;', 'background:#CCCCCC;', 'background:#FFFFFF;', 'background:#CCCCCC;'], 'Expected each equipment page to restart row striping with gray then white.');
+assert_true($pageResetStyles === ['background:#BBBBBB;', 'background:#FFFFFF;', 'background:#BBBBBB;', 'background:#FFFFFF;', 'background:#BBBBBB;'], 'Expected each equipment page to restart row striping with gray then white.');
 $syntheticMinOnlyLayout = export_layout_settings();
 $syntheticMinOnlyLayout['layout.equipment_min_rows_per_page'] = '4';
 $syntheticMinOnlyLayout['layout.equipment_max_rows_per_page'] = '0';
@@ -526,6 +526,7 @@ assert_true(array_key_exists('layout.export_notes', $layoutDefaults), 'Expected 
 assert_true(array_key_exists('layout.equipment_table_width', $layoutDefaults), 'Expected export layout defaults to include equipment table sizing.');
 assert_true(array_key_exists('layout.equipment_min_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment min rows per page.');
 assert_true(array_key_exists('layout.equipment_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment max rows per page.');
+assert_true(array_key_exists('layout.equipment_zebra_gray', $layoutDefaults), 'Expected export layout defaults to include equipment zebra gray.');
 assert_true(array_key_exists('layout.equipment_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment line height.');
 save_export_layout([
     'header_text' => 'Custom Header',
@@ -537,6 +538,7 @@ save_export_layout([
     'equipment_table_width' => '96',
     'equipment_min_rows_per_page' => '4',
     'equipment_max_rows_per_page' => '12',
+    'equipment_zebra_gray' => '#BBBBBB',
     'equipment_row_padding' => '0.02',
     'equipment_font_size' => '7.8',
     'equipment_line_height' => '1.3',
@@ -553,6 +555,7 @@ assert_true(($savedLayout['layout.export_notes'] ?? '') === "One\nTwo", 'Expecte
 assert_true(($savedLayout['layout.equipment_table_width'] ?? '') === '96', 'Expected equipment table width to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_min_rows_per_page'] ?? '') === '4', 'Expected equipment min rows per page to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_max_rows_per_page'] ?? '') === '12', 'Expected equipment max rows per page to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_zebra_gray'] ?? '') === '#BBBBBB', 'Expected equipment zebra gray to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_line_height'] ?? '') === '1.3', 'Expected equipment line height to persist in export layout settings.');
 
 $deleteItemResult = delete_inventory_item($adapterItemId);

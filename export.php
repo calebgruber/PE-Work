@@ -190,14 +190,14 @@ function export_row_background(array $revision, array $item, array $line): strin
     };
 }
 
-function export_row_style(int $rowIndex, array $revision, array $item, array $line): string
+function export_row_style(int $rowIndex, array $revision, array $item, array $line, string $gray = '#CCCCCC'): string
 {
     $actionBackground = export_row_background($revision, $item, $line);
     if ($actionBackground !== '') {
         return $actionBackground;
     }
 
-    return $rowIndex % 2 === 0 ? 'background:#CCCCCC;' : 'background:#FFFFFF;';
+    return $rowIndex % 2 === 0 ? 'background:' . $gray . ';' : 'background:#FFFFFF;';
 }
 
 function export_line_delta(array $revision, int $itemId, array $line, string $field): string
@@ -377,6 +377,10 @@ foreach ($equipmentPages as $_equipmentPage) {
 $totalPages = $nextPageNumber - 1;
 $headerOrganization = export_value((string) ($layout['layout.organization_text'] ?? ''), (string) ($show['theatre_name'] ?? ''));
 $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
+$equipmentZebraGray = strtoupper(trim((string) ($layout['layout.equipment_zebra_gray'] ?? '#CCCCCC')));
+if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentZebraGray)) {
+    $equipmentZebraGray = '#CCCCCC';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -800,7 +804,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
         <tbody>
           <?php if ($summaryRows): ?>
           <?php foreach ($summaryRows as $index => $row): ?>
-          <tr style="<?= h(export_row_style($index, $revision, $row['item'], $row['line'])) ?>">
+          <tr style="<?= h(export_row_style($index, $revision, $row['item'], $row['line'], $equipmentZebraGray)) ?>">
             <td class="line-cell"><?= h((string) ($index + 1)) ?></td>
             <td><?= h($row['item']['name']) ?></td>
             <td><?= h($row['description']) ?></td>
@@ -856,7 +860,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
         <tbody>
           <?php foreach ($equipmentPageRows as $pageRowIndex => $row): ?>
           <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
-          <tr style="<?= h(export_row_style($pageRowIndex, $revision, $row['item'], $row['line'])) ?>">
+          <tr style="<?= h(export_row_style($pageRowIndex, $revision, $row['item'], $row['line'], $equipmentZebraGray)) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>
             <td class="description-cell"><?= h($row['category']) ?></td>

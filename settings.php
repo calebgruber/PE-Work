@@ -837,6 +837,10 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <div class="helper-text">Set to 0 to allow automatic page breaks before a minimum row count.</div>
           </div>
           <div class="form-group">
+            <label for="equipment_zebra_gray">Gray Row Color</label>
+            <input class="form-control" id="equipment_zebra_gray" type="color" name="equipment_zebra_gray" value="<?= h($layout['layout.equipment_zebra_gray'] ?? '#CCCCCC') ?>">
+          </div>
+          <div class="form-group">
             <label for="equipment_max_rows_per_page">Max Rows Per Page</label>
             <input class="form-control" id="equipment_max_rows_per_page" type="number" min="0" max="100" step="1" name="equipment_max_rows_per_page" value="<?= h($layout['layout.equipment_max_rows_per_page'] ?? '0') ?>">
             <div class="helper-text">Set to 0 to let page sizing decide automatically.</div>

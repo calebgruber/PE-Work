@@ -2020,6 +2020,7 @@ function export_layout_settings(): array
         'layout.equipment_table_width' => '100',
         'layout.equipment_min_rows_per_page' => '0',
         'layout.equipment_max_rows_per_page' => '0',
+        'layout.equipment_zebra_gray' => '#CCCCCC',
         'layout.equipment_row_padding' => '0.016',
         'layout.equipment_font_size' => '7.35',
         'layout.equipment_line_height' => '1.1',
@@ -2063,6 +2064,11 @@ function save_export_layout(array $input): void
     save_setting('layout.equipment_table_width', export_layout_number($input, 'equipment_table_width', 100, 70, 100, 1));
     save_setting('layout.equipment_min_rows_per_page', export_layout_number($input, 'equipment_min_rows_per_page', 0, 0, 100, 0));
     save_setting('layout.equipment_max_rows_per_page', export_layout_number($input, 'equipment_max_rows_per_page', 0, 0, 100, 0));
+    $zebraGray = strtoupper(trim((string) ($input['equipment_zebra_gray'] ?? '#CCCCCC')));
+    if (!preg_match('/^#[0-9A-F]{6}$/', $zebraGray)) {
+        $zebraGray = '#CCCCCC';
+    }
+    save_setting('layout.equipment_zebra_gray', $zebraGray);
     save_setting('layout.equipment_row_padding', export_layout_number($input, 'equipment_row_padding', 0.016, 0.008, 0.04, 3));
     save_setting('layout.equipment_font_size', export_layout_number($input, 'equipment_font_size', 7.35, 6.5, 10, 2));
     save_setting('layout.equipment_line_height', export_layout_number($input, 'equipment_line_height', 1.1, 0.9, 2.2, 2));
