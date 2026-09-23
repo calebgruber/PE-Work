@@ -77,6 +77,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        if ($action === 'clear_inventory') {
+            $result = clear_inventory_items();
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=inventory'));
+            exit;
+        }
+
         if ($action === 'import_inventory') {
             $upload = $_FILES['inventory_csv'] ?? null;
             $tmpPath = (string) ($upload['tmp_name'] ?? '');
@@ -184,6 +191,14 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <?php endforeach; ?>
             </select>
           </div>
+          <form method="post" class="inventory-bulk-actions">
+            <?= csrf_input() ?>
+            <input type="hidden" name="action" value="clear_inventory">
+            <button type="submit" class="btn btn-danger" data-confirm-code="CLEAR INVENTORY" data-confirm="Type CLEAR INVENTORY to permanently remove every inventory item from the database.">
+              <span class="material-symbols-outlined">delete_sweep</span>
+              Clear All Inventory
+            </button>
+          </form>
         </div>
 
         <div class="inventory-accordion-list">
@@ -285,7 +300,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <?= csrf_input() ?>
               <input type="hidden" name="action" value="delete_category">
               <input type="hidden" name="category_id" value="<?= h((string) $category['id']) ?>">
-              <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE CATEGORY" data-confirm="Type REMOVE CATEGORY to delete this category.">
+              <button type="submit" class="btn btn-danger btn-sm">
                 <span class="material-symbols-outlined">delete</span>
                 Remove Category
               </button>
@@ -517,7 +532,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                     <?= csrf_input() ?>
                     <input type="hidden" name="action" value="delete_rule">
                     <input type="hidden" name="rule_id" value="<?= (int) $rule['id'] ?>">
-                    <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE RULE" data-confirm="Type REMOVE RULE to delete this rule.">
+                    <button type="submit" class="btn btn-danger btn-sm">
                       <span class="material-symbols-outlined">delete</span>
                       Remove
                     </button>

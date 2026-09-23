@@ -23,7 +23,34 @@ function assert_true(bool $condition, string $message): void
     }
 }
 
+function ensure_catalog_item(string $category, string $name, int $shopQuantity, string $unit = 'ea', string $note = '', string $description = ''): int
+{
+    $categoryResult = create_category($category);
+    if (!$categoryResult['ok'] && !str_contains(strtolower($categoryResult['message']), 'already exists')) {
+        fwrite(STDERR, 'Failed creating test category: ' . $categoryResult['message'] . PHP_EOL);
+        exit(1);
+    }
+
+    $itemResult = create_inventory_item([
+        'category_id' => category_id_for_name($category),
+        'name' => $name,
+        'shop_quantity' => $shopQuantity,
+        'unit' => $unit,
+        'default_note' => $note,
+        'description' => $description,
+    ]);
+    if (!$itemResult['ok'] && !str_contains(strtolower($itemResult['message']), 'already has an item')) {
+        fwrite(STDERR, 'Failed creating test item: ' . $itemResult['message'] . PHP_EOL);
+        exit(1);
+    }
+
+    $stmt = db()->prepare('SELECT id FROM inventory_items WHERE name = ? LIMIT 1');
+    $stmt->execute([$name]);
+    return (int) $stmt->fetchColumn();
+}
+
 run_pending_migrations();
+assert_true((int) db()->query('SELECT COUNT(*) FROM inventory_items')->fetchColumn() === 0, 'Expected fresh migrations to leave inventory empty.');
 
 $validCsv = tempnam(sys_get_temp_dir(), 'pew-valid-');
 file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nFixtures,Source Four,10,ea,Ellipsoidal,Test import\n");
@@ -116,20 +143,9 @@ $showId = (int) ($showResult['show']['id'] ?? 0);
 assert_true($showId > 0, 'Expected saved show to have an id.');
 
 $initialRevisionId = create_initial_revision($showId);
-$catalog = catalog_for_revision($initialRevisionId);
-$fixtureItemId = 0;
-$adapterItemId = 0;
-foreach ($catalog as $category) {
-    foreach ($category['items'] as $item) {
-        if ($item['name'] === 'SolaFrame 3000') {
-            $fixtureItemId = (int) $item['id'];
-        }
-        if ($item['name'] === 'Stagepin to True1 Adapter') {
-            $adapterItemId = (int) $item['id'];
-        }
-    }
-}
-assert_true($fixtureItemId > 0, 'Expected seeded inventory item to exist for revision cloning.');
+$fixtureItemId = ensure_catalog_item('Fixtures', 'SolaFrame 3000', 12, 'ea', 'Profile moving light', 'Manual test fixture row');
+$adapterItemId = ensure_catalog_item('Power', 'Stagepin to True1 Adapter', 20, 'ea', 'Adapter note', 'Manual rule pairing row');
+assert_true($fixtureItemId > 0, 'Expected test inventory item to exist for revision cloning.');
 assert_true($adapterItemId > 0, 'Expected adapter inventory item to exist for rule tests.');
 
 save_revision_lines($initialRevisionId, [
@@ -189,6 +205,18 @@ $deleteRuleResult = delete_rule($ruleId);
 assert_true($deleteRuleResult['ok'] === true, 'Expected rule delete to succeed.');
 $ruleStmt->execute([$ruleId]);
 assert_true($ruleStmt->fetch() === false, 'Expected deleted rule to be removed from storage.');
+
+$deleteItemResult = delete_inventory_item($adapterItemId);
+assert_true($deleteItemResult['ok'] === true, 'Expected inventory delete to hard-delete the row.');
+$stmt->execute(['Stagepin to True1 Adapter']);
+assert_true($stmt->fetch() === false, 'Expected deleted inventory item to be removed from storage.');
+
+$clearCatalogItemId = ensure_catalog_item('Accessories', 'Cable Crate', 8, 'ea');
+$clearInventoryResult = clear_inventory_items();
+assert_true($clearInventoryResult['ok'] === true, 'Expected clear inventory action to succeed.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM inventory_items')->fetchColumn() === 0, 'Expected clear inventory action to remove all items.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM system_rules')->fetchColumn() === 0, 'Expected clear inventory action to cascade-delete related rules.');
+assert_true($clearCatalogItemId > 0, 'Expected clear-inventory test item creation to succeed before clearing.');
 
 $invalidCsv = tempnam(sys_get_temp_dir(), 'pew-invalid-');
 file_put_contents($invalidCsv, "label,qty\nBad Item,1\n");

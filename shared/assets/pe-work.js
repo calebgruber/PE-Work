@@ -10,6 +10,12 @@
     }[action] || '';
   }
 
+  function setAccordionState(button, panel, isOpen) {
+    if (!button || !panel) return;
+    button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    panel.classList.toggle('hidden', !isOpen);
+  }
+
   function updateRowState(row) {
     const select = row.querySelector('[data-action-select]');
     const rent = row.querySelector('[data-rent-input]');
@@ -129,6 +135,8 @@
 
       editor.querySelectorAll('[data-revision-category]').forEach(function (category) {
         const categoryName = category.getAttribute('data-category-name') || '';
+        const trigger = category.querySelector('[data-accordion-trigger]');
+        const panel = category.querySelector('[data-accordion-panel]');
         let visibleCount = 0;
 
         category.querySelectorAll('[data-revision-item]').forEach(function (item) {
@@ -139,6 +147,9 @@
         });
 
         category.classList.toggle('hidden', visibleCount === 0);
+        if (term && trigger && panel) {
+          setAccordionState(trigger, panel, visibleCount > 0);
+        }
       });
     }
 
@@ -248,12 +259,11 @@
   function initAccordion() {
     document.querySelectorAll('[data-accordion-trigger]').forEach(function (button) {
       button.addEventListener('click', function () {
-        const panel = button.closest('[data-inventory-category]')?.querySelector('[data-accordion-panel]');
+        const panel = button.parentElement?.querySelector('[data-accordion-panel]');
         if (!panel) return;
 
         const isOpen = button.getAttribute('aria-expanded') === 'true';
-        button.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
-        panel.classList.toggle('hidden', isOpen);
+        setAccordionState(button, panel, !isOpen);
       });
     });
   }
@@ -286,9 +296,7 @@
 
         category.classList.toggle('hidden', visibleItems === 0 || !categoryMatches);
         if (trigger && panel && (searchTerm || categoryFilter)) {
-          const shouldOpen = visibleItems > 0 && categoryMatches;
-          trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
-          panel.classList.toggle('hidden', !shouldOpen);
+          setAccordionState(trigger, panel, visibleItems > 0 && categoryMatches);
         }
       });
     }

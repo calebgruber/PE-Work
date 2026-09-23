@@ -314,86 +314,75 @@ if ($mode === 'edit' && $showId && $currentRevision) {
 
         <div class="revision-category-list">
           <?php foreach ($catalog as $category): ?>
-          <section class="revision-category" data-revision-category data-category-name="<?= h(strtolower($category['name'])) ?>">
-            <div class="revision-category-header">
-              <div>
-                <h3><?= h($category['name']) ?></h3>
-                <div class="muted"><?= h((string) count($category['items'])) ?> item<?= count($category['items']) === 1 ? '' : 's' ?></div>
+          <section class="revision-category inventory-accordion" data-revision-category data-category-name="<?= h(strtolower($category['name'])) ?>">
+            <button type="button" class="inventory-accordion-trigger revision-category-trigger" data-accordion-trigger aria-expanded="false">
+              <span><?= h($category['name']) ?></span>
+              <span class="muted"><?= h((string) count($category['items'])) ?> item<?= count($category['items']) === 1 ? '' : 's' ?></span>
+              <span class="material-symbols-outlined">expand_more</span>
+            </button>
+            <div class="inventory-accordion-panel hidden" data-accordion-panel>
+              <div class="table-wrap revision-sheet-wrap">
+                <table class="revision-sheet">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Shop Has</th>
+                      <th>Rent</th>
+                      <th>Spares</th>
+                      <th>Total</th>
+                      <th>Action</th>
+                      <th>Item Pull</th>
+                      <th>Item Return</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <?php foreach ($category['items'] as $item): ?>
+                    <?php $line = $item['line']; $currentTotal = (int) ($line['total_quantity'] ?? 0); $shopQuantity = (int) ($item['shop_quantity'] ?? 0); ?>
+                    <tr
+                      class="revision-row"
+                      data-action-row
+                      data-revision-item
+                      data-item-id="<?= h((string) $item['id']) ?>"
+                      data-item-name="<?= h(strtolower($item['name'] . ' ' . ($item['description'] ?? '') . ' ' . ($item['default_note'] ?? '') . ' ' . ($line['line_note'] ?? ''))) ?>"
+                      data-item-label="<?= h($item['name']) ?>"
+                      data-shop-quantity="<?= h((string) $shopQuantity) ?>"
+                    >
+                      <td>
+                        <div class="revision-item-cell">
+                          <strong><?= h($item['name']) ?></strong>
+                          <?php if (!empty($item['description'])): ?><div class="muted"><?= h($item['description']) ?></div><?php endif; ?>
+                          <?php if (!empty($item['default_note'])): ?>
+                          <button type="button" class="icon-link" data-note-trigger data-note-title="<?= h($item['name']) ?> note" data-note-body="<?= h($item['default_note']) ?>">
+                            <span class="material-symbols-outlined">info</span>
+                          </button>
+                          <?php endif; ?>
+                        </div>
+                        <div class="revision-inline-warning<?= $currentTotal > $shopQuantity ? '' : ' hidden' ?>" data-stock-warning>
+                          Over shop stock.
+                        </div>
+                      </td>
+                      <td><?= h((string) $shopQuantity) ?><?= !empty($item['unit']) ? ' ' . h($item['unit']) : '' ?></td>
+                      <td><input class="form-control compact-input revision-qty-input" data-rent-input type="number" min="0" name="items[<?= h((string) $item['id']) ?>][rent_quantity]" value="<?= h((string) ($line['rent_quantity'] ?? 0)) ?>"></td>
+                      <td><input class="form-control compact-input revision-qty-input" data-spare-input type="number" min="0" name="items[<?= h((string) $item['id']) ?>][spare_quantity]" value="<?= h((string) ($line['spare_quantity'] ?? 0)) ?>"></td>
+                      <td><span class="revision-total-box revision-total-inline" data-total-output><?= h((string) $currentTotal) ?></span></td>
+                      <td>
+                        <select class="form-control compact-input" data-action-select name="items[<?= h((string) $item['id']) ?>][action]">
+                          <option value="" <?= empty($line['action']) ? 'selected' : '' ?>>Blank</option>
+                          <option value="add" <?= ($line['action'] ?? '') === 'add' ? 'selected' : '' ?>>Add</option>
+                          <option value="return" <?= ($line['action'] ?? '') === 'return' ? 'selected' : '' ?>>Return</option>
+                          <option value="exchange" <?= ($line['action'] ?? '') === 'exchange' ? 'selected' : '' ?>>Exchange</option>
+                          <option value="note" <?= ($line['action'] ?? '') === 'note' ? 'selected' : '' ?>>See Notes</option>
+                        </select>
+                      </td>
+                      <td><input class="form-control compact-input" type="date" name="items[<?= h((string) $item['id']) ?>][pickup_date]" value="<?= h($line['pickup_date'] ?? '') ?>"></td>
+                      <td><input class="form-control compact-input" type="date" name="items[<?= h((string) $item['id']) ?>][return_date]" value="<?= h($line['return_date'] ?? '') ?>"></td>
+                      <td><textarea class="form-control revision-note-input" name="items[<?= h((string) $item['id']) ?>][line_note]" rows="1"><?= h($line['line_note'] ?? '') ?></textarea></td>
+                    </tr>
+                    <?php endforeach; ?>
+                  </tbody>
+                </table>
               </div>
-            </div>
-            <div class="revision-item-grid">
-              <?php foreach ($category['items'] as $item): ?>
-              <?php $line = $item['line']; $currentTotal = (int) ($line['total_quantity'] ?? 0); $shopQuantity = (int) ($item['shop_quantity'] ?? 0); ?>
-              <article
-                class="revision-item-card"
-                data-action-row
-                data-revision-item
-                data-item-id="<?= h((string) $item['id']) ?>"
-                data-item-name="<?= h(strtolower($item['name'] . ' ' . ($item['description'] ?? '') . ' ' . ($item['default_note'] ?? ''))) ?>"
-                data-item-label="<?= h($item['name']) ?>"
-                data-shop-quantity="<?= h((string) $shopQuantity) ?>"
-              >
-                <div class="revision-item-top">
-                  <div>
-                    <div class="revision-item-title-row">
-                      <h4><?= h($item['name']) ?></h4>
-                      <?php if (!empty($item['default_note'])): ?>
-                      <button type="button" class="icon-link" data-note-trigger data-note-title="<?= h($item['name']) ?> note" data-note-body="<?= h($item['default_note']) ?>">
-                        <span class="material-symbols-outlined">info</span>
-                      </button>
-                      <?php endif; ?>
-                    </div>
-                    <?php if (!empty($item['description'])): ?><div class="muted"><?= h($item['description']) ?></div><?php endif; ?>
-                  </div>
-                  <div class="revision-stock-pill">Shop has <?= h((string) $shopQuantity) ?><?= !empty($item['unit']) ? ' ' . h($item['unit']) : '' ?></div>
-                </div>
-
-                <div class="revision-item-fields">
-                  <div class="form-group">
-                    <label>Rent</label>
-                    <input class="form-control compact-input" data-rent-input type="number" min="0" name="items[<?= h((string) $item['id']) ?>][rent_quantity]" value="<?= h((string) ($line['rent_quantity'] ?? 0)) ?>">
-                  </div>
-                  <div class="form-group">
-                    <label>Spares</label>
-                    <input class="form-control compact-input" data-spare-input type="number" min="0" name="items[<?= h((string) $item['id']) ?>][spare_quantity]" value="<?= h((string) ($line['spare_quantity'] ?? 0)) ?>">
-                  </div>
-                  <div class="form-group">
-                    <label>Total</label>
-                    <div class="revision-total-box" data-total-output><?= h((string) $currentTotal) ?></div>
-                  </div>
-                  <div class="form-group">
-                    <label>Action</label>
-                    <select class="form-control compact-input" data-action-select name="items[<?= h((string) $item['id']) ?>][action]">
-                      <option value="" <?= empty($line['action']) ? 'selected' : '' ?>>Blank</option>
-                      <option value="add" <?= ($line['action'] ?? '') === 'add' ? 'selected' : '' ?>>Add</option>
-                      <option value="return" <?= ($line['action'] ?? '') === 'return' ? 'selected' : '' ?>>Return</option>
-                      <option value="exchange" <?= ($line['action'] ?? '') === 'exchange' ? 'selected' : '' ?>>Exchange</option>
-                      <option value="note" <?= ($line['action'] ?? '') === 'note' ? 'selected' : '' ?>>See Notes</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="revision-inline-warning<?= $currentTotal > $shopQuantity ? '' : ' hidden' ?>" data-stock-warning>
-                  This line currently exceeds shop stock.
-                </div>
-
-                <div class="revision-date-grid">
-                  <div class="form-group">
-                    <label>Item Pull</label>
-                    <input class="form-control" type="date" name="items[<?= h((string) $item['id']) ?>][pickup_date]" value="<?= h($line['pickup_date'] ?? '') ?>">
-                  </div>
-                  <div class="form-group">
-                    <label>Item Return</label>
-                    <input class="form-control" type="date" name="items[<?= h((string) $item['id']) ?>][return_date]" value="<?= h($line['return_date'] ?? '') ?>">
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <label>Notes</label>
-                  <textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][line_note]"><?= h($line['line_note'] ?? '') ?></textarea>
-                </div>
-              </article>
-              <?php endforeach; ?>
             </div>
           </section>
           <?php endforeach; ?>

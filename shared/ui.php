@@ -87,13 +87,20 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
     _ui_context($appHeading, $headerIcon);
     ?>
   <div class="topbar">
-    <button type="button" id="mobile-menu-btn" class="topbar-btn topbar-menu" aria-label="Open navigation">
-      <span class="material-symbols-outlined">menu</span>
-    </button>
     <a href="<?= h(url_for('')) ?>" class="topbar-app topbar-app-link">
       <span class="material-symbols-outlined"><?= h($headerIcon) ?></span>
       <?= h($appHeading) ?>
     </a>
+    <nav class="top-nav" aria-label="Primary">
+<?php foreach ($navItems as $item): ?>
+<?php if (!isset($item['section'])): ?>
+      <a href="<?= h($item['href'] ?? '#') ?>" class="top-nav-item<?= !empty($item['active']) ? ' active' : '' ?>">
+        <span class="material-symbols-outlined"><?= h($item['icon'] ?? 'circle') ?></span>
+        <?= h($item['label'] ?? '') ?>
+      </a>
+<?php endif; ?>
+<?php endforeach; ?>
+    </nav>
 
     <div class="topbar-right">
       <button id="theme-toggle" class="topbar-btn" title="Toggle theme" aria-label="Toggle theme">
@@ -101,30 +108,6 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
       </button>
     </div>
   </div>
-
-  <div id="sidebar-overlay" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49;top:2.625rem;"></div>
-
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <h2>
-        <span class="material-symbols-outlined app-logo"><?= h($headerIcon) ?></span>
-        <?= h($appHeading) ?>
-      </h2>
-    </div>
-
-    <nav>
-<?php foreach ($navItems as $item): ?>
-<?php if (isset($item['section'])): ?>
-      <div class="sidebar-section"><?= h($item['section']) ?></div>
-<?php else: ?>
-      <a href="<?= h($item['href'] ?? '#') ?>" class="nav-item<?= !empty($item['active']) ? ' active' : '' ?>">
-        <span class="material-symbols-outlined"><?= h($item['icon'] ?? 'circle') ?></span>
-        <?= h($item['label'] ?? '') ?>
-      </a>
-<?php endif; ?>
-<?php endforeach; ?>
-    </nav>
-  </aside>
 
   <main class="content">
 <?php

@@ -1101,21 +1101,21 @@ function delete_inventory_item(int $itemId): array
         return ['ok' => false, 'message' => 'Inventory item not found.'];
     }
 
-    $lookup = db()->prepare('SELECT COUNT(*) FROM inventory_items WHERE id = ? AND is_active = 1');
+    $lookup = db()->prepare('SELECT COUNT(*) FROM inventory_items WHERE id = ?');
     $lookup->execute([$itemId]);
     if ((int) $lookup->fetchColumn() !== 1) {
         return ['ok' => false, 'message' => 'Inventory item not found.'];
     }
 
-    $usage = db()->prepare('SELECT COUNT(*) FROM revision_items WHERE inventory_item_id = ?');
-    $usage->execute([$itemId]);
-    if ((int) $usage->fetchColumn() > 0) {
-        return ['ok' => false, 'message' => 'This inventory item is already used in saved revisions and cannot be removed.'];
-    }
-
-    $stmt = db()->prepare('UPDATE inventory_items SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $stmt = db()->prepare('DELETE FROM inventory_items WHERE id = ?');
     $stmt->execute([$itemId]);
     return ['ok' => true, 'message' => 'Inventory item removed.'];
+}
+
+function clear_inventory_items(): array
+{
+    db()->exec('DELETE FROM inventory_items');
+    return ['ok' => true, 'message' => 'All inventory items removed.'];
 }
 
 function upload_dir(string $subdir = ''): string
