@@ -272,6 +272,16 @@ save_revision_lines($nextRevisionId, [
         'action' => 'add',
     ],
 ]);
+$bulkRevisionLines = [];
+for ($bulkIndex = 1; $bulkIndex <= 45; $bulkIndex++) {
+    $bulkItemId = ensure_catalog_item('Fixtures', 'Paged Fixture ' . $bulkIndex, 5, 'ea', '', 'Paged export test item');
+    $bulkRevisionLines[$bulkItemId] = [
+        'rent_quantity' => 1,
+        'spare_quantity' => 0,
+        'action' => 'add',
+    ];
+}
+save_revision_lines($nextRevisionId, $bulkRevisionLines);
 $previousGet = $_GET;
 $_GET = [
     'show_id' => $showId,
@@ -290,6 +300,7 @@ assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY<
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
 assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => '']) === 'background:#CCCCCC;', 'Expected export zebra striping to use the darker gray.');
+assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 2, 'Expected long equipment breakdowns to spill onto additional pages.');
 
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);

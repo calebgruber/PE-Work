@@ -249,24 +249,77 @@ function export_equipment_note(array $item, array $line): string
     return implode(' · ', $parts);
 }
 
+function export_equipment_row_units(array $row): int
+{
+    $note = export_equipment_note($row['item'], $row['line']);
+    $nameLength = strlen(trim((string) ($row['item']['name'] ?? '')));
+    $descriptionLength = strlen(trim((string) ($row['category'] ?? '')));
+    $noteLength = strlen($note);
+    $units = 1;
+
+    if ($nameLength > 28 || $descriptionLength > 20) {
+        $units++;
+    }
+    if ($noteLength > 42) {
+        $units++;
+    }
+    if ($noteLength > 84) {
+        $units++;
+    }
+
+    return min(4, $units);
+}
+
+function export_equipment_pages(array $rows, int $pageCapacity = 38): array
+{
+    if (!$rows) {
+        return [[]];
+    }
+
+    $pages = [];
+    $currentPage = [];
+    $currentUnits = 0;
+
+    foreach ($rows as $row) {
+        $rowUnits = export_equipment_row_units($row);
+        if ($currentPage && $currentUnits + $rowUnits > $pageCapacity) {
+            $pages[] = $currentPage;
+            $currentPage = [];
+            $currentUnits = 0;
+        }
+
+        $currentPage[] = $row;
+        $currentUnits += $rowUnits;
+    }
+
+    if ($currentPage) {
+        $pages[] = $currentPage;
+    }
+
+    return $pages;
+}
+
 $type = $_GET['type'] ?? 'order';
 $labels = export_type_labels($type);
 $layout = export_layout_settings();
 $catalog = catalog_for_revision((int) $revision['id']);
 $revisionCode = revision_display_code($revision);
 $equipmentRows = export_equipment_rows($catalog, $type);
+$equipmentPages = export_equipment_pages($equipmentRows);
 $summaryRows = (($layout['layout.show_revision_summary'] ?? '1') === '1') ? export_summary_rows($catalog, $revision, $type) : [];
 $notes = export_notes_list($layout, $show);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'] . '&export_type=' . rawurlencode((string) $type));
 $renderSummaryPage = !empty($summaryRows);
-$pageNumbers = ['cover' => 1];
+$pageNumbers = ['cover' => 1, 'equipment' => []];
 $nextPageNumber = 2;
 if ($renderSummaryPage) {
     $pageNumbers['summary'] = $nextPageNumber++;
 }
-$pageNumbers['equipment'] = $nextPageNumber;
-$totalPages = count($pageNumbers);
+foreach ($equipmentPages as $_equipmentPage) {
+    $pageNumbers['equipment'][] = $nextPageNumber++;
+}
+$totalPages = $nextPageNumber - 1;
 $headerOrganization = export_value((string) ($layout['layout.organization_text'] ?? ''), (string) ($show['theatre_name'] ?? ''));
 $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
 ?>
@@ -351,8 +404,8 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     .center-title {
       text-align: center;
-      margin-top: 0.32in;
-      margin-bottom: 0.3in;
+      margin-top: 0.2in;
+      margin-bottom: 0.22in;
     }
     .center-title .show-name {
       font-size: 20pt;
@@ -364,31 +417,57 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       margin-top: 0.22in;
       text-decoration: underline;
     }
+    .cover-contact-bar {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.1in 0.18in;
+      margin-bottom: 0.18in;
+      padding: 0.12in 0.16in;
+      border: 1px solid #d6dbe3;
+      border-radius: 0.1in;
+      background: #fafbfc;
+    }
+    .cover-contact-cell {
+      min-width: 0;
+    }
+    .cover-contact-label {
+      display: block;
+      margin-bottom: 0.03in;
+      font-size: 8.5pt;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #4b5563;
+    }
+    .cover-contact-value {
+      color: #111827;
+      word-break: break-word;
+    }
     .cover-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.18in;
-      margin-bottom: 0.22in;
+      gap: 0.14in;
+      margin-bottom: 0.18in;
     }
     .cover-panel {
-      padding: 0.16in 0.18in;
-      border: 1px solid #d1d5db;
-      border-radius: 0.12in;
-      background: #f8fafc;
+      padding: 0.14in 0.16in;
+      border: 1px solid #d8dde6;
+      border-radius: 0.1in;
+      background: #fff;
     }
     .cover-panel-wide {
       grid-column: 1 / -1;
     }
     .cover-panel-title {
-      margin: 0 0 0.1in;
+      margin: 0 0 0.08in;
       font-weight: 700;
-      font-size: 10pt;
+      font-size: 9.5pt;
       letter-spacing: 0.02em;
       text-transform: uppercase;
     }
     .cover-list {
       display: grid;
-      gap: 0.12in;
+      gap: 0.1in;
     }
     .cover-entry {
       display: grid;
@@ -409,10 +488,10 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     .cover-detail-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.12in 0.18in;
+      gap: 0.1in 0.16in;
     }
     .notes-heading {
-      margin-top: 0.28in;
+      margin-top: 0.22in;
       text-decoration: underline;
       font-weight: 600;
     }
@@ -440,9 +519,9 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       font-size: 9pt;
     }
     table.word-table.equipment-table {
-      width: 6.85in;
+      width: 6.95in;
       max-width: 100%;
-      margin: 0;
+      margin: 0 auto;
     }
     .equipment-table-wrap {
       display: flex;
@@ -451,26 +530,30 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table th,
     table.word-table td {
-      padding: 0.05in 0.06in;
+      padding: 0.05in 0.075in;
       vertical-align: middle;
       text-align: left;
       white-space: nowrap;
       overflow: hidden;
+    }
+    table.word-table th:first-child,
+    table.word-table td:first-child {
+      padding-left: 0.12in;
     }
     table.word-table thead th {
       border-bottom: 1px solid #666;
       text-decoration: underline;
       font-weight: 700;
     }
-    .col-line { width: 0.55in; }
-    .col-item { width: 1.95in; }
-    .col-description { width: 1.2in; }
-    .col-action { width: 1.1in; }
-    .col-qty { width: 0.7in; }
+    .col-line { width: 9%; }
+    .col-item { width: 30%; }
+    .col-description { width: 20%; }
+    .col-action { width: 18%; }
+    .col-qty { width: 13%; }
     .col-used,
-    .col-spare,
-    .col-total { width: 0.6in; }
-    .col-notes { width: 1.55in; }
+    .col-spare { width: 8%; }
+    .col-total { width: 10%; }
+    .col-notes { width: 15%; }
     .notes-cell {
       white-space: normal;
       overflow-wrap: anywhere;
@@ -535,8 +618,24 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           </div>
         </div>
       </div>
-      <p><?= h(export_value((string) ($show['shop_name'] ?? ''))) ?><span style="float:right;">Phone: <?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></span></p>
-      <p><?= h(export_value((string) ($show['shop_address'] ?? ''))) ?><span style="float:right;">Email: <?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?></span></p>
+      <div class="cover-contact-bar">
+        <div class="cover-contact-cell">
+          <span class="cover-contact-label">Shop</span>
+          <div class="cover-contact-value"><?= h(export_value((string) ($show['shop_name'] ?? ''))) ?></div>
+        </div>
+        <div class="cover-contact-cell">
+          <span class="cover-contact-label">Manager Contact</span>
+          <div class="cover-contact-value"><?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></div>
+        </div>
+        <div class="cover-contact-cell">
+          <span class="cover-contact-label">Address</span>
+          <div class="cover-contact-value"><?= h(export_value((string) ($show['shop_address'] ?? ''))) ?></div>
+        </div>
+        <div class="cover-contact-cell">
+          <span class="cover-contact-label">Email</span>
+          <div class="cover-contact-value"><?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?></div>
+        </div>
+      </div>
 
       <div class="center-title">
         <p class="show-name">&quot;<?= h($show['show_name']) ?>&quot;</p>
@@ -671,6 +770,8 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     </section>
     <?php endif; ?>
 
+    <?php $lineNumber = 1; ?>
+    <?php foreach ($equipmentPages as $equipmentPageIndex => $equipmentPageRows): ?>
     <section class="page">
       <div class="top-rule">
         <div class="page-header-bar">
@@ -680,7 +781,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           </div>
           <div class="page-header-meta">
             <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
-            <div><strong>Page</strong> <?= h((string) $pageNumbers['equipment']) ?> of <?= h((string) $totalPages) ?></div>
+            <div><strong>Page</strong> <?= h((string) $pageNumbers['equipment'][$equipmentPageIndex]) ?> of <?= h((string) $totalPages) ?></div>
           </div>
         </div>
       </div>
@@ -699,8 +800,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           </tr>
         </thead>
         <tbody>
-          <?php $lineNumber = 1; ?>
-          <?php foreach ($equipmentRows as $row): ?>
+          <?php foreach ($equipmentPageRows as $row): ?>
           <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'rent_quantity'); ?>
           <tr style="<?= h(export_row_style($lineNumber - 1, $revision, $row['item'], $row['line'])) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
@@ -722,6 +822,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
         <span><?= h($layout['layout.footer_text']) ?></span>
       </div>
     </section>
+    <?php endforeach; ?>
   </div>
 </body>
 </html>
