@@ -1510,7 +1510,15 @@ function resource_path(array $resource): string
 
     $legacyPath = (__DIR__ . '/../storage/uploads/resources/' . $storedName);
     if (is_file($legacyPath)) {
-        return $legacyPath;
+        $destinationDir = upload_dir('resources');
+        $destinationPath = $destinationDir . '/' . $storedName;
+        if (!is_dir($destinationDir)) {
+            mkdir($destinationDir, 0775, true);
+        }
+        if (!@rename($legacyPath, $destinationPath) && (!@copy($legacyPath, $destinationPath) || !@unlink($legacyPath))) {
+            throw new RuntimeException('Unable to migrate resource to private storage.');
+        }
+        return $destinationPath;
     }
 
     return $currentPath;

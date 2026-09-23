@@ -206,7 +206,7 @@ $labels = export_type_labels($type);
 $layout = export_layout_settings();
 $catalog = catalog_for_revision((int) $revision['id']);
 $equipmentRows = export_equipment_rows($catalog, $type);
-$summaryRows = !empty($layout['layout.show_revision_summary']) ? export_summary_rows($catalog, $revision, $type) : [];
+$summaryRows = (($layout['layout.show_revision_summary'] ?? '1') === '1') ? export_summary_rows($catalog, $revision, $type) : [];
 $notes = export_notes_list($layout, $show);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id']);

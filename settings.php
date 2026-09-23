@@ -571,7 +571,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                     <?= csrf_input() ?>
                     <input type="hidden" name="action" value="delete_rule">
                     <input type="hidden" name="rule_id" value="<?= (int) $rule['id'] ?>">
-                    <button type="submit" class="btn btn-danger btn-sm">
+                    <button type="submit" class="btn btn-danger btn-sm" data-confirm="Remove this rule?">
                       <span class="material-symbols-outlined">delete</span>
                       Remove
                     </button>
