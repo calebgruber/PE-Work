@@ -249,7 +249,7 @@ function export_equipment_note(array $item, array $line): string
     return implode(' · ', $parts);
 }
 
-function export_equipment_pages(array $rows, int $rowsPerPage = 25): array
+function export_equipment_pages(array $rows, int $rowsPerPage = 30): array
 {
     if (!$rows) {
         return [[]];
@@ -317,20 +317,30 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       cursor: pointer;
     }
     .document {
-      width: 8.5in;
+      width: 100%;
       margin: 0 auto 2rem;
-      background: #fff;
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
     }
     .page {
+      width: 8.5in;
       min-height: 11in;
+      height: 11in;
+      margin: 0 auto 1rem;
       padding: 0.55in 0.7in 0.6in;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
+      background: #fff;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+      overflow: hidden;
+      break-inside: avoid-page;
+      page-break-inside: avoid;
       page-break-after: always;
     }
     .page:last-child { page-break-after: auto; }
+    .page.equipment-page {
+      padding-left: 0.45in;
+      padding-right: 0.45in;
+    }
     .page-content {
       flex: 1 1 auto;
       min-height: 0;
@@ -484,8 +494,9 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table.equipment-table {
       width: 100%;
-      max-width: 7.08in;
+      max-width: 7.55in;
       margin: 0 auto;
+      font-size: 8.25pt;
     }
     .equipment-table-wrap {
       display: flex;
@@ -495,7 +506,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table th,
     table.word-table td {
-      padding: 0.05in 0.075in;
+      padding: 0.035in 0.05in;
       vertical-align: middle;
       text-align: left;
       white-space: nowrap;
@@ -510,15 +521,17 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       text-decoration: underline;
       font-weight: 700;
     }
-    .col-line { width: 5%; }
-    .col-item { width: 36%; }
-    .col-description { width: 17%; }
-    .col-action { width: 17%; }
+    .col-line { width: 4.5%; }
+    .col-item { width: 40%; }
+    .col-description { width: 20%; }
+    .col-action { width: 11%; }
     .col-qty { width: 13%; }
     .col-used,
-    .col-spare { width: 6%; }
-    .col-total { width: 10%; }
-    .col-notes { width: 19%; }
+    .col-spare { width: 5.5%; }
+    .col-total { width: 7%; }
+    .col-notes { width: 17.5%; }
+    .item-cell,
+    .description-cell,
     .notes-cell {
       white-space: normal;
       overflow-wrap: anywhere;
@@ -562,8 +575,12 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     @media print {
       body { background: #fff; }
       .toolbar { display: none; }
-      .document { width: auto; margin: 0; box-shadow: none; }
-      .page { margin: 0; }
+      .document { width: auto; margin: 0; }
+      .page {
+        width: auto;
+        margin: 0;
+        box-shadow: none;
+      }
     }
   </style>
 </head>
@@ -745,7 +762,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
 
     <?php $lineNumber = 1; ?>
     <?php foreach ($equipmentPages as $equipmentPageIndex => $equipmentPageRows): ?>
-    <section class="page">
+    <section class="page equipment-page">
       <div class="page-content">
       <div class="top-rule">
         <div class="page-header-bar">
@@ -778,8 +795,8 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'rent_quantity'); ?>
           <tr style="<?= h(export_row_style($lineNumber - 1, $revision, $row['item'], $row['line'])) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
-            <td><?= h($row['item']['name']) ?></td>
-            <td><?= h($row['category']) ?></td>
+            <td class="item-cell"><?= h($row['item']['name']) ?></td>
+            <td class="description-cell"><?= h($row['category']) ?></td>
             <td><?= h((string) ($row['line']['rent_quantity'] ?? 0)) ?></td>
             <td><?= h((string) ($row['line']['spare_quantity'] ?? 0)) ?></td>
             <td>

@@ -1578,22 +1578,89 @@ function normalize_resource_folder_name(string $name): string
     return function_exists('mb_substr') ? mb_substr($name, 0, 255) : substr($name, 0, 255);
 }
 
+function resource_folder_parenting_supported(): bool
+{
+    return table_exists('resource_folders') && table_column_exists('resource_folders', 'parent_id');
+}
+
+function resource_folder_exists(int $folderId): bool
+{
+    if ($folderId <= 0 || !table_exists('resource_folders')) {
+        return false;
+    }
+
+    $stmt = db()->prepare('SELECT COUNT(*) FROM resource_folders WHERE id = ?');
+    $stmt->execute([$folderId]);
+    return (int) $stmt->fetchColumn() === 1;
+}
+
 function fetch_resource_folders(): array
 {
     if (!table_exists('resource_folders')) {
         return [];
     }
 
-    return db()->query(
+    $supportsParents = resource_folder_parenting_supported();
+    $rows = db()->query(
         'SELECT rf.*, COUNT(r.id) AS resource_count
          FROM resource_folders rf
          LEFT JOIN resources r ON r.folder_id = rf.id
-         GROUP BY rf.id, rf.name, rf.created_at
+         GROUP BY rf.id, rf.name' . ($supportsParents ? ', rf.parent_id' : '') . ', rf.created_at
          ORDER BY LOWER(rf.name) ASC, rf.id ASC'
     )->fetchAll();
+
+    if (!$supportsParents) {
+        foreach ($rows as &$row) {
+            $row['depth'] = 0;
+            $row['full_path'] = $row['name'];
+        }
+        unset($row);
+        return $rows;
+    }
+
+    $byId = [];
+    foreach ($rows as $row) {
+        $row['parent_id'] = isset($row['parent_id']) ? (int) $row['parent_id'] : null;
+        $row['children'] = [];
+        $byId[(int) $row['id']] = $row;
+    }
+
+    $roots = [];
+    foreach (array_keys($byId) as $folderId) {
+        $parentId = $byId[$folderId]['parent_id'];
+        if ($parentId && isset($byId[$parentId])) {
+            $byId[$parentId]['children'][] = $folderId;
+        } else {
+            $roots[] = $folderId;
+        }
+    }
+
+    usort($roots, static fn (int $a, int $b): int => strcasecmp((string) $byId[$a]['name'], (string) $byId[$b]['name']));
+    foreach ($byId as &$row) {
+        usort($row['children'], static fn (int $a, int $b): int => strcasecmp((string) $byId[$a]['name'], (string) $byId[$b]['name']));
+    }
+    unset($row);
+
+    $ordered = [];
+    $appendFolder = static function (int $folderId, int $depth, string $prefix) use (&$appendFolder, &$ordered, $byId): void {
+        $row = $byId[$folderId];
+        $row['depth'] = $depth;
+        $row['full_path'] = $prefix === '' ? $row['name'] : ($prefix . ' / ' . $row['name']);
+        unset($row['children']);
+        $ordered[] = $row;
+        foreach ($byId[$folderId]['children'] as $childId) {
+            $appendFolder($childId, $depth + 1, $row['full_path']);
+        }
+    };
+
+    foreach ($roots as $rootId) {
+        $appendFolder($rootId, 0, '');
+    }
+
+    return $ordered;
 }
 
-function create_resource_folder(string $name): array
+function create_resource_folder(string $name, ?int $parentId = null): array
 {
     if (!table_exists('resource_folders')) {
         return ['ok' => false, 'message' => 'Run the latest migrations before creating folders.'];
@@ -1604,9 +1671,22 @@ function create_resource_folder(string $name): array
         return ['ok' => false, 'message' => 'Enter a folder name.'];
     }
 
-    $stmt = db()->prepare('INSERT INTO resource_folders (name) VALUES (?)');
+    if ($parentId !== null && $parentId > 0) {
+        if (!resource_folder_parenting_supported()) {
+            return ['ok' => false, 'message' => 'Run the latest resource folder migration before creating subfolders.'];
+        }
+        if (!resource_folder_exists($parentId)) {
+            return ['ok' => false, 'message' => 'Choose a valid parent folder.'];
+        }
+    } else {
+        $parentId = null;
+    }
+
+    $stmt = resource_folder_parenting_supported()
+        ? db()->prepare('INSERT INTO resource_folders (name, parent_id) VALUES (?, ?)')
+        : db()->prepare('INSERT INTO resource_folders (name) VALUES (?)');
     try {
-        $stmt->execute([$name]);
+        $stmt->execute(resource_folder_parenting_supported() ? [$name, $parentId] : [$name]);
     } catch (Throwable $e) {
         if (is_unique_constraint_violation($e)) {
             return ['ok' => false, 'message' => 'That folder already exists.'];
@@ -1627,6 +1707,14 @@ function delete_resource_folder(int $folderId): array
     $resourceCountStmt->execute([$folderId]);
     if ((int) $resourceCountStmt->fetchColumn() > 0) {
         return ['ok' => false, 'message' => 'Move or remove the PDFs in this folder before deleting it.'];
+    }
+
+    if (resource_folder_parenting_supported()) {
+        $childCountStmt = db()->prepare('SELECT COUNT(*) FROM resource_folders WHERE parent_id = ?');
+        $childCountStmt->execute([$folderId]);
+        if ((int) $childCountStmt->fetchColumn() > 0) {
+            return ['ok' => false, 'message' => 'Delete or move the subfolders in this folder before removing it.'];
+        }
     }
 
     $stmt = db()->prepare('DELETE FROM resource_folders WHERE id = ?');
@@ -1655,10 +1743,24 @@ function fetch_resources(?int $folderId = null): array
     if ($folderId !== null && $supportsFolders) {
         $stmt = db()->prepare($select . ' FROM resources r' . $join . ' WHERE r.folder_id = ? ORDER BY r.created_at DESC, r.id DESC');
         $stmt->execute([$folderId]);
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+    } else {
+        $rows = db()->query($select . ' FROM resources r' . $join . ' ORDER BY r.created_at DESC, r.id DESC')->fetchAll();
     }
 
-    return db()->query($select . ' FROM resources r' . $join . ' ORDER BY r.created_at DESC, r.id DESC')->fetchAll();
+    if ($supportsFolders) {
+        $folderPaths = [];
+        foreach (fetch_resource_folders() as $folder) {
+            $folderPaths[(int) $folder['id']] = $folder['full_path'] ?? $folder['name'];
+        }
+        foreach ($rows as &$row) {
+            $folderIdValue = (int) ($row['folder_id'] ?? 0);
+            $row['folder_path'] = $folderPaths[$folderIdValue] ?? ($row['folder_name'] ?? '');
+        }
+        unset($row);
+    }
+
+    return $rows;
 }
 
 function store_resource_upload(array $file, string $title = '', ?int $folderId = null): array

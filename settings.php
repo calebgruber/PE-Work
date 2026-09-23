@@ -147,7 +147,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($action === 'create_resource_folder') {
-            $result = create_resource_folder($_POST['folder_name'] ?? '');
+            $parentFolderId = isset($_POST['parent_folder_id']) && ctype_digit((string) $_POST['parent_folder_id']) && (int) $_POST['parent_folder_id'] > 0
+                ? (int) $_POST['parent_folder_id']
+                : null;
+            $result = create_resource_folder($_POST['folder_name'] ?? '', $parentFolderId);
             flash($result['ok'] ? 'success' : 'warning', $result['message']);
             header('Location: ' . url_for('settings?tab=resources'));
             exit;
@@ -517,10 +520,17 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <strong>Folders</strong>
             <div class="resource-folder-list">
               <a class="tab<?= $selectedResourceFolderId === null ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=resources')) ?>">All PDFs</a>
-              <?php foreach ($resourceFolders as $folder): ?>
               <div class="resource-folder-row">
-                <a class="tab<?= $selectedResourceFolderId === (int) $folder['id'] ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=resources&folder=' . (int) $folder['id'])) ?>">
-                  <span class="material-symbols-outlined">folder</span>
+                <a class="tab<?= $selectedResourceFolderId === null ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=resources')) ?>">
+                  <span class="material-symbols-outlined">home_storage</span>
+                  All Resources
+                </a>
+              </div>
+              <?php foreach ($resourceFolders as $folder): ?>
+              <?php $folderDepth = max(0, (int) ($folder['depth'] ?? 0)); ?>
+              <div class="resource-folder-row">
+                <a class="tab<?= $selectedResourceFolderId === (int) $folder['id'] ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=resources&folder=' . (int) $folder['id'])) ?>" style="padding-left: calc(0.85rem + <?= h((string) $folderDepth) ?> * 1rem);">
+                  <span class="material-symbols-outlined"><?= $folderDepth > 0 ? 'folder_open' : 'folder' ?></span>
                   <?= h($folder['name']) ?>
                   <span class="muted">(<?= h((string) $folder['resource_count']) ?>)</span>
                 </a>
@@ -541,6 +551,15 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <div class="form-group">
                 <label for="folder_name">New Folder</label>
                 <input class="form-control" id="folder_name" name="folder_name" placeholder="Show References">
+              </div>
+              <div class="form-group">
+                <label for="parent_folder_id">Inside Folder</label>
+                <select class="form-control" id="parent_folder_id" name="parent_folder_id">
+                  <option value="">Top Level</option>
+                  <?php foreach ($resourceFolders as $folder): ?>
+                  <option value="<?= h((string) $folder['id']) ?>" <?= $selectedResourceFolderId === (int) $folder['id'] ? 'selected' : '' ?>><?= h($folder['full_path'] ?? $folder['name']) ?></option>
+                  <?php endforeach; ?>
+                </select>
               </div>
               <div class="form-actions">
                 <button type="submit" class="btn btn-ghost">
@@ -567,7 +586,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                   <select class="form-control" id="resource_folder_id" name="folder_id">
                     <option value="">No Folder</option>
                     <?php foreach ($resourceFolders as $folder): ?>
-                    <option value="<?= h((string) $folder['id']) ?>" <?= $selectedResourceFolderId === (int) $folder['id'] ? 'selected' : '' ?>><?= h($folder['name']) ?></option>
+                    <option value="<?= h((string) $folder['id']) ?>" <?= $selectedResourceFolderId === (int) $folder['id'] ? 'selected' : '' ?>><?= h($folder['full_path'] ?? $folder['name']) ?></option>
                     <?php endforeach; ?>
                   </select>
                 </div>
@@ -586,7 +605,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <div class="summary-block">
               <strong>Library View</strong>
               <div class="stack" style="margin-top:1rem;">
-                <div class="muted">Use folders to separate shop paperwork, diagrams, manuals, and reference PDFs.</div>
+                <div class="muted">Use folders and subfolders to separate shop paperwork, diagrams, manuals, and reference PDFs.</div>
                 <div class="muted">Open, download, move, and preview PDFs from one place without leaving the app.</div>
               </div>
             </div>
@@ -601,7 +620,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                 <div>
                   <h3><?= h($resource['title']) ?></h3>
                   <div class="muted"><?= h($resource['original_name']) ?></div>
-                  <div class="helper-text"><?= h($resource['folder_name'] ?? 'No Folder') ?></div>
+                  <div class="helper-text"><?= h($resource['folder_path'] ?? $resource['folder_name'] ?? 'No Folder') ?></div>
                 </div>
                 <form method="post">
                   <?= csrf_input() ?>
@@ -632,7 +651,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                   <select class="form-control" id="resource-folder-<?= (int) $resource['id'] ?>" name="folder_id">
                     <option value="">No Folder</option>
                     <?php foreach ($resourceFolders as $folder): ?>
-                    <option value="<?= h((string) $folder['id']) ?>" <?= (int) ($resource['folder_id'] ?? 0) === (int) $folder['id'] ? 'selected' : '' ?>><?= h($folder['name']) ?></option>
+                    <option value="<?= h((string) $folder['id']) ?>" <?= (int) ($resource['folder_id'] ?? 0) === (int) $folder['id'] ? 'selected' : '' ?>><?= h($folder['full_path'] ?? $folder['name']) ?></option>
                     <?php endforeach; ?>
                   </select>
                 </div>
