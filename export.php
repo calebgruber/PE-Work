@@ -28,7 +28,16 @@ if (!$revision || (int) $revision['show_id'] !== $showId) {
 $type = $_GET['type'] ?? 'order';
 $layout = export_layout_settings();
 $catalog = catalog_for_revision((int) $revision['id']);
-$showImage = $layout['layout.show_image'] === '1' && !empty($show['show_image_url']);
+$showImageUrl = '';
+if ($layout['layout.show_image'] === '1' && !empty($show['show_image_url'])) {
+    $relativeImagePath = ltrim((string) $show['show_image_url'], '/');
+    $resolvedImagePath = realpath(__DIR__ . '/' . $relativeImagePath);
+    $repoRoot = realpath(__DIR__);
+    if ($resolvedImagePath && $repoRoot && str_starts_with($resolvedImagePath, $repoRoot . DIRECTORY_SEPARATOR) && is_file($resolvedImagePath)) {
+        $showImageUrl = asset_url($relativeImagePath);
+    }
+}
+$showImage = $showImageUrl !== '';
 
 function export_rows(array $catalog, string $type): array
 {
@@ -110,7 +119,7 @@ $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edi
         </div>
       </div>
       <?php if ($showImage): ?>
-      <img src="<?= h(asset_url($show['show_image_url'])) ?>" alt="<?= h($show['show_name']) ?> image">
+      <img src="<?= h($showImageUrl) ?>" alt="<?= h($show['show_name']) ?> image">
       <?php endif; ?>
     </div>
 

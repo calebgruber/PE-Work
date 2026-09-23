@@ -1270,7 +1270,11 @@ function store_resource_upload(array $file, string $title = ''): array
         $tmpPath = (string) $file['tmp_name'];
         $moved = false;
         if ($allowLocalTestUpload && is_file($tmpPath)) {
-            $moved = @rename($tmpPath, $destination) || @copy($tmpPath, $destination);
+            $moved = @rename($tmpPath, $destination);
+            if (!$moved && @copy($tmpPath, $destination)) {
+                $moved = true;
+                @unlink($tmpPath);
+            }
         }
         if (!$moved) {
             return ['ok' => false, 'message' => 'Unable to store the uploaded PDF.'];

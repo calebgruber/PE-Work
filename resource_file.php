@@ -9,7 +9,17 @@ if (!schema_ready()) {
     exit('Not found');
 }
 
-$resourceId = (int) ($_GET['id'] ?? 0);
+$resourceIdParam = $_GET['id'] ?? null;
+if (is_array($resourceIdParam)) {
+    http_response_code(400);
+    exit('Bad request');
+}
+$resourceIdParam = trim((string) $resourceIdParam);
+if ($resourceIdParam === '' || !ctype_digit($resourceIdParam) || (int) $resourceIdParam <= 0) {
+    http_response_code(400);
+    exit('Bad request');
+}
+$resourceId = (int) $resourceIdParam;
 $resource = find_resource($resourceId);
 if (!$resource) {
     http_response_code(404);
