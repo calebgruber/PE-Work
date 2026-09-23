@@ -446,7 +446,6 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     .col-description { width: 1.65in; }
     .col-action { width: 1.1in; }
     .col-qty { width: 0.7in; }
-    .col-summary-notes { width: 1.7in; }
     .col-used,
     .col-spare,
     .col-total { width: 0.6in; }
