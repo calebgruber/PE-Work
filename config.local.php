@@ -1,6 +1,8 @@
 <?php
-define('DB_DRIVER', 'sqlite');
-define('DB_SQLITE_PATH', '/tmp/pe-work-settings-test-6ab3653cde5c76.67677422.sqlite');
+define('DB_DRIVER', 'mysql');
+define('DB_HOST', '127.0.0.1');
+define('DB_PORT', 3306);
+define('DB_NAME', 'voxelnodes_pe');
+define('DB_USER', 'voxelnodes_pe');
+define('DB_PASS', 'eorkMg6f2FXWcbX%');
 define('APP_BASE_URL', '/');
-define('ALLOW_SQLITE_FOR_TESTS', true);
-define('ALLOW_LOCAL_UPLOADS_FOR_TESTS', true);
