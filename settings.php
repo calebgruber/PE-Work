@@ -59,8 +59,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($action === 'save_layout') {
-            save_export_layout($_POST);
-            flash('success', 'Export layout settings saved.');
+            if (!table_exists('app_settings')) {
+                flash('danger', 'Layout settings storage is not available until migrations finish successfully.');
+            } else {
+                save_export_layout($_POST);
+                flash('success', 'Export layout settings saved.');
+            }
             header('Location: ' . url_for('settings?tab=layout'));
             exit;
         }

@@ -133,7 +133,8 @@
 
     document.addEventListener('click', function (e) {
       if (e.target.closest('[data-remove-row]')) {
-        e.target.closest('[data-remove-row]').closest('[data-row]').remove();
+        var row = e.target.closest('[data-remove-row]').closest('[data-row]');
+        if (row) row.remove();
       }
     });
   }

@@ -581,6 +581,11 @@ function rule_suggestions(int $revisionId): array
 
 function save_inventory_batch(array $items): void
 {
+    $allowedIds = [];
+    foreach (db()->query('SELECT id FROM inventory_items WHERE is_active = 1')->fetchAll() as $row) {
+        $allowedIds[(int) $row['id']] = true;
+    }
+
     $stmt = db()->prepare(
         'UPDATE inventory_items
          SET shop_quantity = ?, unit = ?, default_note = ?, description = ?, updated_at = CURRENT_TIMESTAMP
@@ -588,6 +593,11 @@ function save_inventory_batch(array $items): void
     );
 
     foreach ($items as $itemId => $row) {
+        $itemId = (int) $itemId;
+        if (!isset($allowedIds[$itemId])) {
+            continue;
+        }
+
         $stmt->execute([
             max(0, (int) ($row['shop_quantity'] ?? 0)),
             trim((string) ($row['unit'] ?? '')),
@@ -623,6 +633,12 @@ function create_inventory_item(array $input): array
 
     if ($name === '' || $categoryId <= 0) {
         return ['ok' => false, 'message' => 'Choose a category and enter an item name.'];
+    }
+
+    $categoryLookup = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE id = ?');
+    $categoryLookup->execute([$categoryId]);
+    if ((int) $categoryLookup->fetchColumn() !== 1) {
+        return ['ok' => false, 'message' => 'Choose a valid category.'];
     }
 
     $stmt = db()->prepare(
@@ -730,6 +746,16 @@ function save_rule(array $input): array
 
     if ($triggerItem <= 0 || $requiredItem <= 0) {
         return ['ok' => false, 'message' => 'Choose both the trigger item and the required item.'];
+    }
+
+    $lookup = db()->prepare('SELECT COUNT(*) FROM inventory_items WHERE id = ? AND is_active = 1');
+    $lookup->execute([$triggerItem]);
+    if ((int) $lookup->fetchColumn() !== 1) {
+        return ['ok' => false, 'message' => 'Choose a valid trigger item.'];
+    }
+    $lookup->execute([$requiredItem]);
+    if ((int) $lookup->fetchColumn() !== 1) {
+        return ['ok' => false, 'message' => 'Choose a valid suggested item.'];
     }
 
     $stmt = db()->prepare(

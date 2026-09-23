@@ -100,19 +100,31 @@ return [
             value TEXT DEFAULT NULL,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )',
-        'INSERT OR IGNORE INTO inventory_categories (id, name, sort_order) VALUES
-            (1, \'Fixtures\', 1),
-            (2, \'Power\', 2),
-            (3, \'Control\', 3),
-            (4, \'Accessories\', 4)',
-        'INSERT OR IGNORE INTO inventory_items (id, category_id, name, shop_quantity, unit, default_note, description) VALUES
-            (1, 1, \'SolaFrame 3000\', 12, \'ea\', \'Profile moving light\', \'Starter fixture inventory row\'),
-            (2, 2, \'Stagepin to True1 Adapter\', 20, \'ea\', \'Often paired with SolaFrames\', \'Adapter example for global rules\'),
-            (3, 3, \'Tech Table Package\', 2, \'pkg\', \'Use custom pull dates when needed\', \'Control package example\'),
-            (4, 4, \'Workbox\', 6, \'ea\', \'Contains hand tools and consumables\', \'Accessory with default note example\'),
-            (5, 4, \'Genie Lift\', 1, \'ea\', \'Set a specific item pull/return date when needed\', \'Lift scheduling example\')',
-        'INSERT OR IGNORE INTO system_rules (id, trigger_item_id, trigger_quantity, required_item_id, required_quantity, note) VALUES
-            (1, 1, 1, 2, 1, \'Each SolaFrame typically needs one stagepin to True1 adapter.\')',
+        'INSERT OR IGNORE INTO inventory_categories (name, sort_order) VALUES
+            (\'Fixtures\', 1),
+            (\'Power\', 2),
+            (\'Control\', 3),
+            (\'Accessories\', 4)',
+        'INSERT OR IGNORE INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+            SELECT id, \'SolaFrame 3000\', 12, \'ea\', \'Profile moving light\', \'Starter fixture inventory row\'
+            FROM inventory_categories WHERE name = \'Fixtures\'',
+        'INSERT OR IGNORE INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+            SELECT id, \'Stagepin to True1 Adapter\', 20, \'ea\', \'Often paired with SolaFrames\', \'Adapter example for global rules\'
+            FROM inventory_categories WHERE name = \'Power\'',
+        'INSERT OR IGNORE INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+            SELECT id, \'Tech Table Package\', 2, \'pkg\', \'Use custom pull dates when needed\', \'Control package example\'
+            FROM inventory_categories WHERE name = \'Control\'',
+        'INSERT OR IGNORE INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+            SELECT id, \'Workbox\', 6, \'ea\', \'Contains hand tools and consumables\', \'Accessory with default note example\'
+            FROM inventory_categories WHERE name = \'Accessories\'',
+        'INSERT OR IGNORE INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+            SELECT id, \'Genie Lift\', 1, \'ea\', \'Set a specific item pull/return date when needed\', \'Lift scheduling example\'
+            FROM inventory_categories WHERE name = \'Accessories\'',
+        'INSERT OR IGNORE INTO system_rules (trigger_item_id, trigger_quantity, required_item_id, required_quantity, note)
+            SELECT trigger_item.id, 1, required_item.id, 1, \'Each SolaFrame typically needs one stagepin to True1 adapter.\'
+            FROM inventory_items AS trigger_item
+            CROSS JOIN inventory_items AS required_item
+            WHERE trigger_item.name = \'SolaFrame 3000\' AND required_item.name = \'Stagepin to True1 Adapter\'',
         'INSERT OR IGNORE INTO app_settings (`key`, value) VALUES
             (\'layout.header_text\', \'Production Electrician Shop Order\'),
             (\'layout.footer_text\', \'Prepared in PE Work\'),
@@ -218,19 +230,31 @@ return [
             value TEXT DEFAULT NULL,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4',
-        'INSERT IGNORE INTO inventory_categories (id, name, sort_order) VALUES
-            (1, \'Fixtures\', 1),
-            (2, \'Power\', 2),
-            (3, \'Control\', 3),
-            (4, \'Accessories\', 4)',
-        'INSERT IGNORE INTO inventory_items (id, category_id, name, shop_quantity, unit, default_note, description) VALUES
-            (1, 1, \'SolaFrame 3000\', 12, \'ea\', \'Profile moving light\', \'Starter fixture inventory row\'),
-            (2, 2, \'Stagepin to True1 Adapter\', 20, \'ea\', \'Often paired with SolaFrames\', \'Adapter example for global rules\'),
-            (3, 3, \'Tech Table Package\', 2, \'pkg\', \'Use custom pull dates when needed\', \'Control package example\'),
-            (4, 4, \'Workbox\', 6, \'ea\', \'Contains hand tools and consumables\', \'Accessory with default note example\'),
-            (5, 4, \'Genie Lift\', 1, \'ea\', \'Set a specific item pull/return date when needed\', \'Lift scheduling example\')',
-        'INSERT IGNORE INTO system_rules (id, trigger_item_id, trigger_quantity, required_item_id, required_quantity, note) VALUES
-            (1, 1, 1, 2, 1, \'Each SolaFrame typically needs one stagepin to True1 adapter.\')',
+        'INSERT IGNORE INTO inventory_categories (name, sort_order) VALUES
+            (\'Fixtures\', 1),
+            (\'Power\', 2),
+            (\'Control\', 3),
+            (\'Accessories\', 4)',
+        'INSERT IGNORE INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+            SELECT id, \'SolaFrame 3000\', 12, \'ea\', \'Profile moving light\', \'Starter fixture inventory row\'
+            FROM inventory_categories WHERE name = \'Fixtures\'',
+        'INSERT IGNORE INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+            SELECT id, \'Stagepin to True1 Adapter\', 20, \'ea\', \'Often paired with SolaFrames\', \'Adapter example for global rules\'
+            FROM inventory_categories WHERE name = \'Power\'',
+        'INSERT IGNORE INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+            SELECT id, \'Tech Table Package\', 2, \'pkg\', \'Use custom pull dates when needed\', \'Control package example\'
+            FROM inventory_categories WHERE name = \'Control\'',
+        'INSERT IGNORE INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+            SELECT id, \'Workbox\', 6, \'ea\', \'Contains hand tools and consumables\', \'Accessory with default note example\'
+            FROM inventory_categories WHERE name = \'Accessories\'',
+        'INSERT IGNORE INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+            SELECT id, \'Genie Lift\', 1, \'ea\', \'Set a specific item pull/return date when needed\', \'Lift scheduling example\'
+            FROM inventory_categories WHERE name = \'Accessories\'',
+        'INSERT IGNORE INTO system_rules (trigger_item_id, trigger_quantity, required_item_id, required_quantity, note)
+            SELECT trigger_item.id, 1, required_item.id, 1, \'Each SolaFrame typically needs one stagepin to True1 adapter.\'
+            FROM inventory_items AS trigger_item
+            CROSS JOIN inventory_items AS required_item
+            WHERE trigger_item.name = \'SolaFrame 3000\' AND required_item.name = \'Stagepin to True1 Adapter\'',
         'INSERT IGNORE INTO app_settings (`key`, value) VALUES
             (\'layout.header_text\', \'Production Electrician Shop Order\'),
             (\'layout.footer_text\', \'Prepared in PE Work\'),

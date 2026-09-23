@@ -61,7 +61,12 @@
         if (body) body.textContent = button.getAttribute('data-note-body') || '';
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
-        if (closeButton) closeButton.focus();
+        const focusables = focusableElements();
+        if (focusables.length) {
+          focusables[0].focus();
+        } else {
+          modal.focus();
+        }
       });
     });
 

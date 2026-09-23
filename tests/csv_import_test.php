@@ -27,6 +27,12 @@ $stmt = db()->prepare('SELECT shop_quantity FROM inventory_items WHERE name = ?'
 $stmt->execute(['Source Four']);
 assert_true((int) $stmt->fetchColumn() === 10, 'Expected imported item quantity to be stored.');
 
+file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nFixtures,Source Four,12,ea,Updated note,Updated import\n");
+$updateResult = import_inventory_csv($validCsv);
+assert_true($updateResult['ok'] === true, 'Expected second valid CSV import to succeed.');
+$stmt->execute(['Source Four']);
+assert_true((int) $stmt->fetchColumn() === 12, 'Expected repeated import to update the existing item.');
+
 $invalidCsv = tempnam(sys_get_temp_dir(), 'pew-invalid-');
 file_put_contents($invalidCsv, "label,qty\nBad Item,1\n");
 $invalidResult = import_inventory_csv($invalidCsv);
