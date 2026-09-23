@@ -117,6 +117,87 @@ function revision_return_tab(?array $revision): string
     return !empty($revision['is_initial']) ? 'orders' : 'revisions';
 }
 
+function revision_stage_label(array $revision): string
+{
+    return !empty($revision['is_initial']) ? 'Initial Order' : 'Revision';
+}
+
+function render_revision_history_table(int $showId, array $revisions, ?int $activeRevisionId = null, bool $allowDelete = false): void
+{
+    if (!$revisions) {
+        return;
+    }
+    ?>
+    <div class="table-wrap revision-history-wrap">
+      <table class="revision-history-table">
+        <thead>
+          <tr>
+            <th>Revision</th>
+            <th>Type</th>
+            <th>Date</th>
+            <th>Summary</th>
+            <th>Rent</th>
+            <th>Spares</th>
+            <th>Total</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($revisions as $revision): ?>
+          <?php
+            $revisionId = (int) $revision['id'];
+            $revisionTotals = revision_totals($revisionId);
+            $returnTab = revision_return_tab($revision);
+            $isCurrent = $activeRevisionId !== null && $activeRevisionId === $revisionId;
+          ?>
+          <tr class="revision-history-row<?= $isCurrent ? ' revision-history-row-current' : '' ?>">
+            <td>
+              <div class="revision-history-code">
+                <strong><?= h(revision_display_code($revision)) ?></strong>
+                <?php if ($isCurrent): ?><span class="badge badge-info">Open</span><?php endif; ?>
+              </div>
+            </td>
+            <td><?= ui_badge(revision_stage_label($revision), !empty($revision['is_initial']) ? 'neutral' : 'info') ?></td>
+            <td><?= h($revision['revision_date'] ?: '—') ?></td>
+            <td>
+              <div class="revision-history-summary">
+                <?= h(trim((string) ($revision['summary_note'] ?? '')) ?: 'No summary note yet.') ?>
+              </div>
+            </td>
+            <td><?= h((string) $revisionTotals['rent_total']) ?></td>
+            <td><?= h((string) $revisionTotals['spare_total']) ?></td>
+            <td><strong><?= h((string) $revisionTotals['overall_total']) ?></strong></td>
+            <td>
+              <div class="revision-history-actions">
+                <a class="btn btn-primary btn-sm" href="<?= h(url_for('show?show_id=' . $showId . '&mode=edit&tab=' . $returnTab . '&revision_id=' . $revisionId)) ?>">
+                  <span class="material-symbols-outlined">edit</span>
+                  <?= !empty($revision['is_initial']) ? 'Edit Order' : 'Edit Revision' ?>
+                </a>
+                <a class="btn btn-ghost btn-sm" href="<?= h(url_for('export?show_id=' . $showId . '&revision_id=' . $revisionId)) ?>">
+                  <span class="material-symbols-outlined">print</span>
+                  Export
+                </a>
+                <?php if ($allowDelete && empty($revision['is_initial'])): ?>
+                <form method="post">
+                  <?= csrf_input() ?>
+                  <input type="hidden" name="action" value="delete_revision">
+                  <input type="hidden" name="revision_id" value="<?= h((string) $revisionId) ?>">
+                  <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="DELETE REVISION" data-confirm="Type DELETE REVISION to permanently remove this revision.">
+                    <span class="material-symbols-outlined">delete</span>
+                    Delete
+                  </button>
+                </form>
+                <?php endif; ?>
+              </div>
+            </td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <?php
+}
+
 function is_ajax_request(): bool
 {
     return strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
@@ -360,11 +441,17 @@ if ($mode === 'edit' && $showId && $currentRevision) {
     <?php ui_card_open($currentRevision['is_initial'] ? 'checklist' : 'history', $currentRevision['is_initial'] ? 'Edit Initial Order' : 'Edit ' . revision_display_code($currentRevision)); ?>
       <div class="show-summary">
         <div class="summary-block"><strong>Revision</strong><?= h(revision_display_code($currentRevision)) ?></div>
+        <div class="summary-block"><strong>Type</strong><?= h(revision_stage_label($currentRevision)) ?></div>
         <div class="summary-block"><strong>Date</strong><?= h($currentRevision['revision_date']) ?></div>
         <div class="summary-block"><strong>Rent Total</strong><span data-revision-rent-total><?= h((string) $totals['rent_total']) ?></span></div>
         <div class="summary-block"><strong>Spare Total</strong><span data-revision-spare-total><?= h((string) $totals['spare_total']) ?></span></div>
         <div class="summary-block"><strong>Combined Total</strong><span data-revision-overall-total><?= h((string) $totals['overall_total']) ?></span></div>
       </div>
+      <?php if ($revisions): ?>
+      <div class="section-label">Revision History</div>
+      <div class="helper-text" style="margin-bottom:1rem;">Every revision for this show stays visible here so you can follow the full paper trail while editing.</div>
+      <?php render_revision_history_table((int) $showId, $revisions, (int) $currentRevision['id']); ?>
+      <?php endif; ?>
 
       <?php if (!$catalog): ?>
         <div class="empty-state">
@@ -577,52 +664,8 @@ if ($mode === 'edit' && $showId && $currentRevision) {
             </form>
           </div>
 
-          <?php if ($savedRevisions): ?>
-          <div class="stack">
-            <?php foreach ($savedRevisions as $revision): ?>
-            <?php $revisionTotals = revision_totals((int) $revision['id']); ?>
-            <div class="summary-block revision-list-card">
-              <div class="revision-list-header">
-                <div>
-                  <strong><?= h(revision_display_code($revision)) ?></strong>
-                  <div class="muted"><?= h($revision['revision_date']) ?></div>
-                </div>
-                <div class="pill-row">
-                  <span class="revision-stock-pill">Rent <?= h((string) $revisionTotals['rent_total']) ?></span>
-                  <span class="revision-stock-pill">Spares <?= h((string) $revisionTotals['spare_total']) ?></span>
-                  <span class="revision-stock-pill">Total <?= h((string) $revisionTotals['overall_total']) ?></span>
-                </div>
-              </div>
-              <?php if (!empty($revision['summary_note'])): ?><div class="muted"><?= h($revision['summary_note']) ?></div><?php endif; ?>
-              <div class="form-actions">
-                <a class="btn btn-primary btn-sm" href="<?= h(url_for('show?show_id=' . $showId . '&mode=edit&tab=revisions&revision_id=' . (int) $revision['id'])) ?>">
-                  <span class="material-symbols-outlined">edit</span>
-                  Edit Revision
-                </a>
-                <a class="btn btn-ghost btn-sm" href="<?= h(url_for('export?show_id=' . $showId . '&revision_id=' . (int) $revision['id'])) ?>">
-                  <span class="material-symbols-outlined">print</span>
-                  Export
-                </a>
-                <form method="post">
-                  <?= csrf_input() ?>
-                  <input type="hidden" name="action" value="delete_revision">
-                  <input type="hidden" name="revision_id" value="<?= h((string) $revision['id']) ?>">
-                  <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="DELETE REVISION" data-confirm="Type DELETE REVISION to permanently remove this revision.">
-                    <span class="material-symbols-outlined">delete</span>
-                    Delete
-                  </button>
-                </form>
-              </div>
-            </div>
-            <?php endforeach; ?>
-          </div>
-          <?php else: ?>
-          <div class="empty-state">
-            <span class="material-symbols-outlined">history</span>
-            <h3>No revisions yet</h3>
-            <p>Create the next revision to open a full-page editing workspace for changes.</p>
-          </div>
-          <?php endif; ?>
+          <div class="helper-text" style="margin-bottom:1rem;">All revisions stay in one table so you can scan the full sequence from the initial order through the latest revision.</div>
+          <?php render_revision_history_table((int) $showId, $revisions, null, true); ?>
         <?php endif; ?>
       <?php ui_card_close(); ?>
     <?php endif; ?>

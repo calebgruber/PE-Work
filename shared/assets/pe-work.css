@@ -501,6 +501,47 @@
   overflow-x: auto;
 }
 
+.revision-history-wrap {
+  margin-bottom: 1rem;
+}
+
+.revision-history-table {
+  width: 100%;
+  min-width: 980px;
+}
+
+.revision-history-table th,
+.revision-history-table td {
+  vertical-align: top;
+}
+
+.revision-history-row-current td {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.revision-history-code {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.revision-history-summary {
+  max-width: 24rem;
+  white-space: normal;
+}
+
+.revision-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.revision-history-actions form {
+  margin: 0;
+}
+
 .revision-sheet {
   width: 100%;
   min-width: 1120px;
@@ -583,11 +624,6 @@
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
-}
-
-.revision-list-card {
-  display: grid;
-  gap: 0.875rem;
 }
 
 .resource-frame {

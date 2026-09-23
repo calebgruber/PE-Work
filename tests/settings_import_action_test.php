@@ -141,9 +141,14 @@ create_inventory_item(['category_id' => $validationPowerCategoryId, 'name' => 'V
 $validationFixtureId = (int) db()->query("SELECT id FROM inventory_items WHERE name = 'Validation Fixture' ORDER BY id DESC LIMIT 1")->fetchColumn();
 $validationCableId = (int) db()->query("SELECT id FROM inventory_items WHERE name = 'Validation Cable' ORDER BY id DESC LIMIT 1")->fetchColumn();
 $validationRevisionId = create_initial_revision($validationShowId);
+$validationNextRevisionId = create_next_revision($validationShowId);
 save_revision_lines($validationRevisionId, [
     $validationFixtureId => ['rent_quantity' => 1, 'spare_quantity' => 0, 'action' => 'add'],
     $validationCableId => ['rent_quantity' => 1, 'spare_quantity' => 0, 'action' => 'add'],
+]);
+save_revision_lines($validationNextRevisionId, [
+    $validationFixtureId => ['rent_quantity' => 2, 'spare_quantity' => 1, 'action' => 'add', 'line_note' => 'Updated for revision table'],
+    $validationCableId => ['rent_quantity' => 2, 'spare_quantity' => 0, 'action' => 'exchange'],
 ]);
 save_rule([
     'trigger_item_id' => $validationFixtureId,
@@ -486,6 +491,8 @@ $validationInvalidHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-inva
 $validationInvalidResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-invalid-response-');
 $validationPersistedHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-persisted-headers-');
 $validationPersistedResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-persisted-response-');
+$revisionListPagePath = tempnam(sys_get_temp_dir(), 'pew-revision-list-page-');
+$revisionEditPagePath = tempnam(sys_get_temp_dir(), 'pew-revision-edit-page-');
 $testPaths[] = $validationPagePath;
 $testPaths[] = $validationHeadersPath;
 $testPaths[] = $validationResponsePath;
@@ -497,6 +504,8 @@ $testPaths[] = $validationInvalidHeadersPath;
 $testPaths[] = $validationInvalidResponsePath;
 $testPaths[] = $validationPersistedHeadersPath;
 $testPaths[] = $validationPersistedResponsePath;
+$testPaths[] = $revisionListPagePath;
+$testPaths[] = $revisionEditPagePath;
 exec(sprintf(
     "curl -fsS -o %s -c %s -b %s %s",
     escapeshellarg($validationPagePath),
@@ -570,6 +579,20 @@ exec(sprintf(
     escapeshellarg('revision_id=' . $validationRevisionId),
     escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&mode=edit&tab=orders&revision_id=' . $validationRevisionId)
 ), $validationPersistedOutput, $validationPersistedStatus);
+exec(sprintf(
+    "curl -fsS -o %s -c %s -b %s %s",
+    escapeshellarg($revisionListPagePath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&tab=revisions')
+), $revisionListPageOutput, $revisionListPageStatus);
+exec(sprintf(
+    "curl -fsS -o %s -c %s -b %s %s",
+    escapeshellarg($revisionEditPagePath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&mode=edit&tab=revisions&revision_id=' . $validationNextRevisionId)
+), $revisionEditPageOutput, $revisionEditPageStatus);
 $validationHeaders = is_file($validationHeadersPath) ? file_get_contents($validationHeadersPath) : '';
 $validationBody = is_file($validationResponsePath) ? file_get_contents($validationResponsePath) : '';
 $autosaveHeaders = is_file($autosaveHeadersPath) ? file_get_contents($autosaveHeadersPath) : '';
@@ -580,6 +603,8 @@ $validationInvalidHeaders = is_file($validationInvalidHeadersPath) ? file_get_co
 $validationInvalidBody = is_file($validationInvalidResponsePath) ? file_get_contents($validationInvalidResponsePath) : '';
 $validationPersistedHeaders = is_file($validationPersistedHeadersPath) ? file_get_contents($validationPersistedHeadersPath) : '';
 $validationPersistedBody = is_file($validationPersistedResponsePath) ? file_get_contents($validationPersistedResponsePath) : '';
+$revisionListPageHtml = is_file($revisionListPagePath) ? file_get_contents($revisionListPagePath) : '';
+$revisionEditPageHtml = is_file($revisionEditPagePath) ? file_get_contents($revisionEditPagePath) : '';
 
 settings_assert($validationPageStatus === 0 && $validationCsrfToken !== '', 'Expected validation edit page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($validationStatus === 0, 'Expected validation endpoint request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
@@ -599,5 +624,11 @@ settings_assert(str_contains($validationInvalidBody, 'Revision not found for thi
 settings_assert($validationPersistedStatus === 0, 'Expected persisted-state validation endpoint request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationPersistedHeaders, 'Content-Type: application/json'), 'Expected persisted-state validation request to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationPersistedBody, 'Rule required:'), 'Expected persisted-state validation to reflect the autosaved revision state.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($revisionListPageStatus === 0, 'Expected revisions page request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($revisionListPageHtml, 'revision-history-table'), 'Expected revisions page to render the table-based revision history.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($revisionListPageHtml, '1.0') && str_contains($revisionListPageHtml, '1.1'), 'Expected revisions page to show the initial order and later revisions together.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($revisionEditPageStatus === 0, 'Expected revision edit page request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($revisionEditPageHtml, 'Revision History'), 'Expected revision edit page to include a revision history section.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($revisionEditPageHtml, 'Every revision for this show stays visible here'), 'Expected revision edit page to explain the full revision trail while editing.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_test_cleanup($repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 echo "settings import action test passed\n";
