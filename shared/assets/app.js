@@ -157,6 +157,7 @@
     document.addEventListener('click', function (e) {
       var link = e.target.closest('a[href]');
       if (!link) return;
+      if (typeof e.button === 'number' && e.button !== 0) return;
       var href = link.getAttribute('href') || '';
       if (link.target || link.hasAttribute('download') || e.ctrlKey || e.metaKey || e.shiftKey ||
           href.charAt(0) === '#' || /^(javascript|data|vbscript|mailto|tel):/i.test(href) || href === '') return;

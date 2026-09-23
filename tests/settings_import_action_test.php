@@ -163,5 +163,71 @@ settings_assert(str_contains($pasteHeaders, 'Location: /settings?tab=inventory')
 settings_assert($pastedQuantity === 9, 'Expected pasted import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 settings_assert(str_contains($pasteBody, 'Import complete'), 'Expected redirected settings page to show the pasted import success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 
+$pdfPath = tempnam(sys_get_temp_dir(), 'pew-resource-pdf-');
+file_put_contents($pdfPath, "%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF");
+$resourceCookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-resource-');
+$resourceHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-headers-');
+$resourceResponsePath = tempnam(sys_get_temp_dir(), 'pew-resource-response-');
+$testPaths[] = $pdfPath;
+$testPaths[] = $resourceCookieJar;
+$testPaths[] = $resourceHeadersPath;
+$testPaths[] = $resourceResponsePath;
+$resourceCommand = sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=upload_resource' -F 'resource_title=Shop Resource' -F 'resource_pdf=@%s;type=application/pdf;filename=resource.pdf' %s",
+    escapeshellarg($resourceResponsePath),
+    escapeshellarg($resourceHeadersPath),
+    escapeshellarg($resourceCookieJar),
+    escapeshellarg($resourceCookieJar),
+    escapeshellarg($pdfPath),
+    escapeshellarg($baseUrl . '/settings?tab=resources')
+);
+exec($resourceCommand, $resourceOutput, $resourceStatus);
+$resourceHeaders = is_file($resourceHeadersPath) ? file_get_contents($resourceHeadersPath) : '';
+$resourceBody = is_file($resourceResponsePath) ? file_get_contents($resourceResponsePath) : '';
+$freshDb = new PDO('sqlite:' . $testDbPath, null, null, [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+]);
+$resourceStmt = $freshDb->prepare('SELECT stored_name FROM resources WHERE title = ? ORDER BY id DESC LIMIT 1');
+$resourceStmt->execute(['Shop Resource']);
+$storedName = (string) $resourceStmt->fetchColumn();
+if ($storedName !== '') {
+    $testPaths[] = $repoRoot . '/storage/uploads/resources/' . $storedName;
+}
+
+settings_assert($resourceStatus === 0, 'Expected resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceHeaders, 'Location: /settings?tab=resources'), 'Expected resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert($storedName !== '', 'Expected resource upload action to persist the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceBody, 'Resource uploaded.'), 'Expected redirected resources page to show the upload success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+
+$textPath = tempnam(sys_get_temp_dir(), 'pew-resource-text-');
+file_put_contents($textPath, "not a pdf");
+$badResourceCookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-bad-resource-');
+$badResourceHeadersPath = tempnam(sys_get_temp_dir(), 'pew-bad-resource-headers-');
+$badResourceResponsePath = tempnam(sys_get_temp_dir(), 'pew-bad-resource-response-');
+$testPaths[] = $textPath;
+$testPaths[] = $badResourceCookieJar;
+$testPaths[] = $badResourceHeadersPath;
+$testPaths[] = $badResourceResponsePath;
+$badResourceCommand = sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=upload_resource' -F 'resource_title=Bad Resource' -F 'resource_pdf=@%s;type=text/plain;filename=resource.txt' %s",
+    escapeshellarg($badResourceResponsePath),
+    escapeshellarg($badResourceHeadersPath),
+    escapeshellarg($badResourceCookieJar),
+    escapeshellarg($badResourceCookieJar),
+    escapeshellarg($textPath),
+    escapeshellarg($baseUrl . '/settings?tab=resources')
+);
+exec($badResourceCommand, $badResourceOutput, $badResourceStatus);
+$badResourceHeaders = is_file($badResourceHeadersPath) ? file_get_contents($badResourceHeadersPath) : '';
+$badResourceBody = is_file($badResourceResponsePath) ? file_get_contents($badResourceResponsePath) : '';
+$resourceStmt->execute(['Bad Resource']);
+$badStoredName = $resourceStmt->fetchColumn();
+
+settings_assert($badResourceStatus === 0, 'Expected invalid resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert(str_contains($badResourceHeaders, 'Location: /settings?tab=resources'), 'Expected invalid resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert($badStoredName === false, 'Expected invalid resource upload to avoid persisting a resource row.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert(str_contains($badResourceBody, 'Only PDF resources are supported.'), 'Expected redirected resources page to show the non-PDF warning.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+
 settings_test_cleanup($repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 echo "settings import action test passed\n";

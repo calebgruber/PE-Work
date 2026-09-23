@@ -22,6 +22,20 @@ if (!is_file($path)) {
     exit('Not found');
 }
 
+$mimeType = '';
+if (function_exists('finfo_open')) {
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    if ($finfo) {
+        $mimeType = (string) finfo_file($finfo, $path);
+        finfo_close($finfo);
+    }
+}
+$signature = @file_get_contents($path, false, null, 0, 5);
+if ($signature !== '%PDF-' || ($mimeType !== '' && $mimeType !== 'application/pdf')) {
+    http_response_code(404);
+    exit('Not found');
+}
+
 while (ob_get_level() > 0) {
     ob_end_clean();
 }

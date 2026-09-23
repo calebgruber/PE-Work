@@ -1204,7 +1204,7 @@ function resource_path(array $resource): string
 
 function is_unique_constraint_violation(Throwable $e): bool
 {
-    if (!$e instanceof PDOException) {
+    if (!$e instanceof \PDOException) {
         return false;
     }
 

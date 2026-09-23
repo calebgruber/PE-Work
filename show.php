@@ -111,6 +111,17 @@ function revision_return_tab(?array $revision): string
     return !empty($revision['is_initial']) ? 'orders' : 'revisions';
 }
 
+function show_has_initial_revision(int $showId): bool
+{
+    foreach (list_revisions($showId) as $revision) {
+        if ((int) ($revision['is_initial'] ?? 0) === 1) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 if (!schema_ready()) {
     header('Location: ' . url_for('setup'));
     exit;
@@ -162,6 +173,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'create_revision' && $showId) {
+        if (!show_has_initial_revision($showId)) {
+            flash('warning', 'Create the initial order first.');
+            header('Location: ' . url_for('show?show_id=' . $showId . '&tab=orders'));
+            exit;
+        }
         $revisionId = create_next_revision($showId);
         flash('success', 'Next revision created.');
         header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=revisions&revision_id=' . $revisionId));
