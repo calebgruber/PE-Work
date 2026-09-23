@@ -869,24 +869,18 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <div class="helper-text">Set to 0 to let page sizing decide automatically.</div>
           </div>
           <div class="form-group">
-            <label for="equipment_row_padding">Row Padding (in)</label>
+            <label for="equipment_row_padding">Line Item Row Padding (in)</label>
             <input class="form-control" id="equipment_row_padding" type="number" min="0" step="0.001" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_header_row_padding">Header Row Height (in)</label>
-            <input class="form-control" id="equipment_header_row_padding" type="number" min="0" step="0.001" name="equipment_header_row_padding" value="<?= h($layout['layout.equipment_header_row_padding'] ?? '0.022') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_header_line_height">Header Line Height</label>
-            <input class="form-control" id="equipment_header_line_height" type="number" min="0.9" step="0.01" name="equipment_header_line_height" value="<?= h($layout['layout.equipment_header_line_height'] ?? '1.1') ?>">
+            <input class="form-control" id="equipment_header_row_padding" type="number" min="0" step="0.001" name="equipment_header_row_padding" value="<?= h($layout['layout.equipment_header_row_padding'] ?? '0.22') ?>">
+            <div class="helper-text">One setting for the full LINE / ITEM / DESCRIPTION header row height.</div>
           </div>
           <div class="form-group">
             <label for="equipment_category_row_padding">Category Row Height (in)</label>
-            <input class="form-control" id="equipment_category_row_padding" type="number" min="0" step="0.001" name="equipment_category_row_padding" value="<?= h($layout['layout.equipment_category_row_padding'] ?? '0.03') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_category_line_height">Category Line Height</label>
-            <input class="form-control" id="equipment_category_line_height" type="number" min="0.9" step="0.01" name="equipment_category_line_height" value="<?= h($layout['layout.equipment_category_line_height'] ?? '1.1') ?>">
+            <input class="form-control" id="equipment_category_row_padding" type="number" min="0" step="0.001" name="equipment_category_row_padding" value="<?= h($layout['layout.equipment_category_row_padding'] ?? '0.26') ?>">
+            <div class="helper-text">One setting for the full category row height.</div>
           </div>
           <div class="form-group">
             <label for="equipment_category_gap">Space Above Categories (in)</label>

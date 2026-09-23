@@ -145,23 +145,42 @@ function export_notes_list(array $layout, array $show, array $catalog = []): arr
 {
     $notes = preg_split('/\r\n|\r|\n/', (string) ($layout['layout.export_notes'] ?? '')) ?: [];
     $showNotes = preg_split('/\r\n|\r|\n/', (string) ($show['show_notes'] ?? '')) ?: [];
-    $lineNotes = [];
-    foreach ($catalog as $entry) {
-        $item = $entry['item'] ?? [];
-        $line = $entry['line'] ?? [];
-        if (!empty($item['is_spacer'])) {
-            continue;
+    $itemNotes = [];
+    foreach ($catalog as $category) {
+        foreach (($category['items'] ?? []) as $item) {
+            if (!empty($item['is_spacer'])) {
+                continue;
+            }
+            $line = $item['line'] ?? [];
+            $totalQuantity = (int) ($line['total_quantity'] ?? 0);
+            if ($totalQuantity <= 0) {
+                continue;
+            }
+
+            $itemName = trim((string) ($item['name'] ?? ''));
+            $defaultNote = trim((string) ($item['default_note'] ?? ''));
+            if ($defaultNote !== '') {
+                $itemNotes[] = $itemName !== '' ? ($itemName . ': ' . $defaultNote) : $defaultNote;
+            }
+
+            $lineNote = trim((string) ($line['line_note'] ?? ''));
+            if ($lineNote !== '') {
+                $itemNotes[] = $itemName !== '' ? ($itemName . ': ' . $lineNote) : $lineNote;
+            }
         }
-        $lineNote = trim((string) ($line['line_note'] ?? ''));
-        if ($lineNote === '') {
-            continue;
-        }
-        $itemName = trim((string) ($item['name'] ?? ''));
-        $lineNotes[] = $itemName !== '' ? ($itemName . ': ' . $lineNote) : $lineNote;
     }
-    $combined = array_merge($notes, $showNotes, $lineNotes);
-    $combined = array_values(array_unique($combined));
-    return array_values(array_filter(array_map('trim', $combined), static fn ($note) => $note !== ''));
+
+    $combined = array_merge($notes, $showNotes, $itemNotes);
+    $combined = array_map(static fn ($note) => trim((string) $note), $combined);
+    $deduped = [];
+    foreach ($combined as $note) {
+        if ($note === '' || in_array($note, $deduped, true)) {
+            continue;
+        }
+        $deduped[] = $note;
+    }
+
+    return $deduped;
 }
 
 function export_row_background(array $revision, array $item, array $line): string
@@ -301,10 +320,8 @@ function export_equipment_layout_metrics(array $layout): array
     $minRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_min_rows_per_page'] ?? 0)));
     $maxRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_max_rows_per_page'] ?? 0)));
     $rowPadding = max(0.0, (float) ($layout['layout.equipment_row_padding'] ?? 0.016));
-    $headerRowPadding = max(0.0, (float) ($layout['layout.equipment_header_row_padding'] ?? 0.022));
-    $headerLineHeight = max(0.9, min(4.0, (float) ($layout['layout.equipment_header_line_height'] ?? 1.1)));
-    $categoryRowPadding = max(0.0, (float) ($layout['layout.equipment_category_row_padding'] ?? 0.03));
-    $categoryLineHeight = max(0.9, min(4.0, (float) ($layout['layout.equipment_category_line_height'] ?? 1.1)));
+    $headerRowPadding = max(0.0, (float) ($layout['layout.equipment_header_row_padding'] ?? 0.22));
+    $categoryRowPadding = max(0.0, (float) ($layout['layout.equipment_category_row_padding'] ?? 0.26));
     $categoryGap = max(0.0, (float) ($layout['layout.equipment_category_gap'] ?? 0.08));
     $fontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
     $lineHeight = max(0.9, min(2.2, (float) ($layout['layout.equipment_line_height'] ?? 1.1)));
@@ -329,9 +346,7 @@ function export_equipment_layout_metrics(array $layout): array
         'max_rows_per_page' => $maxRowsPerPage,
         'row_padding' => $rowPadding,
         'header_row_padding' => $headerRowPadding,
-        'header_line_height' => $headerLineHeight,
         'category_row_padding' => $categoryRowPadding,
-        'category_line_height' => $categoryLineHeight,
         'category_gap' => $categoryGap,
         'font_size' => $fontSize,
         'line_height' => $lineHeight,
@@ -375,14 +390,12 @@ function export_equipment_page_row_height(array $row, array $metrics): float
 
 function export_equipment_header_row_height(array $metrics): float
 {
-    $baseHeight = (($metrics['font_size'] / 72) * ($metrics['header_line_height'] ?? $metrics['line_height'])) + (($metrics['header_row_padding'] ?? 0.022) * 2) + 0.06;
-    return max(0.18, $baseHeight);
+    return max(0.18, (float) ($metrics['header_row_padding'] ?? 0.22));
 }
 
 function export_equipment_category_row_height(array $metrics): float
 {
-    $baseHeight = (($metrics['font_size'] / 72) * ($metrics['category_line_height'] ?? $metrics['line_height'])) + (($metrics['category_row_padding'] ?? 0.03) * 2) + 0.06;
-    return max(0.2, $baseHeight);
+    return max(0.2, (float) ($metrics['category_row_padding'] ?? 0.26));
 }
 
 function export_equipment_category_transition_height(bool $hasPreviousCategory, array $metrics): float
@@ -796,9 +809,10 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       border-bottom: 1px solid #666;
       text-decoration: underline;
       font-weight: 700;
-      padding-top: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
-      padding-bottom: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
-      line-height: <?= h(number_format($equipmentMetrics['header_line_height'], 2, '.', '')) ?>;
+      height: <?= h(number_format(export_equipment_header_row_height($equipmentMetrics), 3, '.', '')) ?>in;
+      padding-top: 0;
+      padding-bottom: 0;
+      line-height: 1.1;
       background: <?= h($equipmentHeaderFill) ?>;
     }
     .col-line { width: <?= h(number_format($equipmentMetrics['line_width'], 3, '.', '')) ?>%; }
@@ -844,9 +858,10 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     }
     .category-header-row td {
       height: <?= h(number_format(export_equipment_category_row_height($equipmentMetrics), 3, '.', '')) ?>in;
-      padding-top: <?= h(number_format($equipmentMetrics['category_row_padding'], 3, '.', '')) ?>in;
-      padding-bottom: <?= h(number_format($equipmentMetrics['category_row_padding'], 3, '.', '')) ?>in;
-      line-height: <?= h(number_format($equipmentMetrics['category_line_height'], 2, '.', '')) ?>;
+      min-height: <?= h(number_format(export_equipment_category_row_height($equipmentMetrics), 3, '.', '')) ?>in;
+      padding-top: 0;
+      padding-bottom: 0;
+      line-height: 1.1;
       font-weight: 700;
       letter-spacing: 0.03em;
       text-transform: uppercase;
@@ -856,9 +871,10 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     }
     .category-column-header-row td {
       height: <?= h(number_format(export_equipment_header_row_height($equipmentMetrics), 3, '.', '')) ?>in;
-      padding-top: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
-      padding-bottom: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
-      line-height: <?= h(number_format($equipmentMetrics['header_line_height'], 2, '.', '')) ?>;
+      min-height: <?= h(number_format(export_equipment_header_row_height($equipmentMetrics), 3, '.', '')) ?>in;
+      padding-top: 0;
+      padding-bottom: 0;
+      line-height: 1.1;
       border-bottom: 1px solid #666;
       text-decoration: underline;
       font-weight: 700;
