@@ -51,16 +51,22 @@
     function closeModal() {
       modal.classList.add('hidden');
       modal.setAttribute('aria-hidden', 'true');
-      if (lastTrigger) lastTrigger.focus();
+      if (lastTrigger) {
+        lastTrigger.setAttribute('aria-expanded', 'false');
+        lastTrigger.focus();
+      }
     }
 
     document.querySelectorAll('[data-note-trigger]').forEach(function (button) {
+      button.setAttribute('aria-haspopup', 'dialog');
+      button.setAttribute('aria-expanded', 'false');
       button.addEventListener('click', function () {
         lastTrigger = button;
         if (title) title.textContent = button.getAttribute('data-note-title') || 'Item Note';
         if (body) body.textContent = button.getAttribute('data-note-body') || '';
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
+        button.setAttribute('aria-expanded', 'true');
         const focusables = focusableElements();
         if (focusables.length) {
           focusables[0].focus();

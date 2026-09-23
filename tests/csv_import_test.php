@@ -33,6 +33,19 @@ assert_true($updateResult['ok'] === true, 'Expected second valid CSV import to s
 $stmt->execute(['Source Four']);
 assert_true((int) $stmt->fetchColumn() === 12, 'Expected repeated import to update the existing item.');
 
+$dynamicCsv = tempnam(sys_get_temp_dir(), 'pew-dynamic-');
+file_put_contents($dynamicCsv, "category,name,shop_quantity,unit,default_note,description\nPracticals,Lamp Cart,3,ea,Practical carts,Dynamic category import\n");
+$dynamicResult = import_inventory_csv($dynamicCsv);
+assert_true($dynamicResult['ok'] === true, 'Expected dynamic category import to succeed.');
+$stmt->execute(['Lamp Cart']);
+assert_true((int) $stmt->fetchColumn() === 3, 'Expected dynamic-category item to be inserted.');
+
+file_put_contents($dynamicCsv, "category,name,shop_quantity,unit,default_note,description\nPracticals,Lamp Cart,4,ea,Practical carts,Dynamic category reimport\n");
+$dynamicUpdateResult = import_inventory_csv($dynamicCsv);
+assert_true($dynamicUpdateResult['ok'] === true, 'Expected dynamic category reimport to succeed.');
+$stmt->execute(['Lamp Cart']);
+assert_true((int) $stmt->fetchColumn() === 4, 'Expected dynamic-category item to update on reimport.');
+
 $invalidCsv = tempnam(sys_get_temp_dir(), 'pew-invalid-');
 file_put_contents($invalidCsv, "label,qty\nBad Item,1\n");
 $invalidResult = import_inventory_csv($invalidCsv);
@@ -41,6 +54,7 @@ assert_true(str_contains($invalidResult['message'], 'category and name columns')
 
 @unlink($validCsv);
 @unlink($invalidCsv);
+@unlink($dynamicCsv);
 @unlink(DB_SQLITE_PATH);
 
 echo "csv import tests passed\n";

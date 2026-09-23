@@ -710,8 +710,13 @@ function import_inventory_csv(string $tmpPath): array
         $defaultNote = trim((string) ($row[$headerMap['default_note']] ?? ''));
         $description = trim((string) ($row[$headerMap['description']] ?? ''));
 
-        $lookup = db()->prepare('SELECT id FROM inventory_items WHERE category_id = ? AND name = ?');
-        $lookup->execute([$categoryId, $name]);
+        if ($categoryId > 0) {
+            $lookup = db()->prepare('SELECT id FROM inventory_items WHERE category_id = ? AND name = ?');
+            $lookup->execute([$categoryId, $name]);
+        } else {
+            $lookup = db()->prepare('SELECT id FROM inventory_items WHERE category_id IS NULL AND name = ?');
+            $lookup->execute([$name]);
+        }
         $itemId = $lookup->fetchColumn();
 
         if ($itemId) {

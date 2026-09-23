@@ -6,13 +6,15 @@ require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
 $tab = $_GET['tab'] ?? 'inventory';
-$migrationLogs = [];
+$migrationLogs = $_SESSION['migration_logs'] ?? [];
+unset($_SESSION['migration_logs']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'run_migrations') {
         $migrationLogs = run_pending_migrations();
+        $_SESSION['migration_logs'] = $migrationLogs;
         $hasError = false;
         foreach ($migrationLogs as $log) {
             if (($log['status'] ?? '') === 'error') {
@@ -21,7 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         flash($hasError ? 'danger' : 'success', $hasError ? 'Migration run finished with errors. Review the results below.' : 'Migration run completed successfully.');
-        $tab = 'migrations';
+        header('Location: ' . url_for('settings?tab=migrations'));
+        exit;
     } elseif (schema_ready()) {
         if ($action === 'save_inventory') {
             save_inventory_batch($_POST['items'] ?? []);

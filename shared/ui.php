@@ -102,7 +102,7 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
     </span>
 
     <div class="topbar-right">
-      <button id="theme-toggle" class="topbar-btn" title="Toggle theme">
+      <button id="theme-toggle" class="topbar-btn" title="Toggle theme" aria-label="Toggle theme">
         <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
       </button>
       <span class="topbar-user">
@@ -235,7 +235,7 @@ function ui_end(): void
   <div class="modal-panel">
     <div class="modal-header">
       <h3 id="note-modal-title">Item Note</h3>
-      <button type="button" class="btn btn-ghost btn-sm" data-close-modal>
+      <button type="button" class="btn btn-ghost btn-sm" data-close-modal aria-label="Close note dialog">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>

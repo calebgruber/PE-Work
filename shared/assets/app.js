@@ -120,6 +120,7 @@
     document.querySelectorAll('[data-add-row]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const container = document.getElementById(btn.getAttribute('data-add-row'));
+        if (!container) return;
         const template  = container.querySelector('[data-row-template]');
         if (!template) return;
         const clone = template.cloneNode(true);
