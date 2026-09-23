@@ -850,9 +850,9 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($equipmentPageRows as $row): ?>
+          <?php foreach ($equipmentPageRows as $pageRowIndex => $row): ?>
           <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'rent_quantity'); ?>
-          <tr style="<?= h(export_row_style($lineNumber - 1, $revision, $row['item'], $row['line'])) ?>">
+          <tr style="<?= h(export_row_style($pageRowIndex, $revision, $row['item'], $row['line'])) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>
             <td class="description-cell"><?= h($row['category']) ?></td>
