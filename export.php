@@ -198,7 +198,7 @@ function export_row_style(int $rowIndex, array $revision, array $item, array $li
         return $actionBackground;
     }
 
-    return $rowIndex % 2 === 0 ? 'background:#F3F4F6;' : 'background:#FFFFFF;';
+    return $rowIndex % 2 === 0 ? 'background:#E0E0E0;' : 'background:#FFFFFF;';
 }
 
 function export_line_delta(array $revision, int $itemId, array $line, string $field): string
@@ -221,7 +221,7 @@ function export_line_delta(array $revision, int $itemId, array $line, string $fi
         return '';
     }
 
-    return ($delta > 0 ? '+' : '') . (string) $delta;
+    return '(' . ($delta > 0 ? '+' : '') . (string) $delta . ')';
 }
 
 function export_value(string $value, string $fallback = '—'): string
@@ -323,17 +323,24 @@ $totalPages = count($pageNumbers);
       text-decoration: underline;
     }
     .detail-block {
-      width: 3.25in;
-      margin-left: 2.55in;
-      margin-bottom: 0.1in;
+      width: 3.95in;
+      margin-left: 2.2in;
+      margin-bottom: 0.14in;
     }
     .detail-gap { margin-bottom: 0.2in; }
+    .detail-row {
+      display: grid;
+      grid-template-columns: 1.3in minmax(0, 1fr);
+      gap: 0.08in;
+      align-items: start;
+    }
     .detail-label {
-      display: inline-block;
-      min-width: 1.3in;
+      display: block;
+      font-weight: 600;
     }
     .detail-subline {
-      padding-left: 1.3in;
+      display: block;
+      padding-left: calc(1.3in + 0.08in);
     }
     .notes-heading {
       margin-top: 0.45in;
@@ -367,7 +374,7 @@ $totalPages = count($pageNumbers);
     table.word-table td {
       padding: 0.05in 0.06in;
       vertical-align: middle;
-      text-align: center;
+      text-align: left;
       white-space: nowrap;
       overflow: hidden;
     }
@@ -399,6 +406,12 @@ $totalPages = count($pageNumbers);
       border-top: 1px solid #d1d5db;
       border-bottom: 1px solid #d1d5db;
       background: #f3f4f6;
+    }
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
     }
     .footer {
       position: absolute;
@@ -438,37 +451,37 @@ $totalPages = count($pageNumbers);
       </div>
 
       <div class="detail-block">
-        <p><span class="detail-label">Designer:</span><?= h(export_value((string) ($show['ld_name'] ?? ''))) ?></p>
+        <p class="detail-row"><span class="detail-label">Designer:</span><span><?= h(export_value((string) ($show['ld_name'] ?? ''))) ?></span></p>
         <p class="detail-subline"><?= h(export_value((string) ($show['ld_email'] ?? ''))) ?></p>
         <p class="detail-subline"><?= h(export_value((string) ($show['ld_phone'] ?? ''))) ?></p>
       </div>
       <div class="detail-block detail-gap">
-        <p><span class="detail-label">Assistant Designer:</span><?= h(export_value((string) ($show['assistant_ld_name'] ?? ''))) ?></p>
+        <p class="detail-row"><span class="detail-label">Assistant Designer:</span><span><?= h(export_value((string) ($show['assistant_ld_name'] ?? ''))) ?></span></p>
         <p class="detail-subline"><?= h(export_value((string) ($show['assistant_ld_email'] ?? ''))) ?></p>
         <p class="detail-subline"><?= h(export_value((string) ($show['assistant_ld_phone'] ?? ''))) ?></p>
       </div>
       <div class="detail-block detail-gap">
-        <p><span class="detail-label">Production Electrician:</span><?= h(export_value((string) ($show['production_electrician_name'] ?? ''))) ?></p>
+        <p class="detail-row"><span class="detail-label">Production Electrician:</span><span><?= h(export_value((string) ($show['production_electrician_name'] ?? ''))) ?></span></p>
         <p class="detail-subline"><?= h(export_value((string) ($show['production_electrician_email'] ?? ''))) ?></p>
         <p class="detail-subline"><?= h(export_value((string) ($show['production_electrician_phone'] ?? ''))) ?></p>
       </div>
       <div class="detail-block detail-gap">
-        <p><span class="detail-label">Shop Manager:</span><?= h(export_value((string) ($show['shop_manager_name'] ?? ''))) ?></p>
+        <p class="detail-row"><span class="detail-label">Shop Manager:</span><span><?= h(export_value((string) ($show['shop_manager_name'] ?? ''))) ?></span></p>
         <p class="detail-subline"><?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?></p>
         <p class="detail-subline"><?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></p>
       </div>
       <div class="detail-block detail-gap">
-        <p><span class="detail-label">Assistant Shop Manager:</span><?= h(export_value((string) ($show['assistant_shop_manager_name'] ?? ''))) ?></p>
+        <p class="detail-row"><span class="detail-label">Assistant Shop Manager:</span><span><?= h(export_value((string) ($show['assistant_shop_manager_name'] ?? ''))) ?></span></p>
         <p class="detail-subline"><?= h(export_value((string) ($show['assistant_shop_manager_email'] ?? ''))) ?></p>
         <p class="detail-subline"><?= h(export_value((string) ($show['assistant_shop_manager_phone'] ?? ''))) ?></p>
       </div>
       <div class="detail-block detail-gap">
-        <p><span class="detail-label">Load-In:</span><u><?= h(export_value((string) ($show['pull_date'] ?? ''))) ?></u></p>
+        <p class="detail-row"><span class="detail-label">Load-In:</span><span><u><?= h(export_value((string) ($show['pull_date'] ?? ''))) ?></u></span></p>
         <p><?= h(export_value((string) ($show['theatre_address'] ?? ''))) ?></p>
       </div>
       <div class="detail-block">
-        <p><span class="detail-label">Opening:</span><?= h(export_value((string) ($show['opening_date'] ?? ''))) ?></p>
-        <p><span class="detail-label">Strike:</span><?= h(export_value((string) ($show['strike_date'] ?? ''))) ?></p>
+        <p class="detail-row"><span class="detail-label">Opening:</span><span><?= h(export_value((string) ($show['opening_date'] ?? ''))) ?></span></p>
+        <p class="detail-row"><span class="detail-label">Strike:</span><span><?= h(export_value((string) ($show['strike_date'] ?? ''))) ?></span></p>
       </div>
 
       <p class="notes-heading">IMPORTANT NOTES:</p>
