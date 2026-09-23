@@ -5,6 +5,11 @@ function db_driver(): string
     return DB_DRIVER === 'mysql' ? 'mysql' : 'sqlite';
 }
 
+function sqlite_runtime_allowed(): bool
+{
+    return ALLOW_SQLITE_FOR_TESTS === true && in_array(PHP_SAPI, ['cli', 'cli-server', 'phpdbg'], true);
+}
+
 function db(): PDO
 {
     static $pdo = null;
@@ -26,6 +31,9 @@ function db(): PDO
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
     } else {
+        if (!sqlite_runtime_allowed()) {
+            throw new RuntimeException('SQLite is disabled for normal runtime requests. Configure MySQL in config.local.php or environment variables.');
+        }
         $dir = dirname(DB_SQLITE_PATH);
         if (!is_dir($dir)) {
             mkdir($dir, 0775, true);

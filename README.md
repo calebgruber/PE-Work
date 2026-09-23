@@ -20,7 +20,20 @@ Pure PHP starter for theatre shop orders using the CG-Internal UI shell.
 
 ## Local development
 
-By default the app uses SQLite at `storage/pe-work.sqlite`, which makes the starter easy to run locally:
+This app now expects MySQL for normal runtime use, including local development. Create a `config.local.php` file in the project root with values similar to:
+
+```php
+<?php
+define('DB_DRIVER', 'mysql');
+define('DB_HOST', '127.0.0.1');
+define('DB_PORT', 3306);
+define('DB_NAME', 'pe_work');
+define('DB_USER', 'your_user');
+define('DB_PASS', 'your_password');
+define('APP_BASE_URL', '');
+```
+
+Then run:
 
 ```bash
 php -S 127.0.0.1:8000 router.php
@@ -47,6 +60,8 @@ define('APP_BASE_URL', '/your-cpanel-folder');
 ```
 
 After updating code from GitHub, open **Settings → Migrations** (or `/setup`) and click **Apply Pending Migrations** to run any new files in `db/migrations/`.
+
+SQLite remains available only for automated test runs when explicitly enabled by the test harness.
 
 ## CSV inventory import
 

@@ -14,6 +14,7 @@ file_put_contents(
     . "define('DB_DRIVER', 'sqlite');\n"
     . "define('DB_SQLITE_PATH', '" . addslashes($testDbPath) . "');\n"
     . "define('APP_BASE_URL', '/');\n"
+    . "define('ALLOW_SQLITE_FOR_TESTS', true);\n"
     . "define('ALLOW_LOCAL_UPLOADS_FOR_TESTS', true);\n"
 );
 

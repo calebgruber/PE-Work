@@ -9,6 +9,7 @@ if (file_exists($localConfig)) {
 
 define('DB_DRIVER', 'sqlite');
 define('DB_SQLITE_PATH', '/tmp/pe-work-test-' . uniqid('', true) . '.sqlite');
+define('ALLOW_SQLITE_FOR_TESTS', true);
 
 require_once __DIR__ . '/../shared/config.php';
 require_once __DIR__ . '/../shared/db.php';
