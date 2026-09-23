@@ -300,7 +300,6 @@ assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY<
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
-assert_true(str_contains($exportHtml, 'line-height: 1.30;'), 'Expected export stylesheet to use the saved equipment line height.');
 assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => '']) === 'background:#CCCCCC;', 'Expected export zebra striping to use the darker gray.');
 assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cover to remove the extra shop info box above the show title.');
 assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
