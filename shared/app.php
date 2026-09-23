@@ -772,18 +772,19 @@ function import_inventory_csv(string $tmpPath): array
         $description = trim((string) ($row[$headerMap['description']] ?? ''));
 
         if ($categoryId > 0) {
-            $lookup = db()->prepare('SELECT id FROM inventory_items WHERE category_id = ? AND name = ?');
+            $lookup = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id = ? AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
             $lookup->execute([$categoryId, $name]);
         } else {
-            $lookup = db()->prepare('SELECT id FROM inventory_items WHERE category_id IS NULL AND name = ?');
+            $lookup = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id IS NULL AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
             $lookup->execute([$name]);
         }
-        $itemId = $lookup->fetchColumn();
+        $existing = $lookup->fetch();
+        $itemId = $existing['id'] ?? null;
 
         if ($itemId) {
             $stmt = db()->prepare(
                 'UPDATE inventory_items
-                 SET shop_quantity = ?, unit = ?, default_note = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+                 SET shop_quantity = ?, unit = ?, default_note = ?, description = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
                  WHERE id = ?'
             );
             $stmt->execute([$shopQuantity, $unit, $defaultNote, $description, $itemId]);
@@ -912,7 +913,14 @@ function store_resource_upload(array $file, string $title = ''): array
     $destination = upload_dir('resources') . '/' . $storedName;
 
     if (!move_uploaded_file($file['tmp_name'], $destination)) {
-        return ['ok' => false, 'message' => 'Unable to store the uploaded PDF.'];
+        $tmpPath = (string) $file['tmp_name'];
+        $moved = false;
+        if (PHP_SAPI === 'cli' && is_file($tmpPath)) {
+            $moved = @rename($tmpPath, $destination) || @copy($tmpPath, $destination);
+        }
+        if (!$moved) {
+            return ['ok' => false, 'message' => 'Unable to store the uploaded PDF.'];
+        }
     }
 
     $resourceTitle = trim($title) !== '' ? trim($title) : pathinfo($originalName, PATHINFO_FILENAME);

@@ -150,6 +150,8 @@
         const categoryId = category.getAttribute('data-category-id') || '';
         const categoryName = category.getAttribute('data-category-name') || '';
         const categoryMatches = !categoryFilter || categoryId === categoryFilter;
+        const trigger = category.querySelector('[data-accordion-trigger]');
+        const panel = category.querySelector('[data-accordion-panel]');
         let visibleItems = 0;
 
         category.querySelectorAll('[data-inventory-item]').forEach(function (item) {
@@ -160,6 +162,11 @@
         });
 
         category.classList.toggle('hidden', visibleItems === 0 || !categoryMatches);
+        if (trigger && panel && (searchTerm || categoryFilter)) {
+          const shouldOpen = visibleItems > 0 && categoryMatches;
+          trigger.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+          panel.classList.toggle('hidden', !shouldOpen);
+        }
       });
     }
 
