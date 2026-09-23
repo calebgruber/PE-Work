@@ -295,6 +295,14 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                         </div>
                         <div class="inventory-item-fields">
                           <div class="form-group">
+                            <label>Category</label>
+                            <select class="form-control compact-input" name="items[<?= h((string) $item['id']) ?>][category_id]">
+                              <?php foreach ($categories as $itemCategory): ?>
+                              <option value="<?= h((string) $itemCategory['id']) ?>" <?= (int) ($item['category_id'] ?? 0) === (int) $itemCategory['id'] ? 'selected' : '' ?>><?= h($itemCategory['name']) ?></option>
+                              <?php endforeach; ?>
+                            </select>
+                          </div>
+                          <div class="form-group">
                             <label>Shop Has</label>
                             <input class="form-control compact-input" type="number" min="0" name="items[<?= h((string) $item['id']) ?>][shop_quantity]" value="<?= h((string) $item['shop_quantity']) ?>">
                           </div>

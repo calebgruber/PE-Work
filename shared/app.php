@@ -1043,14 +1043,14 @@ function rule_suggestions(int $revisionId): array
 
 function save_inventory_batch(array $items): void
 {
-    $allowedIds = [];
-    foreach (db()->query('SELECT id FROM inventory_items WHERE is_active = 1')->fetchAll() as $row) {
-        $allowedIds[(int) $row['id']] = true;
+    $allowedItems = [];
+    foreach (db()->query('SELECT id, category_id FROM inventory_items WHERE is_active = 1')->fetchAll() as $row) {
+        $allowedItems[(int) $row['id']] = (int) ($row['category_id'] ?? 0);
     }
 
     $supportsSortOrder = table_column_exists('inventory_items', 'sort_order');
     $supportsSpacer = table_column_exists('inventory_items', 'is_spacer');
-    $updateFields = 'shop_quantity = ?, unit = ?, default_note = ?, description = ?';
+    $updateFields = 'category_id = ?, shop_quantity = ?, unit = ?, default_note = ?, description = ?';
     if ($supportsSortOrder) {
         $updateFields .= ', sort_order = ?';
     }
@@ -1059,14 +1059,21 @@ function save_inventory_batch(array $items): void
     }
     $updateFields .= ', updated_at = CURRENT_TIMESTAMP';
     $stmt = db()->prepare('UPDATE inventory_items SET ' . $updateFields . ' WHERE id = ?');
+    $touchedCategories = [];
 
     foreach ($items as $itemId => $row) {
         $itemId = (int) $itemId;
-        if (!isset($allowedIds[$itemId])) {
+        if (!isset($allowedItems[$itemId])) {
             continue;
         }
 
+        $existingCategoryId = $allowedItems[$itemId];
+        $categoryId = isset($row['category_id']) ? max(0, (int) $row['category_id']) : $existingCategoryId;
+        if ($categoryId <= 0) {
+            $categoryId = $existingCategoryId;
+        }
         $params = [
+            $categoryId,
             max(0, (int) ($row['shop_quantity'] ?? 0)),
             trim((string) ($row['unit'] ?? '')),
             trim((string) ($row['default_note'] ?? '')),
@@ -1080,6 +1087,14 @@ function save_inventory_batch(array $items): void
         }
         $params[] = $itemId;
         $stmt->execute($params);
+        $touchedCategories[$existingCategoryId] = true;
+        $touchedCategories[$categoryId] = true;
+    }
+
+    if ($supportsSortOrder) {
+        foreach (array_keys($touchedCategories) as $categoryId) {
+            normalize_inventory_category_sort_order((int) $categoryId);
+        }
     }
 }
 

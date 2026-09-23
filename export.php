@@ -365,7 +365,7 @@ $summaryRows = !empty($revision['is_initial']) ? [] : export_summary_rows($catal
 $notes = export_notes_list($layout, $show);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'] . '&export_type=' . rawurlencode((string) $type));
-$renderSummaryPage = !empty($summaryRows);
+$renderSummaryPage = empty($revision['is_initial']);
 $pageNumbers = ['cover' => 1, 'equipment' => []];
 $nextPageNumber = 2;
 if ($renderSummaryPage) {
@@ -798,6 +798,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           </tr>
         </thead>
         <tbody>
+          <?php if ($summaryRows): ?>
           <?php foreach ($summaryRows as $index => $row): ?>
           <tr style="<?= h(export_row_style($index, $revision, $row['item'], $row['line'])) ?>">
             <td class="line-cell"><?= h((string) ($index + 1)) ?></td>
@@ -807,6 +808,12 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
             <td><?= h((string) $row['quantity']) ?></td>
           </tr>
           <?php endforeach; ?>
+          <?php else: ?>
+          <tr>
+            <td class="line-cell">1</td>
+            <td colspan="4">No line-item changes recorded for this revision.</td>
+          </tr>
+          <?php endif; ?>
         </tbody>
       </table>
       </div>
@@ -848,7 +855,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
         </thead>
         <tbody>
           <?php foreach ($equipmentPageRows as $pageRowIndex => $row): ?>
-          <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'rent_quantity'); ?>
+          <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
           <tr style="<?= h(export_row_style($pageRowIndex, $revision, $row['item'], $row['line'])) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>

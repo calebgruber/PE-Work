@@ -88,6 +88,19 @@ $sortItemResult = create_inventory_item([
     'unit' => 'ea',
 ]);
 assert_true($sortItemResult['ok'] === true, 'Expected sorted inventory item creation to succeed.');
+$moveCategoryResult = create_category('Moved Tools');
+assert_true($moveCategoryResult['ok'] === true, 'Expected moved-tools category creation to succeed.');
+$movedToolsCategoryId = category_id_for_name('Moved Tools');
+$pipeWrenchResult = create_inventory_item([
+    'category_id' => $orderingCategoryId,
+    'name' => 'Pipe Wrench',
+    'sort_order' => 30,
+    'shop_quantity' => 2,
+    'unit' => 'ea',
+    'description' => 'Tool move test',
+]);
+assert_true($pipeWrenchResult['ok'] === true, 'Expected pipe wrench item creation to succeed.');
+$pipeWrenchId = (int) db()->query("SELECT id FROM inventory_items WHERE name = 'Pipe Wrench' ORDER BY id DESC LIMIT 1")->fetchColumn();
 $spacerItemResult = create_inventory_item([
     'category_id' => $orderingCategoryId,
     'name' => 'Spacer Break',
@@ -110,6 +123,19 @@ assert_true(count($orderingItems) === 2, 'Expected ordering category to include 
 assert_true(($orderingItems[0]['name'] ?? '') === 'Spacer Break', 'Expected lower sort order item to render first.');
 assert_true((int) ($orderingItems[0]['is_spacer'] ?? 0) === 1, 'Expected spacer item flag to persist.');
 $orderingSpacerId = (int) ($orderingItems[0]['id'] ?? 0);
+save_inventory_batch([
+    $pipeWrenchId => [
+        'category_id' => $movedToolsCategoryId,
+        'shop_quantity' => 2,
+        'unit' => 'ea',
+        'default_note' => '',
+        'description' => 'Tool move test',
+        'sort_order' => 1,
+        'is_spacer' => 0,
+    ],
+]);
+$pipeWrenchCategoryId = (int) db()->query('SELECT category_id FROM inventory_items WHERE id = ' . $pipeWrenchId)->fetchColumn();
+assert_true($pipeWrenchCategoryId === $movedToolsCategoryId, 'Expected inventory batch saves to persist category changes.');
 
 $validCsv = tempnam(sys_get_temp_dir(), 'pew-valid-');
 file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nFixtures,Source Four,10,ea,Ellipsoidal,Test import\n");
@@ -285,7 +311,7 @@ assert_true(export_row_action_class($nextRevision, ['is_spacer' => 1], ['action'
 save_revision_lines($nextRevisionId, [
     $fixtureItemId => [
         'rent_quantity' => 7,
-        'spare_quantity' => 1,
+        'spare_quantity' => 2,
         'action' => 'exchange',
         'line_note' => 'Latest revision should clone from here.',
         'pickup_date' => '2026-10-02',
@@ -324,7 +350,7 @@ assert_true(str_contains($exportHtml, 'Return 2026-10-16'), 'Expected equipment 
 assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
-assert_true((bool) preg_match('/>\s*8\s*<span class="delta delta-positive">\(\+1\)<\/span>/', $exportHtml), 'Expected equipment breakdown totals to show total-quantity deltas in black text.');
+assert_true((bool) preg_match('/>\s*9\s*<span class="delta delta-positive">\(\+1\)<\/span>/', $exportHtml), 'Expected equipment breakdown totals to show total-quantity deltas in black text.');
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
 assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => '']) === 'background:#CCCCCC;', 'Expected export zebra striping to use the darker gray.');
 assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cover to remove the extra shop info box above the show title.');
@@ -374,7 +400,7 @@ assert_true(($thirdRevision['revision_code'] ?? '') === '1.2', 'Expected second 
 $lineStmt->execute([$thirdRevisionId, $fixtureItemId]);
 $thirdLine = $lineStmt->fetch() ?: [];
 assert_true((int) ($thirdLine['rent_quantity'] ?? 0) === 7, 'Expected later revisions to clone rent quantity from the most recent revision.');
-assert_true((int) ($thirdLine['spare_quantity'] ?? 0) === 1, 'Expected later revisions to clone spare quantity from the most recent revision.');
+assert_true((int) ($thirdLine['spare_quantity'] ?? 0) === 2, 'Expected later revisions to clone spare quantity from the most recent revision.');
 assert_true(($thirdLine['action'] ?? '') === '', 'Expected later revisions to reset the latest action marker back to blank.');
 assert_true(($thirdLine['line_note'] ?? '') === 'Latest revision should clone from here.', 'Expected later revisions to clone the latest note.');
 
