@@ -2089,12 +2089,21 @@ function export_layout_settings(): array
         'layout.equipment_category_fill' => '#E5E7EB',
         'layout.equipment_font_size' => '7.35',
         'layout.equipment_line_height' => '1.1',
+        'layout.equipment_col_line' => '4',
         'layout.equipment_col_item' => '45',
         'layout.equipment_col_description' => '23',
         'layout.equipment_col_used' => '5',
         'layout.equipment_col_spare' => '5',
         'layout.equipment_col_total' => '6',
         'layout.equipment_col_notes' => '12',
+        'layout.equipment_font_line' => '6.9',
+        'layout.equipment_font_item' => '7.35',
+        'layout.equipment_font_description' => '7.35',
+        'layout.equipment_font_used' => '7.35',
+        'layout.equipment_font_spare' => '7.35',
+        'layout.equipment_font_total' => '7.35',
+        'layout.equipment_font_action' => '7.35',
+        'layout.equipment_font_notes' => '7.35',
     ];
 
     $settings = [];
@@ -2153,12 +2162,21 @@ function save_export_layout(array $input): void
     save_setting('layout.equipment_category_fill', export_layout_color($input, 'equipment_category_fill', '#E5E7EB'));
     save_setting('layout.equipment_font_size', export_layout_number($input, 'equipment_font_size', 7.35, 6.5, 10, 2));
     save_setting('layout.equipment_line_height', export_layout_number($input, 'equipment_line_height', 1.1, 0.9, 2.2, 2));
+    save_setting('layout.equipment_col_line', export_layout_number($input, 'equipment_col_line', 4, 2, 12, 1));
     save_setting('layout.equipment_col_item', export_layout_number($input, 'equipment_col_item', 45, 20, 70, 1));
     save_setting('layout.equipment_col_description', export_layout_number($input, 'equipment_col_description', 23, 8, 40, 1));
     save_setting('layout.equipment_col_used', export_layout_number($input, 'equipment_col_used', 5, 2, 12, 1));
     save_setting('layout.equipment_col_spare', export_layout_number($input, 'equipment_col_spare', 5, 2, 12, 1));
     save_setting('layout.equipment_col_total', export_layout_number($input, 'equipment_col_total', 6, 2, 14, 1));
     save_setting('layout.equipment_col_notes', export_layout_number($input, 'equipment_col_notes', 12, 4, 30, 1));
+    save_setting('layout.equipment_font_line', export_layout_number($input, 'equipment_font_line', 6.9, 5.0, 18.0, 2));
+    save_setting('layout.equipment_font_item', export_layout_number($input, 'equipment_font_item', 7.35, 5.0, 18.0, 2));
+    save_setting('layout.equipment_font_description', export_layout_number($input, 'equipment_font_description', 7.35, 5.0, 18.0, 2));
+    save_setting('layout.equipment_font_used', export_layout_number($input, 'equipment_font_used', 7.35, 5.0, 18.0, 2));
+    save_setting('layout.equipment_font_spare', export_layout_number($input, 'equipment_font_spare', 7.35, 5.0, 18.0, 2));
+    save_setting('layout.equipment_font_total', export_layout_number($input, 'equipment_font_total', 7.35, 5.0, 18.0, 2));
+    save_setting('layout.equipment_font_action', export_layout_number($input, 'equipment_font_action', 7.35, 5.0, 18.0, 2));
+    save_setting('layout.equipment_font_notes', export_layout_number($input, 'equipment_font_notes', 7.35, 5.0, 18.0, 2));
 }
 
 function action_badge(string $action): string

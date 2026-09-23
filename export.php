@@ -133,7 +133,7 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
                 'item' => $item,
                 'line' => $line,
                 'previous_line' => $previousLine,
-                'description' => export_item_description($item),
+                'description' => $category['name'],
             ];
         }
     }
@@ -145,13 +145,10 @@ function export_item_notes(array $rows): array
 {
     $itemNotes = [];
     foreach ($rows as $row) {
-        $item = $row['item'] ?? [];
         $line = $row['line'] ?? [];
-        $itemName = trim((string) ($item['name'] ?? ''));
-        foreach ([trim((string) ($item['default_note'] ?? '')), trim((string) ($line['line_note'] ?? ''))] as $note) {
-            if ($note === '') {
-                continue;
-            }
+        $itemName = trim((string) (($row['item']['name'] ?? '')));
+        $note = trim((string) ($line['line_note'] ?? ''));
+        if ($note !== '') {
             $itemNotes[] = $itemName !== '' ? ($itemName . ': ' . $note) : $note;
         }
     }
@@ -309,7 +306,7 @@ function export_equipment_layout_metrics(array $layout): array
     $categoryGap = max(0.0, (float) ($layout['layout.equipment_category_gap'] ?? 0.08));
     $fontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
     $lineHeight = max(0.9, min(2.2, (float) ($layout['layout.equipment_line_height'] ?? 1.1)));
-    $lineWidth = 4.0;
+    $lineWidth = max(2.0, min(12.0, (float) ($layout['layout.equipment_col_line'] ?? 4)));
     $rawColumns = [
         'item' => max(1.0, (float) ($layout['layout.equipment_col_item'] ?? 45)),
         'description' => max(1.0, (float) ($layout['layout.equipment_col_description'] ?? 23)),
@@ -318,7 +315,17 @@ function export_equipment_layout_metrics(array $layout): array
         'total' => max(1.0, (float) ($layout['layout.equipment_col_total'] ?? 6)),
         'notes' => max(1.0, (float) ($layout['layout.equipment_col_notes'] ?? 12)),
     ];
-    $scale = 96.0 / (array_sum($rawColumns) ?: 96.0);
+    $columnFontSizes = [
+        'line' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_line'] ?? 6.9))),
+        'item' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_item'] ?? $fontSize))),
+        'description' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_description'] ?? $fontSize))),
+        'used' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_used'] ?? $fontSize))),
+        'spare' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_spare'] ?? $fontSize))),
+        'total' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_total'] ?? $fontSize))),
+        'action' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_action'] ?? $fontSize))),
+        'notes' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_notes'] ?? $fontSize))),
+    ];
+    $scale = max(1.0, 100.0 - $lineWidth) / (array_sum($rawColumns) ?: 96.0);
     $columns = [];
     foreach ($rawColumns as $key => $value) {
         $columns[$key] = round($value * $scale, 3);
@@ -336,10 +343,11 @@ function export_equipment_layout_metrics(array $layout): array
         'line_height' => $lineHeight,
         'line_width' => $lineWidth,
         'columns' => $columns,
+        'column_font_sizes' => $columnFontSizes,
     ];
 }
 
-function export_estimated_line_count(string $text, float $columnWidthPercent, array $metrics): int
+function export_estimated_line_count(string $text, float $columnWidthPercent, array $metrics, ?string $columnKey = null): int
 {
     $text = trim($text);
     if ($text === '') {
@@ -349,7 +357,8 @@ function export_estimated_line_count(string $text, float $columnWidthPercent, ar
     $tableWidthInches = (8.5 - 0.18 - 0.18) * ($metrics['table_width'] / 100);
     $columnWidthInches = max(0.6, $tableWidthInches * ($columnWidthPercent / 100));
     $usableWidth = max(0.45, $columnWidthInches - 0.08);
-    $averageCharacterWidth = max(0.055, ($metrics['font_size'] / 72) * 0.52);
+    $fontSize = $columnKey !== null ? (float) ($metrics['column_font_sizes'][$columnKey] ?? $metrics['font_size']) : (float) $metrics['font_size'];
+    $averageCharacterWidth = max(0.055, ($fontSize / 72) * 0.52);
     $charactersPerLine = max(8, (int) floor($usableWidth / $averageCharacterWidth));
     $segments = preg_split('/\R/u', $text) ?: [''];
     $lines = 0;
@@ -363,11 +372,19 @@ function export_estimated_line_count(string $text, float $columnWidthPercent, ar
 
 function export_equipment_page_row_height(array $row, array $metrics): float
 {
-    $itemLines = export_estimated_line_count((string) ($row['item']['name'] ?? ''), $metrics['columns']['item'], $metrics);
-    $descriptionLines = export_estimated_line_count(export_item_description($row['item']), $metrics['columns']['description'], $metrics);
-    $notesLines = export_estimated_line_count(export_equipment_note($row['item'], $row['line']), $metrics['columns']['notes'], $metrics);
+    $itemLines = export_estimated_line_count((string) ($row['item']['name'] ?? ''), $metrics['columns']['item'], $metrics, 'item');
+    $descriptionLines = export_estimated_line_count((string) ($row['category'] ?? ''), $metrics['columns']['description'], $metrics, 'description');
+    $notesLines = export_estimated_line_count(export_equipment_note($row['item'], $row['line']), $metrics['columns']['notes'], $metrics, 'notes');
     $lineCount = max($itemLines, $descriptionLines, $notesLines);
-    $baseHeight = (($metrics['font_size'] / 72) * $metrics['line_height']) + ($metrics['row_padding'] * 2) + 0.08;
+    $rowFontSize = max(
+        (float) ($metrics['column_font_sizes']['item'] ?? $metrics['font_size']),
+        (float) ($metrics['column_font_sizes']['description'] ?? $metrics['font_size']),
+        (float) ($metrics['column_font_sizes']['notes'] ?? $metrics['font_size']),
+        (float) ($metrics['column_font_sizes']['used'] ?? $metrics['font_size']),
+        (float) ($metrics['column_font_sizes']['spare'] ?? $metrics['font_size']),
+        (float) ($metrics['column_font_sizes']['total'] ?? $metrics['font_size'])
+    );
+    $baseHeight = (($rowFontSize / 72) * $metrics['line_height']) + ($metrics['row_padding'] * 2) + 0.08;
 
     return max(0.18, $baseHeight * $lineCount);
 }
@@ -812,6 +829,22 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     .col-spare { width: <?= h(number_format($equipmentMetrics['columns']['spare'], 3, '.', '')) ?>%; }
     .col-total { width: <?= h(number_format($equipmentMetrics['columns']['total'], 3, '.', '')) ?>%; }
     .col-notes { width: <?= h(number_format($equipmentMetrics['columns']['notes'], 3, '.', '')) ?>%; }
+    .col-line,
+    .line-cell { font-size: <?= h(number_format($equipmentMetrics['column_font_sizes']['line'], 2, '.', '')) ?>pt; }
+    .col-item,
+    .item-cell { font-size: <?= h(number_format($equipmentMetrics['column_font_sizes']['item'], 2, '.', '')) ?>pt; }
+    .col-description,
+    .description-cell { font-size: <?= h(number_format($equipmentMetrics['column_font_sizes']['description'], 2, '.', '')) ?>pt; }
+    .col-used,
+    .used-cell { font-size: <?= h(number_format($equipmentMetrics['column_font_sizes']['used'], 2, '.', '')) ?>pt; }
+    .col-spare,
+    .spare-cell { font-size: <?= h(number_format($equipmentMetrics['column_font_sizes']['spare'], 2, '.', '')) ?>pt; }
+    .col-total,
+    .total-cell { font-size: <?= h(number_format($equipmentMetrics['column_font_sizes']['total'], 2, '.', '')) ?>pt; }
+    .col-action,
+    .action-cell { font-size: <?= h(number_format($equipmentMetrics['column_font_sizes']['action'], 2, '.', '')) ?>pt; }
+    .col-notes,
+    .notes-cell { font-size: <?= h(number_format($equipmentMetrics['column_font_sizes']['notes'], 2, '.', '')) ?>pt; }
     .item-cell,
     .description-cell,
     .notes-cell {
@@ -821,7 +854,6 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     .line-cell {
       text-align: right;
       font-weight: 700;
-      font-size: 6.9pt;
       padding-right: 0.04in;
     }
     .delta {
@@ -1114,12 +1146,12 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
             <td class="line-cell"><?= h((string) ($index + 1)) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>
             <td class="description-cell"><?= h($row['description']) ?></td>
-            <td>
+            <td class="total-cell">
               <?= h((string) ($row['line']['total_quantity'] ?? 0)) ?>
               <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
               <?php if ($delta !== ''): ?><span class="delta <?= str_starts_with($delta, '-') ? 'delta-negative' : 'delta-positive' ?>"><?= h($delta) ?></span><?php endif; ?>
             </td>
-            <td><?= h(export_summary_action_label($row['line'])) ?></td>
+            <td class="action-cell"><?= h(export_summary_action_label($row['line'])) ?></td>
             <td class="notes-cell">
               <?php
                 $equipmentNote = export_equipment_note($row['item'], $row['line']);
@@ -1188,10 +1220,10 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
           <tr style="<?= h(export_row_style($pageRowIndex, $revision, $row['item'], $row['line'], $equipmentZebraGray)) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>
-            <td class="description-cell"><?= h(export_item_description($row['item'])) ?></td>
-            <td><?= h((string) ($row['line']['rent_quantity'] ?? 0)) ?></td>
-            <td><?= h((string) ($row['line']['spare_quantity'] ?? 0)) ?></td>
-            <td>
+            <td class="description-cell"><?= h($row['category']) ?></td>
+            <td class="used-cell"><?= h((string) ($row['line']['rent_quantity'] ?? 0)) ?></td>
+            <td class="spare-cell"><?= h((string) ($row['line']['spare_quantity'] ?? 0)) ?></td>
+            <td class="total-cell">
               <?= $type === 'returns' ? '__________' : h((string) ($row['line']['total_quantity'] ?? 0)) ?>
               <?php if ($delta !== ''): ?><span class="delta <?= str_starts_with($delta, '-') ? 'delta-negative' : 'delta-positive' ?>"><?= h($delta) ?></span><?php endif; ?>
             </td>

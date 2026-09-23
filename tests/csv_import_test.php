@@ -325,12 +325,21 @@ save_export_layout([
     'equipment_category_fill' => '#FEDCBA',
     'equipment_font_size' => '7.35',
     'equipment_line_height' => '1.1',
+    'equipment_col_line' => '2.5',
     'equipment_col_item' => '45',
     'equipment_col_description' => '23',
     'equipment_col_used' => '5',
     'equipment_col_spare' => '5',
     'equipment_col_total' => '6',
     'equipment_col_notes' => '12',
+    'equipment_font_line' => '5.75',
+    'equipment_font_item' => '8.25',
+    'equipment_font_description' => '6.6',
+    'equipment_font_used' => '7.1',
+    'equipment_font_spare' => '7.2',
+    'equipment_font_total' => '7.8',
+    'equipment_font_action' => '8.6',
+    'equipment_font_notes' => '6.4',
 ]);
 
 $lineStmt = db()->prepare('SELECT rent_quantity, spare_quantity, total_quantity, action, line_note, pickup_date, return_date FROM revision_items WHERE revision_id = ? AND inventory_item_id = ?');
@@ -393,7 +402,9 @@ assert_true(!str_contains($exportHtml, 'col-summary-notes'), 'Expected revision 
 assert_true(str_contains($exportHtml, 'Pull 10/02/26'), 'Expected equipment breakdown notes to include item-specific pull dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Return 10/16/26'), 'Expected equipment breakdown notes to include item-specific return dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Latest revision should clone from here.'), 'Expected order or revision line notes to print on the breakdown paperwork.');
-assert_true((bool) preg_match('/<div class="notes-section">.*?SolaFrame 3000: Profile moving light.*?SolaFrame 3000: Latest revision should clone from here\..*?Late Added Feeder: Late note.*?Late Added Feeder: Changed without an explicit action\./s', $exportHtml), 'Expected visible item default notes and line notes to appear in the paperwork notes section.');
+assert_true((bool) preg_match('/<div class="notes-section">.*?SolaFrame 3000: Latest revision should clone from here\..*?Late Added Feeder: Changed without an explicit action\./s', $exportHtml), 'Expected order line notes to appear in the paperwork notes section.');
+assert_true(!str_contains($exportHtml, 'Profile moving light'), 'Expected settings-only item note content to stay out of the paperwork notes section.');
+assert_true(!str_contains($exportHtml, 'Late note'), 'Expected default inventory notes to stay out of the paperwork notes section.');
 assert_true(str_contains($exportHtml, '<p class="cover-show-title">Revision Clone Test</p>'), 'Expected the cover page to show the title above the cover image area when enabled.');
 assert_true(str_contains($exportHtml, '<p class="cover-venue-name">Mainstage</p>'), 'Expected the cover page to show the theatre name on its own line.');
 assert_true(str_contains($exportHtml, '<p class="cover-venue-address">123 Theatre Way</p>'), 'Expected the cover page to show the theatre address on a separate line.');
@@ -412,8 +423,8 @@ assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY<
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, 'Only lines with changed counts or explicit revision actions are listed here.'), 'Expected revision summary copy to explain the changed-lines filter.');
 assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="col-total">TOTAL<\/td>.*?<td class="col-action">ACTION<\/td>.*?<td class="col-notes">NOTES<\/td>/s', $exportHtml), 'Expected revision summary to use total, action, and notes columns.');
-assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">SolaFrame 3000<\/td>.*?<td class="description-cell">Manual test fixture row<\/td>.*?<span class="delta delta-positive">\(\+1\)<\/span>.*?<td>EXCHANGE<\/td>.*?Latest revision should clone from here\./s', $exportHtml), 'Expected revision summary to show description, total deltas, explicit action, and notes in separate columns.');
-assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">Late Added Feeder<\/td>.*?<td>CHANGE<\/td>.*?Changed without an explicit action\./s', $exportHtml), 'Expected revision summary rows without an explicit action to display CHANGE.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">SolaFrame 3000<\/td>.*?<td class="description-cell">Fixtures<\/td>.*?<span class="delta delta-positive">\(\+1\)<\/span>.*?<td class="action-cell">EXCHANGE<\/td>.*?Latest revision should clone from here\./s', $exportHtml), 'Expected revision summary to show category in the description column, total deltas, explicit action, and notes in separate columns.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">Late Added Feeder<\/td>.*?<td class="action-cell">CHANGE<\/td>.*?Changed without an explicit action\./s', $exportHtml), 'Expected revision summary rows without an explicit action to display CHANGE.');
 assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<tr class="category-header-row">\s*<td colspan="6">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected revision summary to include category headers followed by repeated table headers.');
 assert_true(str_contains($exportHtml, 'table.word-table.revision-summary-table'), 'Expected the revision summary table to have its own centered table styling.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
@@ -430,6 +441,15 @@ assert_true(str_contains($exportHtml, '<strong>Page</strong> 2 of '), 'Expected 
 assert_true(str_contains($exportHtml, '<strong>Revision</strong> 1.1'), 'Expected page headers to include the current revision.');
 assert_true(str_contains($exportHtml, 'background: #ABCDEF;'), 'Expected export header rows to use the saved header color.');
 assert_true(str_contains($exportHtml, 'background: #FEDCBA;'), 'Expected export category rows to use the saved category color.');
+assert_true(str_contains($exportHtml, 'width: 2.500%;'), 'Expected export line-number column width to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 5.75pt;'), 'Expected line-number font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 8.25pt;'), 'Expected item font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 6.60pt;'), 'Expected description font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 7.10pt;'), 'Expected used font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 7.20pt;'), 'Expected spare font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 7.80pt;'), 'Expected total font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 8.60pt;'), 'Expected action font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 6.40pt;'), 'Expected notes font size to use the saved layout setting.');
 assert_true(str_contains($exportHtml, 'table.word-table thead tr {') && str_contains($exportHtml, 'height: 0.280in;'), 'Expected export header rows to apply the saved height at the row level.');
 assert_true(str_contains($exportHtml, 'height: 0.280in;'), 'Expected export header rows to use the saved header row height.');
 assert_true(str_contains($exportHtml, '.category-header-row {') && str_contains($exportHtml, 'height: 0.360in;'), 'Expected category rows to apply the saved height at the row level.');
@@ -613,6 +633,8 @@ assert_true(array_key_exists('layout.equipment_min_rows_per_page', $layoutDefaul
 assert_true(array_key_exists('layout.equipment_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment max rows per page.');
 assert_true(array_key_exists('layout.equipment_zebra_gray', $layoutDefaults), 'Expected export layout defaults to include equipment zebra gray.');
 assert_true(array_key_exists('layout.equipment_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment line height.');
+assert_true(array_key_exists('layout.equipment_col_line', $layoutDefaults), 'Expected export layout defaults to include line-number width.');
+assert_true(array_key_exists('layout.equipment_font_item', $layoutDefaults), 'Expected export layout defaults to include per-column font sizes.');
 assert_true(!array_key_exists('layout.equipment_header_line_height', $layoutDefaults), 'Expected export layout defaults to stop exposing the old header line-height setting.');
 assert_true(!array_key_exists('layout.equipment_category_line_height', $layoutDefaults), 'Expected export layout defaults to stop exposing the old category line-height setting.');
 save_export_layout([
@@ -632,12 +654,21 @@ save_export_layout([
     'equipment_category_gap' => '0.15',
     'equipment_font_size' => '7.8',
     'equipment_line_height' => '1.3',
+    'equipment_col_line' => '3.5',
     'equipment_col_item' => '48',
     'equipment_col_description' => '22',
     'equipment_col_used' => '5',
     'equipment_col_spare' => '5',
     'equipment_col_total' => '6',
     'equipment_col_notes' => '10',
+    'equipment_font_line' => '6.1',
+    'equipment_font_item' => '8.1',
+    'equipment_font_description' => '7.9',
+    'equipment_font_used' => '7.4',
+    'equipment_font_spare' => '7.3',
+    'equipment_font_total' => '7.2',
+    'equipment_font_action' => '7.1',
+    'equipment_font_notes' => '6.8',
 ]);
 $savedLayout = export_layout_settings();
 assert_true(($savedLayout['layout.organization_text'] ?? '') === 'Top Right Copy', 'Expected organization text to persist in export layout settings.');
@@ -647,6 +678,8 @@ assert_true(($savedLayout['layout.equipment_min_rows_per_page'] ?? '') === '4', 
 assert_true(($savedLayout['layout.equipment_max_rows_per_page'] ?? '') === '12', 'Expected equipment max rows per page to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_zebra_gray'] ?? '') === '#BBBBBB', 'Expected equipment zebra gray to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_line_height'] ?? '') === '1.3', 'Expected equipment line height to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_col_line'] ?? '') === '3.5', 'Expected line-number width to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_font_item'] ?? '') === '8.1', 'Expected per-column font sizes to persist in export layout settings.');
 
 $deleteItemResult = delete_inventory_item($adapterItemId);
 assert_true($deleteItemResult['ok'] === true, 'Expected inventory delete to hard-delete the row.');

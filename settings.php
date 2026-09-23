@@ -903,6 +903,10 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <input class="form-control" id="equipment_line_height" type="number" min="0.9" max="2.2" step="0.01" name="equipment_line_height" value="<?= h($layout['layout.equipment_line_height'] ?? '1.1') ?>">
           </div>
           <div class="form-group">
+            <label for="equipment_col_line">Line Number Width</label>
+            <input class="form-control" id="equipment_col_line" type="number" min="2" max="12" step="0.1" name="equipment_col_line" value="<?= h($layout['layout.equipment_col_line'] ?? '4') ?>">
+          </div>
+          <div class="form-group">
             <label for="equipment_col_item">Item Width</label>
             <input class="form-control" id="equipment_col_item" type="number" min="20" max="70" step="0.1" name="equipment_col_item" value="<?= h($layout['layout.equipment_col_item'] ?? '45') ?>">
           </div>
@@ -925,6 +929,38 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           <div class="form-group">
             <label for="equipment_col_notes">Notes Width</label>
             <input class="form-control" id="equipment_col_notes" type="number" min="4" max="30" step="0.1" name="equipment_col_notes" value="<?= h($layout['layout.equipment_col_notes'] ?? '12') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_font_line">Line Number Font Size (pt)</label>
+            <input class="form-control" id="equipment_font_line" type="number" min="5" max="18" step="0.01" name="equipment_font_line" value="<?= h($layout['layout.equipment_font_line'] ?? '6.9') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_font_item">Item Font Size (pt)</label>
+            <input class="form-control" id="equipment_font_item" type="number" min="5" max="18" step="0.01" name="equipment_font_item" value="<?= h($layout['layout.equipment_font_item'] ?? '7.35') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_font_description">Description Font Size (pt)</label>
+            <input class="form-control" id="equipment_font_description" type="number" min="5" max="18" step="0.01" name="equipment_font_description" value="<?= h($layout['layout.equipment_font_description'] ?? '7.35') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_font_used">Used Font Size (pt)</label>
+            <input class="form-control" id="equipment_font_used" type="number" min="5" max="18" step="0.01" name="equipment_font_used" value="<?= h($layout['layout.equipment_font_used'] ?? '7.35') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_font_spare">Spare Font Size (pt)</label>
+            <input class="form-control" id="equipment_font_spare" type="number" min="5" max="18" step="0.01" name="equipment_font_spare" value="<?= h($layout['layout.equipment_font_spare'] ?? '7.35') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_font_total">Total Font Size (pt)</label>
+            <input class="form-control" id="equipment_font_total" type="number" min="5" max="18" step="0.01" name="equipment_font_total" value="<?= h($layout['layout.equipment_font_total'] ?? '7.35') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_font_action">Action Font Size (pt)</label>
+            <input class="form-control" id="equipment_font_action" type="number" min="5" max="18" step="0.01" name="equipment_font_action" value="<?= h($layout['layout.equipment_font_action'] ?? '7.35') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_font_notes">Notes Font Size (pt)</label>
+            <input class="form-control" id="equipment_font_notes" type="number" min="5" max="18" step="0.01" name="equipment_font_notes" value="<?= h($layout['layout.equipment_font_notes'] ?? '7.35') ?>">
           </div>
         </div>
         <div class="form-actions">
