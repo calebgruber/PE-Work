@@ -166,6 +166,7 @@ settings_assert(is_resource($process) && is_string($baseUrl) && $baseUrl !== '',
 
 $cookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-');
 $inventoryPagePath = tempnam(sys_get_temp_dir(), 'pew-inventory-page-');
+$layoutPagePath = tempnam(sys_get_temp_dir(), 'pew-layout-page-');
 $headersPath = tempnam(sys_get_temp_dir(), 'pew-headers-');
 $responsePath = tempnam(sys_get_temp_dir(), 'pew-response-');
 $inventoryPageCommand = sprintf(
@@ -193,14 +194,26 @@ exec($command, $output, $curlStatus);
 
 $headers = is_file($headersPath) ? file_get_contents($headersPath) : '';
 $responseBody = is_file($responsePath) ? file_get_contents($responsePath) : '';
-$testPaths = [$csvPath, $cookieJar, $inventoryPagePath, $responsePath, $headersPath];
+$testPaths = [$csvPath, $cookieJar, $inventoryPagePath, $layoutPagePath, $responsePath, $headersPath];
 
 $stmt = db()->prepare('SELECT shop_quantity FROM inventory_items WHERE name = ?');
 $stmt->execute(['Import Action Item']);
 $quantity = (int) $stmt->fetchColumn();
 
 settings_assert($inventoryPageStatus === 0 && $csrfToken !== '', 'Expected inventory page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+exec(sprintf(
+    "curl -fsS -o %s -c %s -b %s %s",
+    escapeshellarg($layoutPagePath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg($baseUrl . '/settings?tab=layout')
+), $layoutPageOutput, $layoutPageStatus);
+$layoutPageHtml = is_file($layoutPagePath) ? file_get_contents($layoutPagePath) : '';
 settings_assert($curlStatus === 0, 'Expected curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($layoutPageStatus === 0, 'Expected layout settings page request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($layoutPageHtml, 'Revision Summary Layout'), 'Expected layout settings page to group revision summary controls together.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($layoutPageHtml, 'Equipment Breakdown Layout'), 'Expected layout settings page to group equipment controls together.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($layoutPageHtml, 'revision_summary_col_action'), 'Expected layout settings page to include revision summary action width controls.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($headers, 'Location: /settings?tab=inventory'), 'Expected settings import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($quantity === 7, 'Expected settings import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($responseBody, 'Import complete'), 'Expected redirected settings page to show the import success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);

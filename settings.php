@@ -806,178 +806,230 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
       <form method="post">
         <?= csrf_input() ?>
         <input type="hidden" name="action" value="save_layout">
-        <div class="card-grid">
-          <div class="form-group">
-            <label for="header_text">Header Text</label>
-            <input class="form-control" id="header_text" name="header_text" value="<?= h($layout['layout.header_text']) ?>">
-          </div>
-          <div class="form-group">
-            <label for="organization_text">Top Right Header Text</label>
-            <input class="form-control" id="organization_text" name="organization_text" value="<?= h($layout['layout.organization_text'] ?? '') ?>">
-          </div>
-          <div class="form-group">
-            <label for="footer_text">Footer Text</label>
-            <input class="form-control" id="footer_text" name="footer_text" value="<?= h($layout['layout.footer_text']) ?>">
-          </div>
-          <div class="form-group">
-            <label for="cover_title_revision_spacing">Cover Title To Revision Spacing (in)</label>
-            <input class="form-control" id="cover_title_revision_spacing" type="text" inputmode="decimal" name="cover_title_revision_spacing" value="<?= h($layout['layout.cover_title_revision_spacing'] ?? '0.52') ?>">
-          </div>
-          <div class="form-group">
-            <label for="cover_notes_spacing">Cards To Notes Spacing (in)</label>
-            <input class="form-control" id="cover_notes_spacing" type="text" inputmode="decimal" name="cover_notes_spacing" value="<?= h($layout['layout.cover_notes_spacing'] ?? '0.9') ?>">
-          </div>
-          <div class="form-group">
-            <label for="cover_footer_logo_url">Cover Footer Logo Path</label>
-            <input class="form-control" id="cover_footer_logo_url" name="cover_footer_logo_url" placeholder="images/my-logo.png" value="<?= h($layout['layout.cover_footer_logo_url'] ?? '') ?>">
-            <div class="helper-text">Optional local path for a centered logo at the bottom of the cover page.</div>
-          </div>
-          <div class="form-group">
-            <label for="cover_prepared_by_name">Prepared By Name</label>
-            <input class="form-control" id="cover_prepared_by_name" name="cover_prepared_by_name" placeholder="Your Name" value="<?= h($layout['layout.cover_prepared_by_name'] ?? '') ?>">
-            <div class="helper-text">Uses this name in every paperwork footer and centers it on the cover page.</div>
-          </div>
+        <div class="pill-row settings-layout-nav">
+          <a class="tab" href="#layout-general">General</a>
+          <a class="tab" href="#layout-cover">Cover</a>
+          <a class="tab" href="#layout-summary">Revision Summary</a>
+          <a class="tab" href="#layout-equipment">Equipment Breakdown</a>
         </div>
-        <div class="form-group" style="margin-top:1rem;">
-          <label for="export_notes">Default Important Notes</label>
-          <textarea class="form-control" id="export_notes" name="export_notes" rows="8"><?= h($layout['layout.export_notes'] ?? '') ?></textarea>
-        </div>
-        <div class="pill-row" style="margin-top:1rem;">
-          <label class="tab"><input type="checkbox" name="show_image" value="1" <?= $layout['layout.show_image'] === '1' ? 'checked' : '' ?>> Show image on exports</label>
-          <label class="tab"><input type="checkbox" name="cover_show_title" value="1" <?= ($layout['layout.cover_show_title'] ?? '1') === '1' ? 'checked' : '' ?>> Show title above cover image</label>
-          <label class="tab"><input type="checkbox" name="show_page_numbers" value="1" <?= $layout['layout.show_page_numbers'] === '1' ? 'checked' : '' ?>> Page X of X</label>
-          <label class="tab"><input type="checkbox" name="show_revision_summary" value="1" <?= $layout['layout.show_revision_summary'] === '1' ? 'checked' : '' ?>> Revision summary block</label>
-        </div>
-        <div class="section-label" style="margin-top:1rem;">Equipment Breakdown Layout</div>
-        <div class="card-grid">
-          <div class="form-group">
-            <label for="equipment_table_width">Table Width %</label>
-            <input class="form-control" id="equipment_table_width" type="text" inputmode="decimal" name="equipment_table_width" value="<?= h($layout['layout.equipment_table_width'] ?? '100') ?>">
+
+        <section class="settings-layout-section" id="layout-general">
+          <div class="section-label">General Paperwork Settings</div>
+          <div class="helper-text settings-layout-section-copy">Main paperwork text, notes, and export-wide toggles live here.</div>
+          <div class="card-grid">
+            <div class="form-group">
+              <label for="header_text">Header Text</label>
+              <input class="form-control" id="header_text" name="header_text" value="<?= h($layout['layout.header_text']) ?>">
+            </div>
+            <div class="form-group">
+              <label for="organization_text">Top Right Header Text</label>
+              <input class="form-control" id="organization_text" name="organization_text" value="<?= h($layout['layout.organization_text'] ?? '') ?>">
+            </div>
+            <div class="form-group">
+              <label for="footer_text">Footer Text</label>
+              <input class="form-control" id="footer_text" name="footer_text" value="<?= h($layout['layout.footer_text']) ?>">
+            </div>
           </div>
-          <div class="form-group">
-            <label for="equipment_min_rows_per_page">Min Rows Per Page</label>
-            <input class="form-control" id="equipment_min_rows_per_page" type="text" inputmode="numeric" name="equipment_min_rows_per_page" value="<?= h($layout['layout.equipment_min_rows_per_page'] ?? '0') ?>">
-            <div class="helper-text">Set to 0 to allow automatic page breaks before a minimum row count.</div>
+          <div class="form-group" style="margin-top:1rem;">
+            <label for="export_notes">Default Important Notes</label>
+            <textarea class="form-control" id="export_notes" name="export_notes" rows="8"><?= h($layout['layout.export_notes'] ?? '') ?></textarea>
           </div>
-          <div class="form-group">
-            <label for="equipment_zebra_gray">Gray Row Color</label>
-            <input class="form-control" id="equipment_zebra_gray" type="color" name="equipment_zebra_gray" value="<?= h($layout['layout.equipment_zebra_gray'] ?? '#CCCCCC') ?>">
+          <div class="pill-row" style="margin-top:1rem;">
+            <label class="tab"><input type="checkbox" name="show_image" value="1" <?= $layout['layout.show_image'] === '1' ? 'checked' : '' ?>> Show image on exports</label>
+            <label class="tab"><input type="checkbox" name="cover_show_title" value="1" <?= ($layout['layout.cover_show_title'] ?? '1') === '1' ? 'checked' : '' ?>> Show title above cover image</label>
+            <label class="tab"><input type="checkbox" name="show_page_numbers" value="1" <?= $layout['layout.show_page_numbers'] === '1' ? 'checked' : '' ?>> Page X of X</label>
+            <label class="tab"><input type="checkbox" name="show_revision_summary" value="1" <?= $layout['layout.show_revision_summary'] === '1' ? 'checked' : '' ?>> Revision summary block</label>
           </div>
-          <div class="form-group">
-            <label for="equipment_max_rows_per_page">Max Rows Per Page</label>
-            <input class="form-control" id="equipment_max_rows_per_page" type="text" inputmode="numeric" name="equipment_max_rows_per_page" value="<?= h($layout['layout.equipment_max_rows_per_page'] ?? '0') ?>">
-            <div class="helper-text">Set to 0 to let page sizing decide automatically.</div>
+        </section>
+
+        <section class="settings-layout-section" id="layout-cover">
+          <div class="section-label">Cover Page Settings</div>
+          <div class="helper-text settings-layout-section-copy">Everything specific to the cover page is grouped here.</div>
+          <div class="card-grid">
+            <div class="form-group">
+              <label for="cover_title_revision_spacing">Cover Title To Revision Spacing (in)</label>
+              <input class="form-control" id="cover_title_revision_spacing" type="text" inputmode="decimal" name="cover_title_revision_spacing" value="<?= h($layout['layout.cover_title_revision_spacing'] ?? '0.52') ?>">
+            </div>
+            <div class="form-group">
+              <label for="cover_notes_spacing">Cards To Notes Spacing (in)</label>
+              <input class="form-control" id="cover_notes_spacing" type="text" inputmode="decimal" name="cover_notes_spacing" value="<?= h($layout['layout.cover_notes_spacing'] ?? '0.9') ?>">
+            </div>
+            <div class="form-group">
+              <label for="cover_footer_logo_url">Cover Footer Logo Path</label>
+              <input class="form-control" id="cover_footer_logo_url" name="cover_footer_logo_url" placeholder="images/my-logo.png" value="<?= h($layout['layout.cover_footer_logo_url'] ?? '') ?>">
+              <div class="helper-text">Optional local path for a centered logo at the bottom of the cover page.</div>
+            </div>
+            <div class="form-group">
+              <label for="cover_prepared_by_name">Prepared By Name</label>
+              <input class="form-control" id="cover_prepared_by_name" name="cover_prepared_by_name" placeholder="Your Name" value="<?= h($layout['layout.cover_prepared_by_name'] ?? '') ?>">
+              <div class="helper-text">Uses this name in every paperwork footer and centers it on the cover page.</div>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="revision_summary_min_rows_per_page">Revision Summary Min Rows Per Page</label>
-            <input class="form-control" id="revision_summary_min_rows_per_page" type="text" inputmode="numeric" name="revision_summary_min_rows_per_page" value="<?= h($layout['layout.revision_summary_min_rows_per_page'] ?? '0') ?>">
-            <div class="helper-text">Set to 0 to allow automatic summary page breaks before a minimum row count.</div>
+        </section>
+
+        <section class="settings-layout-section" id="layout-summary">
+          <div class="section-label">Revision Summary Layout</div>
+          <div class="helper-text settings-layout-section-copy">Use these controls only for the revision summary pages.</div>
+          <div class="card-grid">
+            <div class="form-group">
+              <label for="revision_summary_table_width">Table Width %</label>
+              <input class="form-control" id="revision_summary_table_width" type="text" inputmode="decimal" name="revision_summary_table_width" value="<?= h($layout['layout.revision_summary_table_width'] ?? '100') ?>">
+            </div>
+            <div class="form-group">
+              <label for="revision_summary_min_rows_per_page">Min Rows Per Page</label>
+              <input class="form-control" id="revision_summary_min_rows_per_page" type="text" inputmode="numeric" name="revision_summary_min_rows_per_page" value="<?= h($layout['layout.revision_summary_min_rows_per_page'] ?? '0') ?>">
+              <div class="helper-text">Soft target only. The next line moves to a new page before anything gets cut off.</div>
+            </div>
+            <div class="form-group">
+              <label for="revision_summary_max_rows_per_page">Max Rows Per Page</label>
+              <input class="form-control" id="revision_summary_max_rows_per_page" type="text" inputmode="numeric" name="revision_summary_max_rows_per_page" value="<?= h($layout['layout.revision_summary_max_rows_per_page'] ?? '0') ?>">
+              <div class="helper-text">Set to 0 to let summary page sizing decide automatically.</div>
+            </div>
+            <div class="form-group">
+              <label for="revision_summary_col_line">Line Number Width</label>
+              <input class="form-control" id="revision_summary_col_line" type="text" inputmode="decimal" name="revision_summary_col_line" value="<?= h($layout['layout.revision_summary_col_line'] ?? '4') ?>">
+            </div>
+            <div class="form-group">
+              <label for="revision_summary_col_item">Item Width</label>
+              <input class="form-control" id="revision_summary_col_item" type="text" inputmode="decimal" name="revision_summary_col_item" value="<?= h($layout['layout.revision_summary_col_item'] ?? '45') ?>">
+            </div>
+            <div class="form-group">
+              <label for="revision_summary_col_description">Description Width</label>
+              <input class="form-control" id="revision_summary_col_description" type="text" inputmode="decimal" name="revision_summary_col_description" value="<?= h($layout['layout.revision_summary_col_description'] ?? '23') ?>">
+            </div>
+            <div class="form-group">
+              <label for="revision_summary_col_total">Total Width</label>
+              <input class="form-control" id="revision_summary_col_total" type="text" inputmode="decimal" name="revision_summary_col_total" value="<?= h($layout['layout.revision_summary_col_total'] ?? '6') ?>">
+            </div>
+            <div class="form-group">
+              <label for="revision_summary_col_action">Action Width</label>
+              <input class="form-control" id="revision_summary_col_action" type="text" inputmode="decimal" name="revision_summary_col_action" value="<?= h($layout['layout.revision_summary_col_action'] ?? '10') ?>">
+            </div>
+            <div class="form-group">
+              <label for="revision_summary_col_notes">Notes Width</label>
+              <input class="form-control" id="revision_summary_col_notes" type="text" inputmode="decimal" name="revision_summary_col_notes" value="<?= h($layout['layout.revision_summary_col_notes'] ?? '12') ?>">
+            </div>
           </div>
-          <div class="form-group">
-            <label for="revision_summary_max_rows_per_page">Revision Summary Max Rows Per Page</label>
-            <input class="form-control" id="revision_summary_max_rows_per_page" type="text" inputmode="numeric" name="revision_summary_max_rows_per_page" value="<?= h($layout['layout.revision_summary_max_rows_per_page'] ?? '0') ?>">
-            <div class="helper-text">Set to 0 to let summary page sizing decide automatically.</div>
+        </section>
+
+        <section class="settings-layout-section" id="layout-equipment">
+          <div class="section-label">Equipment Breakdown Layout</div>
+          <div class="helper-text settings-layout-section-copy">Equipment breakdown sizing, colors, widths, and fonts stay together here.</div>
+          <div class="card-grid">
+            <div class="form-group">
+              <label for="equipment_table_width">Table Width %</label>
+              <input class="form-control" id="equipment_table_width" type="text" inputmode="decimal" name="equipment_table_width" value="<?= h($layout['layout.equipment_table_width'] ?? '100') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_min_rows_per_page">Min Rows Per Page</label>
+              <input class="form-control" id="equipment_min_rows_per_page" type="text" inputmode="numeric" name="equipment_min_rows_per_page" value="<?= h($layout['layout.equipment_min_rows_per_page'] ?? '0') ?>">
+              <div class="helper-text">Soft target only. The next line moves to a new page before anything gets cut off.</div>
+            </div>
+            <div class="form-group">
+              <label for="equipment_max_rows_per_page">Max Rows Per Page</label>
+              <input class="form-control" id="equipment_max_rows_per_page" type="text" inputmode="numeric" name="equipment_max_rows_per_page" value="<?= h($layout['layout.equipment_max_rows_per_page'] ?? '0') ?>">
+              <div class="helper-text">Set to 0 to let page sizing decide automatically.</div>
+            </div>
+            <div class="form-group">
+              <label for="equipment_zebra_gray">Gray Row Color</label>
+              <input class="form-control" id="equipment_zebra_gray" type="color" name="equipment_zebra_gray" value="<?= h($layout['layout.equipment_zebra_gray'] ?? '#CCCCCC') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_row_padding">Line Item Row Padding (in)</label>
+              <input class="form-control" id="equipment_row_padding" type="text" inputmode="decimal" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_header_row_padding">Header Row Height (in)</label>
+              <input class="form-control" id="equipment_header_row_padding" type="text" inputmode="decimal" name="equipment_header_row_padding" value="<?= h($layout['layout.equipment_header_row_padding'] ?? '0.22') ?>">
+              <div class="helper-text">One setting for the full LINE / ITEM / DESCRIPTION header row height.</div>
+            </div>
+            <div class="form-group">
+              <label for="equipment_category_row_padding">Category Row Height (in)</label>
+              <input class="form-control" id="equipment_category_row_padding" type="text" inputmode="decimal" name="equipment_category_row_padding" value="<?= h($layout['layout.equipment_category_row_padding'] ?? '0.26') ?>">
+              <div class="helper-text">One setting for the full category row height.</div>
+            </div>
+            <div class="form-group">
+              <label for="equipment_category_gap">Space Above Categories (in)</label>
+              <input class="form-control" id="equipment_category_gap" type="text" inputmode="decimal" name="equipment_category_gap" value="<?= h($layout['layout.equipment_category_gap'] ?? '0.08') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_font_size">Font Size (pt)</label>
+              <input class="form-control" id="equipment_font_size" type="text" inputmode="decimal" name="equipment_font_size" value="<?= h($layout['layout.equipment_font_size'] ?? '7.35') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_header_fill">Header Row Color</label>
+              <input class="form-control" id="equipment_header_fill" type="color" name="equipment_header_fill" value="<?= h($layout['layout.equipment_header_fill'] ?? '#F3F4F6') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_category_fill">Category Row Color</label>
+              <input class="form-control" id="equipment_category_fill" type="color" name="equipment_category_fill" value="<?= h($layout['layout.equipment_category_fill'] ?? '#E5E7EB') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_line_height">Line Height</label>
+              <input class="form-control" id="equipment_line_height" type="text" inputmode="decimal" name="equipment_line_height" value="<?= h($layout['layout.equipment_line_height'] ?? '1.1') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_col_line">Line Number Width</label>
+              <input class="form-control" id="equipment_col_line" type="text" inputmode="decimal" name="equipment_col_line" value="<?= h($layout['layout.equipment_col_line'] ?? '4') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_col_item">Item Width</label>
+              <input class="form-control" id="equipment_col_item" type="text" inputmode="decimal" name="equipment_col_item" value="<?= h($layout['layout.equipment_col_item'] ?? '45') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_col_description">Description Width</label>
+              <input class="form-control" id="equipment_col_description" type="text" inputmode="decimal" name="equipment_col_description" value="<?= h($layout['layout.equipment_col_description'] ?? '23') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_col_used">Used Width</label>
+              <input class="form-control" id="equipment_col_used" type="text" inputmode="decimal" name="equipment_col_used" value="<?= h($layout['layout.equipment_col_used'] ?? '5') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_col_spare">Spare Width</label>
+              <input class="form-control" id="equipment_col_spare" type="text" inputmode="decimal" name="equipment_col_spare" value="<?= h($layout['layout.equipment_col_spare'] ?? '5') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_col_total">Total Width</label>
+              <input class="form-control" id="equipment_col_total" type="text" inputmode="decimal" name="equipment_col_total" value="<?= h($layout['layout.equipment_col_total'] ?? '6') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_col_notes">Notes Width</label>
+              <input class="form-control" id="equipment_col_notes" type="text" inputmode="decimal" name="equipment_col_notes" value="<?= h($layout['layout.equipment_col_notes'] ?? '12') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_font_line">Line Number Font Size (pt)</label>
+              <input class="form-control" id="equipment_font_line" type="text" inputmode="decimal" name="equipment_font_line" value="<?= h($layout['layout.equipment_font_line'] ?? '6.9') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_font_item">Item Font Size (pt)</label>
+              <input class="form-control" id="equipment_font_item" type="text" inputmode="decimal" name="equipment_font_item" value="<?= h($layout['layout.equipment_font_item'] ?? '7.35') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_font_description">Description Font Size (pt)</label>
+              <input class="form-control" id="equipment_font_description" type="text" inputmode="decimal" name="equipment_font_description" value="<?= h($layout['layout.equipment_font_description'] ?? '7.35') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_font_used">Used Font Size (pt)</label>
+              <input class="form-control" id="equipment_font_used" type="text" inputmode="decimal" name="equipment_font_used" value="<?= h($layout['layout.equipment_font_used'] ?? '7.35') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_font_spare">Spare Font Size (pt)</label>
+              <input class="form-control" id="equipment_font_spare" type="text" inputmode="decimal" name="equipment_font_spare" value="<?= h($layout['layout.equipment_font_spare'] ?? '7.35') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_font_total">Total Font Size (pt)</label>
+              <input class="form-control" id="equipment_font_total" type="text" inputmode="decimal" name="equipment_font_total" value="<?= h($layout['layout.equipment_font_total'] ?? '7.35') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_font_action">Action Font Size (pt)</label>
+              <input class="form-control" id="equipment_font_action" type="text" inputmode="decimal" name="equipment_font_action" value="<?= h($layout['layout.equipment_font_action'] ?? '7.35') ?>">
+            </div>
+            <div class="form-group">
+              <label for="equipment_font_notes">Notes Font Size (pt)</label>
+              <input class="form-control" id="equipment_font_notes" type="text" inputmode="decimal" name="equipment_font_notes" value="<?= h($layout['layout.equipment_font_notes'] ?? '7.35') ?>">
+            </div>
           </div>
-          <div class="form-group">
-            <label for="revision_summary_col_item">Revision Summary Item Width</label>
-            <input class="form-control" id="revision_summary_col_item" type="text" inputmode="decimal" name="revision_summary_col_item" value="<?= h($layout['layout.revision_summary_col_item'] ?? '45') ?>">
-            <div class="helper-text">Controls only the item column on revision summary pages.</div>
-          </div>
-          <div class="form-group">
-            <label for="equipment_row_padding">Line Item Row Padding (in)</label>
-            <input class="form-control" id="equipment_row_padding" type="text" inputmode="decimal" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_header_row_padding">Header Row Height (in)</label>
-            <input class="form-control" id="equipment_header_row_padding" type="text" inputmode="decimal" name="equipment_header_row_padding" value="<?= h($layout['layout.equipment_header_row_padding'] ?? '0.22') ?>">
-            <div class="helper-text">One setting for the full LINE / ITEM / DESCRIPTION header row height.</div>
-          </div>
-          <div class="form-group">
-            <label for="equipment_category_row_padding">Category Row Height (in)</label>
-            <input class="form-control" id="equipment_category_row_padding" type="text" inputmode="decimal" name="equipment_category_row_padding" value="<?= h($layout['layout.equipment_category_row_padding'] ?? '0.26') ?>">
-            <div class="helper-text">One setting for the full category row height.</div>
-          </div>
-          <div class="form-group">
-            <label for="equipment_category_gap">Space Above Categories (in)</label>
-            <input class="form-control" id="equipment_category_gap" type="text" inputmode="decimal" name="equipment_category_gap" value="<?= h($layout['layout.equipment_category_gap'] ?? '0.08') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_font_size">Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_size" type="text" inputmode="decimal" name="equipment_font_size" value="<?= h($layout['layout.equipment_font_size'] ?? '7.35') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_header_fill">Header Row Color</label>
-            <input class="form-control" id="equipment_header_fill" type="color" name="equipment_header_fill" value="<?= h($layout['layout.equipment_header_fill'] ?? '#F3F4F6') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_category_fill">Category Row Color</label>
-            <input class="form-control" id="equipment_category_fill" type="color" name="equipment_category_fill" value="<?= h($layout['layout.equipment_category_fill'] ?? '#E5E7EB') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_line_height">Line Height</label>
-            <input class="form-control" id="equipment_line_height" type="text" inputmode="decimal" name="equipment_line_height" value="<?= h($layout['layout.equipment_line_height'] ?? '1.1') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_col_line">Line Number Width</label>
-            <input class="form-control" id="equipment_col_line" type="text" inputmode="decimal" name="equipment_col_line" value="<?= h($layout['layout.equipment_col_line'] ?? '4') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_col_item">Item Width</label>
-            <input class="form-control" id="equipment_col_item" type="text" inputmode="decimal" name="equipment_col_item" value="<?= h($layout['layout.equipment_col_item'] ?? '45') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_col_description">Description Width</label>
-            <input class="form-control" id="equipment_col_description" type="text" inputmode="decimal" name="equipment_col_description" value="<?= h($layout['layout.equipment_col_description'] ?? '23') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_col_used">Used Width</label>
-            <input class="form-control" id="equipment_col_used" type="text" inputmode="decimal" name="equipment_col_used" value="<?= h($layout['layout.equipment_col_used'] ?? '5') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_col_spare">Spare Width</label>
-            <input class="form-control" id="equipment_col_spare" type="text" inputmode="decimal" name="equipment_col_spare" value="<?= h($layout['layout.equipment_col_spare'] ?? '5') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_col_total">Total Width</label>
-            <input class="form-control" id="equipment_col_total" type="text" inputmode="decimal" name="equipment_col_total" value="<?= h($layout['layout.equipment_col_total'] ?? '6') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_col_notes">Notes Width</label>
-            <input class="form-control" id="equipment_col_notes" type="text" inputmode="decimal" name="equipment_col_notes" value="<?= h($layout['layout.equipment_col_notes'] ?? '12') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_font_line">Line Number Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_line" type="text" inputmode="decimal" name="equipment_font_line" value="<?= h($layout['layout.equipment_font_line'] ?? '6.9') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_font_item">Item Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_item" type="text" inputmode="decimal" name="equipment_font_item" value="<?= h($layout['layout.equipment_font_item'] ?? '7.35') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_font_description">Description Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_description" type="text" inputmode="decimal" name="equipment_font_description" value="<?= h($layout['layout.equipment_font_description'] ?? '7.35') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_font_used">Used Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_used" type="text" inputmode="decimal" name="equipment_font_used" value="<?= h($layout['layout.equipment_font_used'] ?? '7.35') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_font_spare">Spare Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_spare" type="text" inputmode="decimal" name="equipment_font_spare" value="<?= h($layout['layout.equipment_font_spare'] ?? '7.35') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_font_total">Total Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_total" type="text" inputmode="decimal" name="equipment_font_total" value="<?= h($layout['layout.equipment_font_total'] ?? '7.35') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_font_action">Action Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_action" type="text" inputmode="decimal" name="equipment_font_action" value="<?= h($layout['layout.equipment_font_action'] ?? '7.35') ?>">
-          </div>
-          <div class="form-group">
-            <label for="equipment_font_notes">Notes Font Size (pt)</label>
-            <input class="form-control" id="equipment_font_notes" type="text" inputmode="decimal" name="equipment_font_notes" value="<?= h($layout['layout.equipment_font_notes'] ?? '7.35') ?>">
-          </div>
-        </div>
+        </section>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">
             <span class="material-symbols-outlined">save</span>

@@ -324,9 +324,15 @@ save_export_layout([
     'equipment_table_width' => '100',
     'equipment_min_rows_per_page' => '0',
     'equipment_max_rows_per_page' => '0',
+    'revision_summary_table_width' => '91.5',
     'revision_summary_min_rows_per_page' => '0',
     'revision_summary_max_rows_per_page' => '12',
+    'revision_summary_col_line' => '3.5',
     'revision_summary_col_item' => '38.5',
+    'revision_summary_col_description' => '30.5',
+    'revision_summary_col_total' => '7.5',
+    'revision_summary_col_action' => '8.5',
+    'revision_summary_col_notes' => '11.5',
     'equipment_zebra_gray' => '#BBBBBB',
     'equipment_row_padding' => '0.016',
     'equipment_header_row_padding' => '0.280',
@@ -467,7 +473,8 @@ assert_true(str_contains($exportHtml, '<strong>Revision</strong> 1.1'), 'Expecte
 assert_true(str_contains($exportHtml, 'background: #ABCDEF;'), 'Expected export header rows to use the saved header color.');
 assert_true(str_contains($exportHtml, 'background: #FEDCBA;'), 'Expected export category rows to use the saved category color.');
 assert_true(str_contains($exportHtml, 'width: 2.500%;'), 'Expected export line-number column width to use the saved layout setting.');
-assert_true((bool) preg_match('/<table class="word-table equipment-table revision-summary-table">.*?<colgroup>.*?<col style="width: 2\.500%;">.*?<col style="width: 38\.500%;">.*?<col style="width: 31\.000%;">/s', $exportHtml), 'Expected revision summary markup to include its dedicated configured item width and a matching description width.');
+assert_true(str_contains($exportHtml, 'table.word-table.revision-summary-table {') && str_contains($exportHtml, 'width: 91.5%;'), 'Expected revision summary table width to use its dedicated layout setting.');
+assert_true((bool) preg_match('/<table class="word-table equipment-table revision-summary-table">.*?<colgroup>.*?<col style="width: 3\.500%;">.*?<col style="width: 38\.500%;">.*?<col style="width: 30\.500%;">.*?<col style="width: 7\.500%;">.*?<col style="width: 8\.500%;">.*?<col style="width: 11\.500%;">/s', $exportHtml), 'Expected revision summary markup to include dedicated configured column widths for every summary column.');
 assert_true((bool) preg_match('/<table class="word-table equipment-table">.*?<colgroup>.*?<col style="width: 2\.500%;">.*?<col style="width: 45\.000%;">.*?<col style="width: 23\.000%;">.*?<col style="width: 5\.000%;">.*?<col style="width: 5\.000%;">.*?<col style="width: 6\.000%;">.*?<col style="width: 12\.000%;">/s', $exportHtml), 'Expected equipment breakdown markup to include explicit configured column widths.');
 assert_true(str_contains($exportHtml, 'font-size: 5.75pt;'), 'Expected line-number font size to use the saved layout setting.');
 assert_true(str_contains($exportHtml, 'font-size: 8.25pt;'), 'Expected item font size to use the saved layout setting.');
@@ -524,7 +531,7 @@ for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
 $syntheticAutoPages = export_equipment_pages($tallSyntheticRows, export_layout_settings());
 $syntheticMinPages = export_equipment_pages($tallSyntheticRows, $syntheticMinOnlyLayout);
 assert_true(count($syntheticAutoPages[0]) < 4, 'Expected automatic pagination to break tall rows before four items.');
-assert_true(count($syntheticMinPages[0]) === 4 && count($syntheticMinPages[1]) === 1, 'Expected configured minimum rows per page to keep at least the minimum rows together when possible.');
+assert_true(count($syntheticMinPages[0]) < 4, 'Expected configured equipment minimum rows per page to remain a soft target when tall rows would be cut off.');
 $syntheticSummaryLayout = export_layout_settings();
 $syntheticSummaryLayout['layout.revision_summary_min_rows_per_page'] = '4';
 $syntheticSummaryLayout['layout.revision_summary_max_rows_per_page'] = '2';
@@ -555,7 +562,7 @@ for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
 $syntheticSummaryAutoPages = export_summary_pages($tallSyntheticSummaryRows, export_layout_settings());
 $syntheticSummaryMinPages = export_summary_pages($tallSyntheticSummaryRows, $syntheticSummaryMinOnlyLayout);
 assert_true(count($syntheticSummaryAutoPages[0]) < 4, 'Expected automatic revision summary pagination to break tall rows before four items.');
-assert_true(count($syntheticSummaryMinPages[0]) === 4 && count($syntheticSummaryMinPages[1]) === 1, 'Expected configured minimum rows per page to keep revision summary rows together when possible.');
+assert_true(count($syntheticSummaryMinPages[0]) < 4, 'Expected configured revision summary minimum rows per page to remain a soft target when tall rows would be cut off.');
 
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);
@@ -689,9 +696,15 @@ assert_true(array_key_exists('layout.export_notes', $layoutDefaults), 'Expected 
 assert_true(array_key_exists('layout.equipment_table_width', $layoutDefaults), 'Expected export layout defaults to include equipment table sizing.');
 assert_true(array_key_exists('layout.equipment_min_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment min rows per page.');
 assert_true(array_key_exists('layout.equipment_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment max rows per page.');
+assert_true(array_key_exists('layout.revision_summary_table_width', $layoutDefaults), 'Expected export layout defaults to include revision summary table width.');
 assert_true(array_key_exists('layout.revision_summary_min_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include revision summary min rows per page.');
 assert_true(array_key_exists('layout.revision_summary_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include revision summary max rows per page.');
+assert_true(array_key_exists('layout.revision_summary_col_line', $layoutDefaults), 'Expected export layout defaults to include revision summary line-number width.');
 assert_true(array_key_exists('layout.revision_summary_col_item', $layoutDefaults), 'Expected export layout defaults to include revision summary item width.');
+assert_true(array_key_exists('layout.revision_summary_col_description', $layoutDefaults), 'Expected export layout defaults to include revision summary description width.');
+assert_true(array_key_exists('layout.revision_summary_col_total', $layoutDefaults), 'Expected export layout defaults to include revision summary total width.');
+assert_true(array_key_exists('layout.revision_summary_col_action', $layoutDefaults), 'Expected export layout defaults to include revision summary action width.');
+assert_true(array_key_exists('layout.revision_summary_col_notes', $layoutDefaults), 'Expected export layout defaults to include revision summary notes width.');
 assert_true(array_key_exists('layout.equipment_zebra_gray', $layoutDefaults), 'Expected export layout defaults to include equipment zebra gray.');
 assert_true(array_key_exists('layout.equipment_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment line height.');
 assert_true(array_key_exists('layout.equipment_col_line', $layoutDefaults), 'Expected export layout defaults to include line-number width.');
@@ -708,9 +721,15 @@ save_export_layout([
     'equipment_table_width' => '132.40',
     'equipment_min_rows_per_page' => '111',
     'equipment_max_rows_per_page' => '222',
+    'revision_summary_table_width' => '93.25',
     'revision_summary_min_rows_per_page' => '333',
     'revision_summary_max_rows_per_page' => '444',
+    'revision_summary_col_line' => '12.5',
     'revision_summary_col_item' => '55.5',
+    'revision_summary_col_description' => '34.4',
+    'revision_summary_col_total' => '18.3',
+    'revision_summary_col_action' => '16.2',
+    'revision_summary_col_notes' => '22.1',
     'equipment_zebra_gray' => '#BBBBBB',
     'equipment_row_padding' => '0.123',
     'equipment_header_row_padding' => '1.25',
@@ -740,9 +759,15 @@ assert_true(($savedLayout['layout.export_notes'] ?? '') === "One\nTwo", 'Expecte
 assert_true(($savedLayout['layout.equipment_table_width'] ?? '') === '132.40', 'Expected equipment table width to persist in export layout settings without reformatting.');
 assert_true(($savedLayout['layout.equipment_min_rows_per_page'] ?? '') === '111', 'Expected equipment min rows per page to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.equipment_max_rows_per_page'] ?? '') === '222', 'Expected equipment max rows per page to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_table_width'] ?? '') === '93.25', 'Expected revision summary table width to persist in export layout settings without reformatting.');
 assert_true(($savedLayout['layout.revision_summary_min_rows_per_page'] ?? '') === '333', 'Expected revision summary min rows per page to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.revision_summary_max_rows_per_page'] ?? '') === '444', 'Expected revision summary max rows per page to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_line'] ?? '') === '12.5', 'Expected revision summary line-number width to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.revision_summary_col_item'] ?? '') === '55.5', 'Expected revision summary item width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_description'] ?? '') === '34.4', 'Expected revision summary description width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_total'] ?? '') === '18.3', 'Expected revision summary total width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_action'] ?? '') === '16.2', 'Expected revision summary action width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_notes'] ?? '') === '22.1', 'Expected revision summary notes width to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.equipment_zebra_gray'] ?? '') === '#BBBBBB', 'Expected equipment zebra gray to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_line_height'] ?? '') === '4.6', 'Expected equipment line height to persist in export layout settings without limits.');
 assert_true(($savedLayout['layout.equipment_col_line'] ?? '') === '18.5', 'Expected line-number width to persist in export layout settings without limits.');

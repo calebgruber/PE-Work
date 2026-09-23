@@ -114,6 +114,30 @@
   color: var(--text);
 }
 
+.settings-layout-nav {
+  margin: 1rem 0 1.25rem;
+}
+
+.settings-layout-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.settings-layout-section:first-of-type {
+  margin-top: 1.25rem;
+}
+
+.settings-layout-section .section-label {
+  margin-top: 0;
+}
+
+.settings-layout-section-copy {
+  margin-bottom: 1rem;
+}
+
 .inventory-row td,
 .revision-row td {
   transition: background-color var(--transition);

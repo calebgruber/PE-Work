@@ -376,8 +376,8 @@ function export_equipment_page_row_height(array $row, array $metrics): float
 
 function export_summary_page_row_height(array $row, array $metrics): float
 {
-    $itemLines = export_estimated_line_count((string) ($row['item']['name'] ?? ''), $metrics['summary_item_width'], $metrics, 'item');
-    $descriptionLines = export_estimated_line_count((string) ($row['description'] ?? ''), $metrics['summary_description_width'], $metrics, 'description');
+    $itemLines = export_estimated_line_count((string) ($row['item']['name'] ?? ''), $metrics['columns']['item'], $metrics, 'item');
+    $descriptionLines = export_estimated_line_count((string) ($row['description'] ?? ''), $metrics['columns']['description'], $metrics, 'description');
     $notesLines = export_estimated_line_count(export_equipment_note($row['item'], $row['line']), $metrics['columns']['notes'], $metrics, 'notes');
     $lineCount = max($itemLines, $descriptionLines, $notesLines);
     $rowFontSize = max(
@@ -395,18 +395,15 @@ function export_summary_page_row_height(array $row, array $metrics): float
 function export_summary_layout_metrics(array $layout): array
 {
     $metrics = export_equipment_layout_metrics($layout);
-    $summaryItemWidth = round((float) ($layout['layout.revision_summary_col_item'] ?? ($metrics['columns']['item'] ?? 45)), 3);
-    $summaryDescriptionWidth = round(max(
-        0.1,
-        100
-        - (float) ($metrics['line_width'] ?? 0)
-        - $summaryItemWidth
-        - (float) ($metrics['columns']['total'] ?? 0)
-        - (float) ($metrics['summary_action_width'] ?? 0)
-        - (float) ($metrics['columns']['notes'] ?? 0)
-    ), 3);
-    $metrics['summary_item_width'] = $summaryItemWidth;
-    $metrics['summary_description_width'] = $summaryDescriptionWidth;
+    $metrics['table_width'] = (float) ($layout['layout.revision_summary_table_width'] ?? ($metrics['table_width'] ?? 100));
+    $metrics['min_rows_per_page'] = (int) ($layout['layout.revision_summary_min_rows_per_page'] ?? 0);
+    $metrics['max_rows_per_page'] = (int) ($layout['layout.revision_summary_max_rows_per_page'] ?? 0);
+    $metrics['line_width'] = round((float) ($layout['layout.revision_summary_col_line'] ?? ($metrics['line_width'] ?? 4)), 3);
+    $metrics['columns']['item'] = round((float) ($layout['layout.revision_summary_col_item'] ?? ($metrics['columns']['item'] ?? 45)), 3);
+    $metrics['columns']['description'] = round((float) ($layout['layout.revision_summary_col_description'] ?? ($metrics['columns']['description'] ?? 23)), 3);
+    $metrics['columns']['total'] = round((float) ($layout['layout.revision_summary_col_total'] ?? ($metrics['columns']['total'] ?? 6)), 3);
+    $metrics['columns']['notes'] = round((float) ($layout['layout.revision_summary_col_notes'] ?? ($metrics['columns']['notes'] ?? 12)), 3);
+    $metrics['summary_action_width'] = round((float) ($layout['layout.revision_summary_col_action'] ?? ($metrics['summary_action_width'] ?? 10)), 3);
 
     return $metrics;
 }
@@ -435,8 +432,8 @@ function export_summary_pages(array $rows, array $layout): array
 
     $metrics = export_summary_layout_metrics($layout);
     $availableHeight = 7.3;
-    $minimumRows = (int) ($layout['layout.revision_summary_min_rows_per_page'] ?? 0);
-    $maximumRows = (int) ($layout['layout.revision_summary_max_rows_per_page'] ?? 0);
+    $minimumRows = (int) ($metrics['min_rows_per_page'] ?? 0);
+    $maximumRows = (int) ($metrics['max_rows_per_page'] ?? 0);
     if ($maximumRows > 0 && $minimumRows > $maximumRows) {
         $minimumRows = $maximumRows;
     }
@@ -452,8 +449,8 @@ function export_summary_pages(array $rows, array $layout): array
             : 0.0;
         $currentRowCount = count($currentPage);
         $reachesRowCap = $maximumRows > 0 && $currentRowCount >= $maximumRows;
-        $meetsMinimumRows = $minimumRows === 0 || $currentRowCount >= $minimumRows;
-        if ($currentPage !== [] && ($reachesRowCap || ($meetsMinimumRows && ($currentHeight + $transitionHeight + $rowHeight) > $availableHeight))) {
+        $wouldOverflow = ($currentHeight + $transitionHeight + $rowHeight) > $availableHeight;
+        if ($currentPage !== [] && ($reachesRowCap || $wouldOverflow)) {
             $pages[] = $currentPage;
             $currentPage = [];
             $currentHeight = 0.0;
@@ -499,8 +496,8 @@ function export_equipment_pages(array $rows, array $layout): array
             : 0.0;
         $currentRowCount = count($currentPage);
         $reachesRowCap = $maximumRows > 0 && $currentRowCount >= $maximumRows;
-        $meetsMinimumRows = $minimumRows === 0 || $currentRowCount >= $minimumRows;
-        if ($currentPage !== [] && ($reachesRowCap || ($meetsMinimumRows && ($currentHeight + $transitionHeight + $rowHeight) > $availableHeight))) {
+        $wouldOverflow = ($currentHeight + $transitionHeight + $rowHeight) > $availableHeight;
+        if ($currentPage !== [] && ($reachesRowCap || $wouldOverflow)) {
             $pages[] = $currentPage;
             $currentPage = [];
             $currentHeight = 0.0;
@@ -825,7 +822,8 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       font-weight: 600;
     }
     table.word-table.revision-summary-table {
-      width: 92%;
+      width: <?= h(number_format($summaryMetrics['table_width'], 1, '.', '')) ?>%;
+      max-width: 100%;
       margin-left: auto;
       margin-right: auto;
     }
@@ -1197,12 +1195,12 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       <div class="equipment-table-wrap">
       <table class="word-table equipment-table revision-summary-table">
         <colgroup>
-          <col style="width: <?= h(number_format($equipmentMetrics['line_width'], 3, '.', '')) ?>%;">
-          <col style="width: <?= h(number_format($summaryMetrics['summary_item_width'], 3, '.', '')) ?>%;">
-          <col style="width: <?= h(number_format($summaryMetrics['summary_description_width'], 3, '.', '')) ?>%;">
-          <col style="width: <?= h(number_format($equipmentMetrics['columns']['total'], 3, '.', '')) ?>%;">
-          <col style="width: <?= h(number_format($equipmentMetrics['summary_action_width'], 3, '.', '')) ?>%;">
-          <col style="width: <?= h(number_format($equipmentMetrics['columns']['notes'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($summaryMetrics['line_width'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($summaryMetrics['columns']['item'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($summaryMetrics['columns']['description'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($summaryMetrics['columns']['total'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($summaryMetrics['summary_action_width'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($summaryMetrics['columns']['notes'], 3, '.', '')) ?>%;">
         </colgroup>
         <tbody>
           <?php if ($summaryPageRows): ?>
