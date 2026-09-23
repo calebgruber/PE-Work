@@ -69,7 +69,7 @@ function export_equipment_rows(array $catalog, string $type): array
             $include = match ($type) {
                 'spares' => (int) ($line['spare_quantity'] ?? 0) > 0,
                 'returns' => (int) ($line['total_quantity'] ?? 0) > 0 || !empty($line['action']),
-                default => (int) ($line['total_quantity'] ?? 0) > 0,
+                default => true,
             };
             if ($include) {
                 $visibleItems[] = $item;
@@ -474,8 +474,8 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       width: 100%;
       max-width: 100%;
       margin: 0 auto;
-      font-size: 7.1pt;
-      line-height: 1.02;
+      font-size: 7.35pt;
+      line-height: 1.05;
     }
     .equipment-table-wrap {
       display: flex;
@@ -485,7 +485,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table th,
     table.word-table td {
-      padding: 0.012in 0.028in;
+      padding: 0.016in 0.03in;
       vertical-align: middle;
       text-align: left;
       white-space: nowrap;
@@ -517,7 +517,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     .line-cell {
       text-align: right;
       font-weight: 700;
-      font-size: 6.7pt;
+      font-size: 6.9pt;
       padding-right: 0.04in;
     }
     .delta {
