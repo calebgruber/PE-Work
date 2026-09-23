@@ -428,6 +428,12 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       margin-top: 0.12in;
       font-size: 9pt;
     }
+    table.word-table.equipment-table {
+      width: 6.95in;
+      max-width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
     table.word-table th,
     table.word-table td {
       padding: 0.05in 0.06in;
@@ -581,7 +587,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       </div>
       <p class="page-heading">REVISION SUMMARY</p>
       <p class="page-note">NOTE: Not everything is included here; see full revision for complete accessories, etc.</p>
-      <table class="word-table">
+      <table class="word-table equipment-table">
         <thead>
           <tr>
             <th class="col-line">LINE</th>
