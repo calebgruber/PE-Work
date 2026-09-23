@@ -287,7 +287,9 @@ function export_equipment_layout_metrics(array $layout): array
     $maxRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_max_rows_per_page'] ?? 0)));
     $rowPadding = max(0.0, (float) ($layout['layout.equipment_row_padding'] ?? 0.016));
     $headerRowPadding = max(0.0, (float) ($layout['layout.equipment_header_row_padding'] ?? 0.022));
+    $headerLineHeight = max(0.9, min(4.0, (float) ($layout['layout.equipment_header_line_height'] ?? 1.1)));
     $categoryRowPadding = max(0.0, (float) ($layout['layout.equipment_category_row_padding'] ?? 0.03));
+    $categoryLineHeight = max(0.9, min(4.0, (float) ($layout['layout.equipment_category_line_height'] ?? 1.1)));
     $categoryGap = max(0.0, (float) ($layout['layout.equipment_category_gap'] ?? 0.08));
     $fontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
     $lineHeight = max(0.9, min(2.2, (float) ($layout['layout.equipment_line_height'] ?? 1.1)));
@@ -312,7 +314,9 @@ function export_equipment_layout_metrics(array $layout): array
         'max_rows_per_page' => $maxRowsPerPage,
         'row_padding' => $rowPadding,
         'header_row_padding' => $headerRowPadding,
+        'header_line_height' => $headerLineHeight,
         'category_row_padding' => $categoryRowPadding,
+        'category_line_height' => $categoryLineHeight,
         'category_gap' => $categoryGap,
         'font_size' => $fontSize,
         'line_height' => $lineHeight,
@@ -356,13 +360,13 @@ function export_equipment_page_row_height(array $row, array $metrics): float
 
 function export_equipment_header_row_height(array $metrics): float
 {
-    $baseHeight = (($metrics['font_size'] / 72) * $metrics['line_height']) + (($metrics['header_row_padding'] ?? 0.022) * 2) + 0.06;
+    $baseHeight = (($metrics['font_size'] / 72) * ($metrics['header_line_height'] ?? $metrics['line_height'])) + (($metrics['header_row_padding'] ?? 0.022) * 2) + 0.06;
     return max(0.18, $baseHeight);
 }
 
 function export_equipment_category_row_height(array $metrics): float
 {
-    $baseHeight = (($metrics['font_size'] / 72) * $metrics['line_height']) + (($metrics['category_row_padding'] ?? 0.03) * 2) + 0.06;
+    $baseHeight = (($metrics['font_size'] / 72) * ($metrics['category_line_height'] ?? $metrics['line_height'])) + (($metrics['category_row_padding'] ?? 0.03) * 2) + 0.06;
     return max(0.2, $baseHeight);
 }
 
@@ -464,6 +468,8 @@ $coverPreparedByName = trim((string) ($layout['layout.cover_prepared_by_name'] ?
 if ($coverPreparedByName === '') {
     $coverPreparedByName = (string) (current_user()['display_name'] ?? '');
 }
+$footerText = trim((string) ($layout['layout.footer_text'] ?? ''));
+$globalFooterText = $coverPreparedByName !== '' ? 'Prepared by: ' . $coverPreparedByName : $footerText;
 $coverShowTitle = ($layout['layout.cover_show_title'] ?? '1') === '1';
 $showPageNumbers = ($layout['layout.show_page_numbers'] ?? '1') === '1';
 $coverTheatreName = trim((string) ($show['theatre_name'] ?? ''));
@@ -708,8 +714,11 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0.1in 0.16in;
     }
-    .notes-heading {
+    .notes-section {
       margin-top: <?= h(number_format($coverNotesSpacing, 3, '.', '')) ?>in;
+    }
+    .notes-heading {
+      margin-top: 0;
       text-decoration: underline;
       font-weight: 600;
     }
@@ -774,6 +783,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       font-weight: 700;
       padding-top: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
       padding-bottom: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
+      line-height: <?= h(number_format($equipmentMetrics['header_line_height'], 2, '.', '')) ?>;
       background: <?= h($equipmentHeaderFill) ?>;
     }
     .col-line { width: <?= h(number_format($equipmentMetrics['line_width'], 3, '.', '')) ?>%; }
@@ -818,9 +828,10 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       background: #fff;
     }
     .category-header-row td {
-      height: <?= h(number_format(max(0.0, $equipmentMetrics['category_row_padding'] * 2), 3, '.', '')) ?>in;
+      height: <?= h(number_format(export_equipment_category_row_height($equipmentMetrics), 3, '.', '')) ?>in;
       padding-top: <?= h(number_format($equipmentMetrics['category_row_padding'], 3, '.', '')) ?>in;
       padding-bottom: <?= h(number_format($equipmentMetrics['category_row_padding'], 3, '.', '')) ?>in;
+      line-height: <?= h(number_format($equipmentMetrics['category_line_height'], 2, '.', '')) ?>;
       font-weight: 700;
       letter-spacing: 0.03em;
       text-transform: uppercase;
@@ -829,9 +840,10 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       background: <?= h($equipmentCategoryFill) ?>;
     }
     .category-column-header-row td {
-      height: <?= h(number_format(max(0.0, $equipmentMetrics['header_row_padding'] * 2), 3, '.', '')) ?>in;
+      height: <?= h(number_format(export_equipment_header_row_height($equipmentMetrics), 3, '.', '')) ?>in;
       padding-top: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
       padding-bottom: <?= h(number_format($equipmentMetrics['header_row_padding'], 3, '.', '')) ?>in;
+      line-height: <?= h(number_format($equipmentMetrics['header_line_height'], 2, '.', '')) ?>;
       border-bottom: 1px solid #666;
       text-decoration: underline;
       font-weight: 700;
@@ -898,18 +910,6 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
   <div class="document">
     <section class="page cover-page">
       <div class="page-content">
-      <div class="top-rule">
-        <div class="page-header-bar">
-          <div class="page-header-title">
-            <strong><?= h($show['show_name']) ?></strong>
-            <div class="page-header-subtitle"><?= h($coverTitle) ?></div>
-          </div>
-          <div class="page-header-meta">
-            <div><strong>Revision</strong> <?= h($revisionCode) ?></div>
-            <?php if ($showPageNumbers): ?><div><strong>Page</strong> <?= h((string) $pageNumbers['cover']) ?> of <?= h((string) $totalPages) ?></div><?php endif; ?>
-          </div>
-        </div>
-      </div>
       <div class="cover-body">
         <?php if ($coverShowTitle): ?><p class="cover-show-title"><?= h($show['show_name']) ?></p><?php endif; ?>
         <div class="cover-art">
@@ -938,7 +938,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
         <div class="cover-footer-logo"><img src="<?= h($coverFooterLogoUrl) ?>" alt="Cover footer logo"></div>
         <?php endif; ?>
         <?php if ($coverPreparedByName !== ''): ?><div class="cover-footer-prepared-by">Prepared by: <?= h($coverPreparedByName) ?></div><?php endif; ?>
-        <span><?= h($layout['layout.footer_text']) ?></span>
+        <?php if ($coverPreparedByName === '' && $globalFooterText !== ''): ?><span><?= h($globalFooterText) ?></span><?php endif; ?>
       </div>
     </section>
 
@@ -1028,16 +1028,18 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
         </div>
       </div>
 
-      <p class="notes-heading">IMPORTANT NOTES:</p>
-      <ol class="notes-list">
-        <?php foreach ($notes as $note): ?>
-        <li><?= h($note) ?></li>
-        <?php endforeach; ?>
-      </ol>
+      <div class="notes-section">
+        <p class="notes-heading">IMPORTANT NOTES:</p>
+        <ol class="notes-list">
+          <?php foreach ($notes as $note): ?>
+          <li><?= h($note) ?></li>
+          <?php endforeach; ?>
+        </ol>
+      </div>
       </div>
 
       <div class="footer">
-        <span><?= h($layout['layout.footer_text']) ?></span>
+        <span><?= h($globalFooterText) ?></span>
       </div>
     </section>
 
@@ -1110,7 +1112,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       </div>
       </div>
       <div class="footer">
-        <span><?= h($layout['layout.footer_text']) ?></span>
+        <span><?= h($globalFooterText) ?></span>
       </div>
     </section>
     <?php endif; ?>
@@ -1174,7 +1176,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       </div>
       </div>
       <div class="footer">
-        <span><?= h($layout['layout.footer_text']) ?></span>
+        <span><?= h($globalFooterText) ?></span>
       </div>
     </section>
     <?php endforeach; ?>

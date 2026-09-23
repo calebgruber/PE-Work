@@ -319,7 +319,9 @@ save_export_layout([
     'equipment_zebra_gray' => '#BBBBBB',
     'equipment_row_padding' => '0.016',
     'equipment_header_row_padding' => '0.028',
+    'equipment_header_line_height' => '1.45',
     'equipment_category_row_padding' => '0.036',
+    'equipment_category_line_height' => '1.7',
     'equipment_category_gap' => '0.222',
     'equipment_header_fill' => '#ABCDEF',
     'equipment_category_fill' => '#FEDCBA',
@@ -402,7 +404,7 @@ assert_true(str_contains($exportHtml, 'INITIAL ORDER - 09/01/2026'), 'Expected t
 assert_true(str_contains($exportHtml, '<p class="details-page-heading">CREW &amp; NOTES</p>'), 'Expected the second paperwork page to contain the crew and notes section.');
 assert_true(str_contains($exportHtml, '09/20/2026'), 'Expected show schedule dates to use mm/dd/yyyy formatting.');
 assert_true(str_contains($exportHtml, 'margin-bottom: 0.730in;'), 'Expected the cover title-to-revision spacing to use the saved layout setting.');
-assert_true(str_contains($exportHtml, 'margin-top: 1.234in;'), 'Expected notes spacing to use the saved layout setting.');
+assert_true(str_contains($exportHtml, '.notes-section {') && str_contains($exportHtml, 'margin-top: 1.234in;'), 'Expected notes spacing to use the saved layout setting.');
 assert_true(str_contains($exportHtml, 'line-height: 1.55;'), 'Expected the cover page to add more vertical space between lines.');
 assert_true(str_contains($exportHtml, 'cover-footer-logo') && str_contains($exportHtml, 'footer-logo.png'), 'Expected the cover page footer to support a centered personal logo.');
 assert_true(str_contains($exportHtml, 'Prepared by: Caleb Tester'), 'Expected the cover page footer to show the prepared-by name.');
@@ -425,14 +427,21 @@ assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export 
 assert_true(!str_contains($exportHtml, 'Adapter note'), 'Expected admin inventory default notes to stay off paperwork exports.');
 assert_true((bool) preg_match('/<p class="page-heading">EQUIPMENT BREAKDOWN<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected equipment breakdown to include category header rows followed by repeated table headers.');
 assert_true(str_contains($exportHtml, '<tr class="category-gap-row"><td colspan="7"></td></tr>'), 'Expected export tables to include spacing rows between categories.');
-assert_true(substr_count($exportHtml, 'class="page-header-bar"') >= 4, 'Expected every export page to include the old top header block again.');
-assert_true(str_contains($exportHtml, '<strong>Page</strong> 1 of '), 'Expected page headers to include page numbering.');
+assert_true(substr_count($exportHtml, 'class="page-header-bar"') >= 3, 'Expected non-cover export pages to include the old top header block.');
+assert_true(str_contains($exportHtml, '<strong>Page</strong> 2 of '), 'Expected page headers to include page numbering on non-cover pages.');
 assert_true(str_contains($exportHtml, '<strong>Revision</strong> 1.1'), 'Expected page headers to include the current revision.');
 assert_true(str_contains($exportHtml, 'background: #ABCDEF;'), 'Expected export header rows to use the saved header color.');
 assert_true(str_contains($exportHtml, 'background: #FEDCBA;'), 'Expected export category rows to use the saved category color.');
 assert_true(str_contains($exportHtml, 'padding-top: 0.028in;'), 'Expected export header rows to use the saved header row height.');
+assert_true(str_contains($exportHtml, 'line-height: 1.45;'), 'Expected export header rows to use the saved header line height.');
 assert_true(str_contains($exportHtml, 'padding-top: 0.036in;'), 'Expected export category rows to use the saved category row height.');
+assert_true(str_contains($exportHtml, 'line-height: 1.70;'), 'Expected export category rows to use the saved category line height.');
 assert_true(str_contains($exportHtml, 'padding: 0.222in 0 0;'), 'Expected category spacing above each section to use the saved layout setting.');
+assert_true((bool) preg_match('/<section class="page cover-page">.*?<div class="footer cover-footer">.*?Prepared by: Caleb Tester(?!.*?<span>Prepared by: Caleb Tester<\/span>).*?<\/div>/s', $exportHtml), 'Expected the cover footer to show the prepared-by name only once.');
+assert_true(substr_count($exportHtml, 'Prepared by: Caleb Tester') >= 3, 'Expected the prepared-by name to be used globally across paperwork footers.');
+$coverSectionEnd = strpos($exportHtml, '</section>');
+$coverSection = $coverSectionEnd === false ? $exportHtml : substr($exportHtml, 0, $coverSectionEnd);
+assert_true(!str_contains($coverSection, 'class="page-header-bar"'), 'Expected the cover page to omit the restored paperwork header.');
 $syntheticLayout = export_layout_settings();
 $syntheticLayout['layout.equipment_min_rows_per_page'] = '4';
 $syntheticLayout['layout.equipment_max_rows_per_page'] = '2';
@@ -604,6 +613,8 @@ assert_true(array_key_exists('layout.equipment_min_rows_per_page', $layoutDefaul
 assert_true(array_key_exists('layout.equipment_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment max rows per page.');
 assert_true(array_key_exists('layout.equipment_zebra_gray', $layoutDefaults), 'Expected export layout defaults to include equipment zebra gray.');
 assert_true(array_key_exists('layout.equipment_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment line height.');
+assert_true(array_key_exists('layout.equipment_header_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment header line height.');
+assert_true(array_key_exists('layout.equipment_category_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment category line height.');
 save_export_layout([
     'header_text' => 'Custom Header',
     'organization_text' => 'Top Right Copy',
@@ -616,6 +627,11 @@ save_export_layout([
     'equipment_max_rows_per_page' => '12',
     'equipment_zebra_gray' => '#BBBBBB',
     'equipment_row_padding' => '0.02',
+    'equipment_header_row_padding' => '0.05',
+    'equipment_header_line_height' => '1.6',
+    'equipment_category_row_padding' => '0.07',
+    'equipment_category_line_height' => '1.8',
+    'equipment_category_gap' => '0.15',
     'equipment_font_size' => '7.8',
     'equipment_line_height' => '1.3',
     'equipment_col_item' => '48',
@@ -633,6 +649,8 @@ assert_true(($savedLayout['layout.equipment_min_rows_per_page'] ?? '') === '4', 
 assert_true(($savedLayout['layout.equipment_max_rows_per_page'] ?? '') === '12', 'Expected equipment max rows per page to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_zebra_gray'] ?? '') === '#BBBBBB', 'Expected equipment zebra gray to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_line_height'] ?? '') === '1.3', 'Expected equipment line height to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_header_line_height'] ?? '') === '1.6', 'Expected equipment header line height to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_category_line_height'] ?? '') === '1.8', 'Expected equipment category line height to persist in export layout settings.');
 
 $deleteItemResult = delete_inventory_item($adapterItemId);
 assert_true($deleteItemResult['ok'] === true, 'Expected inventory delete to hard-delete the row.');

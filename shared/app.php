@@ -2083,7 +2083,9 @@ function export_layout_settings(): array
         'layout.equipment_zebra_gray' => '#CCCCCC',
         'layout.equipment_row_padding' => '0.016',
         'layout.equipment_header_row_padding' => '0.022',
+        'layout.equipment_header_line_height' => '1.1',
         'layout.equipment_category_row_padding' => '0.03',
+        'layout.equipment_category_line_height' => '1.1',
         'layout.equipment_category_gap' => '0.08',
         'layout.equipment_header_fill' => '#F3F4F6',
         'layout.equipment_category_fill' => '#E5E7EB',
@@ -2147,7 +2149,9 @@ function save_export_layout(array $input): void
     save_setting('layout.equipment_zebra_gray', export_layout_color($input, 'equipment_zebra_gray', '#CCCCCC'));
     save_setting('layout.equipment_row_padding', export_layout_number($input, 'equipment_row_padding', 0.016, 0, 10.0, 3));
     save_setting('layout.equipment_header_row_padding', export_layout_number($input, 'equipment_header_row_padding', 0.022, 0, 10.0, 3));
+    save_setting('layout.equipment_header_line_height', export_layout_number($input, 'equipment_header_line_height', 1.1, 0.9, 4.0, 2));
     save_setting('layout.equipment_category_row_padding', export_layout_number($input, 'equipment_category_row_padding', 0.03, 0, 10.0, 3));
+    save_setting('layout.equipment_category_line_height', export_layout_number($input, 'equipment_category_line_height', 1.1, 0.9, 4.0, 2));
     save_setting('layout.equipment_category_gap', export_layout_number($input, 'equipment_category_gap', 0.08, 0, 10.0, 3));
     save_setting('layout.equipment_header_fill', export_layout_color($input, 'equipment_header_fill', '#F3F4F6'));
     save_setting('layout.equipment_category_fill', export_layout_color($input, 'equipment_category_fill', '#E5E7EB'));

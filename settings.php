@@ -833,8 +833,9 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <div class="helper-text">Optional local path for a centered logo at the bottom of the cover page.</div>
           </div>
           <div class="form-group">
-            <label for="cover_prepared_by_name">Cover Prepared By Name</label>
+            <label for="cover_prepared_by_name">Prepared By Name</label>
             <input class="form-control" id="cover_prepared_by_name" name="cover_prepared_by_name" placeholder="Your Name" value="<?= h($layout['layout.cover_prepared_by_name'] ?? '') ?>">
+            <div class="helper-text">Uses this name in every paperwork footer and centers it on the cover page.</div>
           </div>
         </div>
         <div class="form-group" style="margin-top:1rem;">
@@ -876,8 +877,16 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <input class="form-control" id="equipment_header_row_padding" type="number" min="0" step="0.001" name="equipment_header_row_padding" value="<?= h($layout['layout.equipment_header_row_padding'] ?? '0.022') ?>">
           </div>
           <div class="form-group">
+            <label for="equipment_header_line_height">Header Line Height</label>
+            <input class="form-control" id="equipment_header_line_height" type="number" min="0.9" step="0.01" name="equipment_header_line_height" value="<?= h($layout['layout.equipment_header_line_height'] ?? '1.1') ?>">
+          </div>
+          <div class="form-group">
             <label for="equipment_category_row_padding">Category Row Height (in)</label>
             <input class="form-control" id="equipment_category_row_padding" type="number" min="0" step="0.001" name="equipment_category_row_padding" value="<?= h($layout['layout.equipment_category_row_padding'] ?? '0.03') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_category_line_height">Category Line Height</label>
+            <input class="form-control" id="equipment_category_line_height" type="number" min="0.9" step="0.01" name="equipment_category_line_height" value="<?= h($layout['layout.equipment_category_line_height'] ?? '1.1') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_category_gap">Space Above Categories (in)</label>
