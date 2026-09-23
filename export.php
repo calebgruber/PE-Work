@@ -376,8 +376,8 @@ function export_equipment_page_row_height(array $row, array $metrics): float
 
 function export_summary_page_row_height(array $row, array $metrics): float
 {
-    $itemLines = export_estimated_line_count((string) ($row['item']['name'] ?? ''), $metrics['columns']['item'], $metrics, 'item');
-    $descriptionLines = export_estimated_line_count((string) ($row['description'] ?? ''), $metrics['columns']['description'], $metrics, 'description');
+    $itemLines = export_estimated_line_count((string) ($row['item']['name'] ?? ''), $metrics['summary_item_width'], $metrics, 'item');
+    $descriptionLines = export_estimated_line_count((string) ($row['description'] ?? ''), $metrics['summary_description_width'], $metrics, 'description');
     $notesLines = export_estimated_line_count(export_equipment_note($row['item'], $row['line']), $metrics['columns']['notes'], $metrics, 'notes');
     $lineCount = max($itemLines, $descriptionLines, $notesLines);
     $rowFontSize = max(
@@ -390,6 +390,25 @@ function export_summary_page_row_height(array $row, array $metrics): float
     $baseHeight = (($rowFontSize / 72) * $metrics['line_height']) + ($metrics['row_padding'] * 2) + 0.08;
 
     return max(0.18, $baseHeight * $lineCount);
+}
+
+function export_summary_layout_metrics(array $layout): array
+{
+    $metrics = export_equipment_layout_metrics($layout);
+    $summaryItemWidth = round((float) ($layout['layout.revision_summary_col_item'] ?? ($metrics['columns']['item'] ?? 45)), 3);
+    $summaryDescriptionWidth = round(max(
+        0.1,
+        100
+        - (float) ($metrics['line_width'] ?? 0)
+        - $summaryItemWidth
+        - (float) ($metrics['columns']['total'] ?? 0)
+        - (float) ($metrics['summary_action_width'] ?? 0)
+        - (float) ($metrics['columns']['notes'] ?? 0)
+    ), 3);
+    $metrics['summary_item_width'] = $summaryItemWidth;
+    $metrics['summary_description_width'] = $summaryDescriptionWidth;
+
+    return $metrics;
 }
 
 function export_equipment_header_row_height(array $metrics): float
@@ -414,7 +433,7 @@ function export_summary_pages(array $rows, array $layout): array
         return [[]];
     }
 
-    $metrics = export_equipment_layout_metrics($layout);
+    $metrics = export_summary_layout_metrics($layout);
     $availableHeight = 7.3;
     $minimumRows = (int) ($layout['layout.revision_summary_min_rows_per_page'] ?? 0);
     $maximumRows = (int) ($layout['layout.revision_summary_max_rows_per_page'] ?? 0);
@@ -506,6 +525,7 @@ $type = $_GET['type'] ?? 'order';
 $labels = export_type_labels($type);
 $layout = export_layout_settings();
 $equipmentMetrics = export_equipment_layout_metrics($layout);
+$summaryMetrics = export_summary_layout_metrics($layout);
 $catalog = catalog_for_revision((int) $revision['id']);
 $revisionCode = revision_display_code($revision);
 $revisionHistory = export_revision_history($showId, $revision);
@@ -1178,8 +1198,8 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       <table class="word-table equipment-table revision-summary-table">
         <colgroup>
           <col style="width: <?= h(number_format($equipmentMetrics['line_width'], 3, '.', '')) ?>%;">
-          <col style="width: <?= h(number_format($equipmentMetrics['columns']['item'], 3, '.', '')) ?>%;">
-          <col style="width: <?= h(number_format($equipmentMetrics['columns']['description'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($summaryMetrics['summary_item_width'], 3, '.', '')) ?>%;">
+          <col style="width: <?= h(number_format($summaryMetrics['summary_description_width'], 3, '.', '')) ?>%;">
           <col style="width: <?= h(number_format($equipmentMetrics['columns']['total'], 3, '.', '')) ?>%;">
           <col style="width: <?= h(number_format($equipmentMetrics['summary_action_width'], 3, '.', '')) ?>%;">
           <col style="width: <?= h(number_format($equipmentMetrics['columns']['notes'], 3, '.', '')) ?>%;">

@@ -879,6 +879,11 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <div class="helper-text">Set to 0 to let summary page sizing decide automatically.</div>
           </div>
           <div class="form-group">
+            <label for="revision_summary_col_item">Revision Summary Item Width</label>
+            <input class="form-control" id="revision_summary_col_item" type="text" inputmode="decimal" name="revision_summary_col_item" value="<?= h($layout['layout.revision_summary_col_item'] ?? '45') ?>">
+            <div class="helper-text">Controls only the item column on revision summary pages.</div>
+          </div>
+          <div class="form-group">
             <label for="equipment_row_padding">Line Item Row Padding (in)</label>
             <input class="form-control" id="equipment_row_padding" type="text" inputmode="decimal" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
           </div>
