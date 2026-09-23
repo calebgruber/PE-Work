@@ -57,7 +57,7 @@ $invalidCsv = tempnam(sys_get_temp_dir(), 'pew-invalid-');
 file_put_contents($invalidCsv, "label,qty\nBad Item,1\n");
 $invalidResult = import_inventory_csv($invalidCsv);
 assert_true($invalidResult['ok'] === false, 'Expected invalid CSV import to fail.');
-assert_true(str_contains($invalidResult['message'], 'category and name columns'), 'Expected missing-header message.');
+assert_true(str_contains($invalidResult['message'], 'unsupported headers') || str_contains($invalidResult['message'], 'category and name columns'), 'Expected schema validation message.');
 
 $emptyCsv = tempnam(sys_get_temp_dir(), 'pew-empty-');
 file_put_contents($emptyCsv, '');

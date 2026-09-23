@@ -738,8 +738,17 @@ function import_inventory_csv(string $tmpPath): array
     }
 
     $headerMap = [];
+    $allowedHeaders = ['category', 'name', 'shop_quantity', 'unit', 'default_note', 'description'];
     foreach ($header as $index => $column) {
-        $headerMap[strtolower(trim((string) $column))] = $index;
+        $normalized = strtolower(trim((string) $column));
+        if ($normalized === '') {
+            continue;
+        }
+        $headerMap[$normalized] = $index;
+        if (!in_array($normalized, $allowedHeaders, true)) {
+            fclose($handle);
+            return ['ok' => false, 'message' => 'CSV includes unsupported headers. Use only: ' . implode(', ', $allowedHeaders) . '.'];
+        }
     }
 
     if (!isset($headerMap['category'], $headerMap['name'])) {
@@ -840,6 +849,12 @@ function delete_inventory_item(int $itemId): array
     $lookup->execute([$itemId]);
     if ((int) $lookup->fetchColumn() !== 1) {
         return ['ok' => false, 'message' => 'Inventory item not found.'];
+    }
+
+    $usage = db()->prepare('SELECT COUNT(*) FROM revision_items WHERE inventory_item_id = ?');
+    $usage->execute([$itemId]);
+    if ((int) $usage->fetchColumn() > 0) {
+        return ['ok' => false, 'message' => 'This inventory item is already used in saved revisions and cannot be removed.'];
     }
 
     $stmt = db()->prepare('UPDATE inventory_items SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
