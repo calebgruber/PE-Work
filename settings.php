@@ -72,8 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $upload = $_FILES['inventory_csv'] ?? null;
             $tmpPath = (string) ($upload['tmp_name'] ?? '');
             $uploadError = (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE);
+            $pasteCsv = trim((string) ($_POST['inventory_csv_text'] ?? ''));
             $isUploadedFile = $tmpPath !== '' && (PHP_SAPI === 'cli' || is_uploaded_file($tmpPath));
-            if ($uploadError !== UPLOAD_ERR_OK || !$isUploadedFile) {
+            if ($pasteCsv !== '') {
+                $result = import_inventory_csv_text($pasteCsv);
+            } elseif ($uploadError !== UPLOAD_ERR_OK || !$isUploadedFile) {
                 $result = ['ok' => false, 'message' => 'Choose a CSV file to import.'];
             } else {
                 $result = import_inventory_csv($tmpPath);
@@ -339,11 +342,16 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0;">
 
           <p class="helper-text">Upload a CSV exported from Excel with columns: <code>category,name,shop_quantity,unit,default_note,description</code>.</p>
-          <form method="post" enctype="multipart/form-data">
+          <form method="post" enctype="multipart/form-data" class="stack">
             <input type="hidden" name="action" value="import_inventory">
             <div class="form-group">
               <label for="inventory_csv">CSV File</label>
               <input class="form-control" type="file" id="inventory_csv" name="inventory_csv" accept=".csv,text/csv">
+            </div>
+            <div class="form-group">
+              <label for="inventory_csv_text">Or paste CSV rows</label>
+              <textarea class="form-control" id="inventory_csv_text" name="inventory_csv_text" rows="8" placeholder="category,name,shop_quantity,unit,default_note,description&#10;FIXTURES,HES Solaframe Theatre,12,ea,.,."></textarea>
+              <div class="helper-text">Paste one item per line. If you paste text here, it will import this instead of the uploaded file.</div>
             </div>
             <div class="form-actions">
               <button type="submit" class="btn btn-primary">

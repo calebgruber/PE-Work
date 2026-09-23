@@ -106,6 +106,30 @@ function csv_stream_handle(string $tmpPath)
     if ($contents === false) {
         return false;
     }
+    return csv_string_handle($contents);
+}
+
+function csv_string_handle(string $contents)
+{
+    $handle = fopen('php://temp', 'r+b');
+    if (!$handle) {
+        return false;
+    }
+
+    fwrite($handle, $contents);
+    rewind($handle);
+
+    return csv_stream_from_handle($handle);
+}
+
+function csv_stream_from_handle($handle)
+{
+    $contents = stream_get_contents($handle);
+    if ($contents === false) {
+        fclose($handle);
+        return false;
+    }
+    fclose($handle);
 
     if (str_starts_with($contents, "\xFF\xFE")) {
         $converted = @iconv('UTF-16LE', 'UTF-8//IGNORE', substr($contents, 2));
@@ -122,15 +146,15 @@ function csv_stream_handle(string $tmpPath)
     }
 
     $contents = str_replace(["\r\n", "\r"], "\n", $contents);
-    $handle = fopen('php://temp', 'r+b');
-    if (!$handle) {
+    $normalizedHandle = fopen('php://temp', 'r+b');
+    if (!$normalizedHandle) {
         return false;
     }
 
-    fwrite($handle, $contents);
-    rewind($handle);
+    fwrite($normalizedHandle, $contents);
+    rewind($normalizedHandle);
 
-    return $handle;
+    return $normalizedHandle;
 }
 
 function detect_csv_delimiter(array $headerRow): string
@@ -148,6 +172,90 @@ function detect_csv_delimiter(array $headerRow): string
     }
 
     return $bestDelimiter;
+}
+
+function import_inventory_csv_from_handle($handle): array
+{
+    $firstLine = fgets($handle);
+    if ($firstLine === false) {
+        fclose($handle);
+        return ['ok' => false, 'message' => 'CSV is empty.'];
+    }
+
+    $delimiter = detect_csv_delimiter([$firstLine]);
+    rewind($handle);
+    $header = fgetcsv($handle, 0, $delimiter);
+    if (!$header) {
+        fclose($handle);
+        return ['ok' => false, 'message' => 'CSV is empty.'];
+    }
+
+    $headerMap = [];
+    $allowedHeaders = ['category', 'name', 'shop_quantity', 'unit', 'default_note', 'description'];
+    foreach ($header as $index => $column) {
+        $normalized = normalize_csv_header((string) $column);
+        if ($normalized === '') {
+            continue;
+        }
+        $headerMap[$normalized] = $index;
+        if (!in_array($normalized, $allowedHeaders, true)) {
+            fclose($handle);
+            return ['ok' => false, 'message' => 'CSV includes unsupported headers. Use only: ' . implode(', ', $allowedHeaders) . '.'];
+        }
+    }
+
+    if (!isset($headerMap['category'], $headerMap['name'])) {
+        fclose($handle);
+        return ['ok' => false, 'message' => 'CSV must include category and name columns.'];
+    }
+
+    $created = 0;
+    $updated = 0;
+    $lookupWithCategory = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id = ? AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
+    $lookupWithoutCategory = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id IS NULL AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
+    $updateItem = db()->prepare(
+        'UPDATE inventory_items
+         SET shop_quantity = ?, unit = ?, default_note = ?, description = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?'
+    );
+    $insertItem = db()->prepare(
+        'INSERT INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+         VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+        $category = normalize_csv_value($row[$headerMap['category']] ?? '');
+        $name = normalize_csv_value($row[$headerMap['name']] ?? '');
+        if ($category === '' || $name === '') {
+            continue;
+        }
+
+        $categoryId = category_id_for_name($category);
+        $shopQuantity = max(0, (int) ($row[$headerMap['shop_quantity']] ?? 0));
+        $unit = normalize_csv_value($row[$headerMap['unit']] ?? '');
+        $defaultNote = normalize_csv_value($row[$headerMap['default_note']] ?? '');
+        $description = normalize_csv_value($row[$headerMap['description']] ?? '');
+
+        if ($categoryId > 0) {
+            $lookupWithCategory->execute([$categoryId, $name]);
+            $existing = $lookupWithCategory->fetch();
+        } else {
+            $lookupWithoutCategory->execute([$name]);
+            $existing = $lookupWithoutCategory->fetch();
+        }
+        $itemId = $existing['id'] ?? null;
+
+        if ($itemId) {
+            $updateItem->execute([$shopQuantity, $unit, $defaultNote, $description, $itemId]);
+            $updated++;
+        } else {
+            $insertItem->execute([$categoryId, $name, $shopQuantity, $unit, $defaultNote, $description]);
+            $created++;
+        }
+    }
+
+    fclose($handle);
+
+    return ['ok' => true, 'message' => sprintf('Import complete: %d created, %d updated.', $created, $updated)];
 }
 
 function blank_show(): array
@@ -866,86 +974,22 @@ function import_inventory_csv(string $tmpPath): array
         return ['ok' => false, 'message' => 'Unable to read uploaded CSV.'];
     }
 
-    $firstLine = fgets($handle);
-    if ($firstLine === false) {
-        fclose($handle);
-        return ['ok' => false, 'message' => 'CSV is empty.'];
+    return import_inventory_csv_from_handle($handle);
+}
+
+function import_inventory_csv_text(string $csvText): array
+{
+    $csvText = trim($csvText);
+    if ($csvText === '') {
+        return ['ok' => false, 'message' => 'Paste CSV rows to import.'];
     }
 
-    $delimiter = detect_csv_delimiter([$firstLine]);
-    rewind($handle);
-    $header = fgetcsv($handle, 0, $delimiter);
-    if (!$header) {
-        fclose($handle);
-        return ['ok' => false, 'message' => 'CSV is empty.'];
+    $handle = csv_string_handle($csvText);
+    if (!$handle) {
+        return ['ok' => false, 'message' => 'Paste CSV rows to import.'];
     }
 
-    $headerMap = [];
-    $allowedHeaders = ['category', 'name', 'shop_quantity', 'unit', 'default_note', 'description'];
-    foreach ($header as $index => $column) {
-        $normalized = normalize_csv_header((string) $column);
-        if ($normalized === '') {
-            continue;
-        }
-        $headerMap[$normalized] = $index;
-        if (!in_array($normalized, $allowedHeaders, true)) {
-            fclose($handle);
-            return ['ok' => false, 'message' => 'CSV includes unsupported headers. Use only: ' . implode(', ', $allowedHeaders) . '.'];
-        }
-    }
-
-    if (!isset($headerMap['category'], $headerMap['name'])) {
-        fclose($handle);
-        return ['ok' => false, 'message' => 'CSV must include category and name columns.'];
-    }
-
-    $created = 0;
-    $updated = 0;
-    $lookupWithCategory = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id = ? AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
-    $lookupWithoutCategory = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id IS NULL AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
-    $updateItem = db()->prepare(
-        'UPDATE inventory_items
-         SET shop_quantity = ?, unit = ?, default_note = ?, description = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?'
-    );
-    $insertItem = db()->prepare(
-        'INSERT INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
-         VALUES (?, ?, ?, ?, ?, ?)'
-    );
-    while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
-        $category = normalize_csv_value($row[$headerMap['category']] ?? '');
-        $name = normalize_csv_value($row[$headerMap['name']] ?? '');
-        if ($category === '' || $name === '') {
-            continue;
-        }
-
-        $categoryId = category_id_for_name($category);
-        $shopQuantity = max(0, (int) ($row[$headerMap['shop_quantity']] ?? 0));
-        $unit = normalize_csv_value($row[$headerMap['unit']] ?? '');
-        $defaultNote = normalize_csv_value($row[$headerMap['default_note']] ?? '');
-        $description = normalize_csv_value($row[$headerMap['description']] ?? '');
-
-        if ($categoryId > 0) {
-            $lookupWithCategory->execute([$categoryId, $name]);
-            $existing = $lookupWithCategory->fetch();
-        } else {
-            $lookupWithoutCategory->execute([$name]);
-            $existing = $lookupWithoutCategory->fetch();
-        }
-        $itemId = $existing['id'] ?? null;
-
-        if ($itemId) {
-            $updateItem->execute([$shopQuantity, $unit, $defaultNote, $description, $itemId]);
-            $updated++;
-        } else {
-            $insertItem->execute([$categoryId, $name, $shopQuantity, $unit, $defaultNote, $description]);
-            $created++;
-        }
-    }
-
-    fclose($handle);
-
-    return ['ok' => true, 'message' => sprintf('Import complete: %d created, %d updated.', $created, $updated)];
+    return import_inventory_csv_from_handle($handle);
 }
 
 function save_rule(array $input): array

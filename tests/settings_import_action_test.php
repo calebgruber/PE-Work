@@ -119,5 +119,32 @@ settings_assert($warningStatus === 0, 'Expected warning-path curl request to suc
 settings_assert(str_contains($warningHeaders, 'Location: /settings?tab=inventory'), 'Expected warning-path import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 settings_assert(str_contains($warningBody, 'Choose a CSV file to import.'), 'Expected redirected settings page to show the missing-file warning.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 
+$pasteCookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-paste-');
+$pasteHeadersPath = '/tmp/pew-settings-paste-headers.txt';
+$pasteResponsePath = '/tmp/pew-settings-paste-response.txt';
+$testPaths[] = $pasteCookieJar;
+$testPaths[] = $pasteHeadersPath;
+$testPaths[] = $pasteResponsePath;
+$pastePayload = "category,name,shop_quantity,unit,default_note,description\nFIXTURES,Pasted Item,9,ea,.,.\n";
+$pasteCommand = sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s --data-urlencode %s --data-urlencode %s 'http://127.0.0.1:8099/settings?tab=inventory'",
+    escapeshellarg($pasteResponsePath),
+    escapeshellarg($pasteHeadersPath),
+    escapeshellarg($pasteCookieJar),
+    escapeshellarg($pasteCookieJar),
+    escapeshellarg('action=import_inventory'),
+    escapeshellarg('inventory_csv_text=' . $pastePayload)
+);
+exec($pasteCommand, $pasteOutput, $pasteStatus);
+$pasteHeaders = is_file($pasteHeadersPath) ? file_get_contents($pasteHeadersPath) : '';
+$pasteBody = is_file($pasteResponsePath) ? file_get_contents($pasteResponsePath) : '';
+$stmt->execute(['Pasted Item']);
+$pastedQuantity = (int) $stmt->fetchColumn();
+
+settings_assert($pasteStatus === 0, 'Expected pasted import curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert(str_contains($pasteHeaders, 'Location: /settings?tab=inventory'), 'Expected pasted import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert($pastedQuantity === 9, 'Expected pasted import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert(str_contains($pasteBody, 'Import complete'), 'Expected redirected settings page to show the pasted import success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+
 settings_test_cleanup($repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 echo "settings import action test passed\n";

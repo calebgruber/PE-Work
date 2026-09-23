@@ -80,6 +80,16 @@ assert_true(($utf16Item['unit'] ?? '') === 'ea', 'Expected UTF-16 Excel-style CS
 assert_true(($utf16Item['default_note'] ?? '') === '', 'Expected dot placeholders to import as blank notes.');
 assert_true(($utf16Item['description'] ?? '') === '', 'Expected dot placeholders to import as blank descriptions.');
 
+$pastedCsv = "category,name,shop_quantity,unit,default_note,description\nFIXTURES,HES Solaframe Theatre,12,ea,.,.\nFIXTURES,GLP Impression S350 Wash,10,ea,.,.\n";
+$pastedResult = import_inventory_csv_text($pastedCsv);
+assert_true($pastedResult['ok'] === true, 'Expected pasted CSV rows to import successfully.');
+
+$quotedPaste = "category,name,shop_quantity,unit,default_note,description\nAccessories,\"Workbox, Large\",2,ea,\"Contains gels, tape\",.\n";
+$quotedPasteResult = import_inventory_csv_text($quotedPaste);
+assert_true($quotedPasteResult['ok'] === true, 'Expected pasted quoted CSV rows to import successfully.');
+$stmt->execute(['Workbox, Large']);
+assert_true((int) $stmt->fetchColumn() === 2, 'Expected pasted quoted CSV row to store the item quantity.');
+
 $showResult = save_show_record([
     'show_name' => 'Revision Clone Test',
     'theatre_name' => 'Mainstage',
