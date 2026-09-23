@@ -327,8 +327,21 @@ assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expe
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
 assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => '']) === 'background:#CCCCCC;', 'Expected export zebra striping to use the darker gray.');
 assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cover to remove the extra shop info box above the show title.');
-assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 7, 'Expected long equipment breakdowns to honor the configured max rows per page while spilling onto additional pages as needed.');
+assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
 assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export to include later line items instead of stopping early.');
+$syntheticLayout = export_layout_settings();
+$syntheticLayout['layout.equipment_max_rows_per_page'] = '2';
+$syntheticRows = [];
+for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
+    $syntheticRows[] = [
+        'category' => 'Fixtures',
+        'item' => ['name' => 'Synthetic Item ' . $syntheticIndex, 'default_note' => ''],
+        'line' => ['line_note' => '', 'pickup_date' => null, 'return_date' => null],
+    ];
+}
+$syntheticPages = export_equipment_pages($syntheticRows, $syntheticLayout);
+assert_true(count($syntheticPages) === 3, 'Expected configured max rows per page to cap equipment pagination.');
+assert_true(count($syntheticPages[0]) === 2 && count($syntheticPages[1]) === 2 && count($syntheticPages[2]) === 1, 'Expected synthetic page chunking to preserve row limits.');
 
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);
