@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pasteCsv = trim((string) ($_POST['inventory_csv_text'] ?? ''));
             if ($pasteCsv !== '') {
                 $result = import_inventory_csv_text($pasteCsv);
-            } elseif ($uploadError !== UPLOAD_ERR_OK || $tmpPath === '' || !is_uploaded_file($tmpPath)) {
+            } elseif ($uploadError !== UPLOAD_ERR_OK || $tmpPath === '' || !is_trusted_uploaded_file($tmpPath)) {
                 $result = ['ok' => false, 'message' => 'Choose a CSV file to import.'];
             } else {
                 $result = import_inventory_csv($tmpPath);

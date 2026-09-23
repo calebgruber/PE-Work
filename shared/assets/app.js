@@ -159,7 +159,8 @@
       if (!link) return;
       if (typeof e.button === 'number' && e.button !== 0) return;
       var href = link.getAttribute('href') || '';
-      if (link.target || link.hasAttribute('download') || e.ctrlKey || e.metaKey || e.shiftKey ||
+      var target = (link.getAttribute('target') || '').toLowerCase();
+      if ((target && target !== '_self') || link.hasAttribute('download') || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey ||
           href.charAt(0) === '#' || /^(javascript|data|vbscript|mailto|tel):/i.test(href) || href === '') return;
       var targetUrl;
       try {
