@@ -620,6 +620,8 @@ function create_initial_revision(int $showId): int
 function create_next_revision(int $showId): int
 {
     $pdo = db();
+    $nextIndex = null;
+    $code = null;
 
     try {
         $pdo->beginTransaction();
@@ -644,7 +646,7 @@ function create_next_revision(int $showId): int
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        if (is_unique_constraint_violation($e)) {
+        if (is_unique_constraint_violation($e) && $code !== null && $nextIndex !== null) {
             $existing = find_revision_by_identity($showId, $code, $nextIndex);
             if ($existing) {
                 return (int) $existing['id'];

@@ -223,6 +223,26 @@ assert_true(export_row_action_class($nextRevision, ['is_spacer' => 0], $clonedLi
 assert_true(export_row_action_class(find_revision($initialRevisionId) ?: [], ['is_spacer' => 0], ['action' => 'add']) === '', 'Expected initial revision lines to avoid revised export coloring.');
 assert_true(export_row_action_class($nextRevision, ['is_spacer' => 1], ['action' => 'add']) === '', 'Expected spacer rows to avoid revised export coloring.');
 
+save_revision_lines($nextRevisionId, [
+    $fixtureItemId => [
+        'rent_quantity' => 7,
+        'spare_quantity' => 1,
+        'action' => 'exchange',
+        'line_note' => 'Latest revision should clone from here.',
+        'pickup_date' => '2026-10-02',
+        'return_date' => '2026-10-16',
+    ],
+]);
+$thirdRevisionId = create_next_revision($showId);
+$thirdRevision = find_revision($thirdRevisionId);
+assert_true(($thirdRevision['revision_code'] ?? '') === 'Rev B', 'Expected second follow-up revision code to increment to Rev B.');
+$lineStmt->execute([$thirdRevisionId, $fixtureItemId]);
+$thirdLine = $lineStmt->fetch() ?: [];
+assert_true((int) ($thirdLine['rent_quantity'] ?? 0) === 7, 'Expected later revisions to clone rent quantity from the most recent revision.');
+assert_true((int) ($thirdLine['spare_quantity'] ?? 0) === 1, 'Expected later revisions to clone spare quantity from the most recent revision.');
+assert_true(($thirdLine['action'] ?? '') === 'exchange', 'Expected later revisions to clone the latest action.');
+assert_true(($thirdLine['line_note'] ?? '') === 'Latest revision should clone from here.', 'Expected later revisions to clone the latest note.');
+
 $createRuleResult = save_rule([
     'trigger_item_id' => $fixtureItemId,
     'trigger_quantity' => 2,

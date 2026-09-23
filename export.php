@@ -43,23 +43,49 @@ function export_rows(array $catalog, string $type): array
 {
     $rows = [];
     foreach ($catalog as $category) {
-        foreach ($category['items'] as $item) {
+        $categoryItems = $category['items'];
+        $shouldInclude = [];
+        foreach ($categoryItems as $index => $item) {
             $line = $item['line'];
             if (!empty($item['is_spacer'])) {
-                if ($type === 'order') {
+                $shouldInclude[$index] = false;
+                continue;
+            }
+            $shouldInclude[$index] = match ($type) {
+                'order' => (int) $line['total_quantity'] > 0,
+                'spares' => (int) $line['spare_quantity'] > 0,
+                'returns' => ($line['action'] ?? '') === 'return' && (int) ($line['total_quantity'] ?? 0) > 0,
+                default => (int) $line['total_quantity'] > 0,
+            };
+        }
+
+        foreach ($categoryItems as $index => $item) {
+            $line = $item['line'];
+            if (!empty($item['is_spacer'])) {
+                $hasPreviousVisible = false;
+                for ($previous = $index - 1; $previous >= 0; $previous--) {
+                    if (!empty($shouldInclude[$previous])) {
+                        $hasPreviousVisible = true;
+                        break;
+                    }
+                }
+                $hasLaterVisible = false;
+                for ($next = $index + 1, $count = count($categoryItems); $next < $count; $next++) {
+                    if (!empty($shouldInclude[$next])) {
+                        $hasLaterVisible = true;
+                        break;
+                    }
+                }
+                if ($hasPreviousVisible || $hasLaterVisible) {
                     $rows[] = ['category' => $category['name'], 'item' => $item, 'line' => $line, 'is_spacer' => true];
                 }
                 continue;
             }
-            if ($type === 'order' && (int) $line['total_quantity'] <= 0) {
+
+            if (empty($shouldInclude[$index])) {
                 continue;
             }
-            if ($type === 'spares' && (int) $line['spare_quantity'] <= 0) {
-                continue;
-            }
-            if ($type === 'returns' && (($line['action'] ?? '') !== 'return' || (int) ($line['total_quantity'] ?? 0) <= 0)) {
-                continue;
-            }
+
             $rows[] = ['category' => $category['name'], 'item' => $item, 'line' => $line, 'is_spacer' => false];
         }
     }

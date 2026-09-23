@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . url_for('settings?tab=migrations'));
         exit;
     } elseif (schema_ready()) {
-        if ($action === 'save_inventory' || $action === 'save_inventory_item') {
+        if ($action === 'save_inventory_item') {
             save_inventory_batch($_POST['items'] ?? []);
             flash('success', 'Inventory updates saved.');
             header('Location: ' . url_for('settings?tab=inventory'));
