@@ -285,11 +285,6 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       font-size: 11pt;
       line-height: 1.2;
     }
-      
-    .word-table-main {
-        justify-content: center;
-    }
-      
     .toolbar {
       max-width: 8.5in;
       margin: 1rem auto 0;
@@ -369,41 +364,52 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       margin-top: 0.22in;
       text-decoration: underline;
     }
-    .contact-grid {
+    .cover-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.16in 0.2in;
+      gap: 0.18in;
       margin-bottom: 0.22in;
     }
-    .detail-block {
-      margin-bottom: 0;
-      padding: 0.12in 0.14in;
+    .cover-panel {
+      padding: 0.16in 0.18in;
       border: 1px solid #d1d5db;
+      border-radius: 0.12in;
       background: #f8fafc;
     }
-    .detail-block-wide {
+    .cover-panel-wide {
       grid-column: 1 / -1;
     }
-    .detail-row {
-      display: grid;
-      grid-template-columns: 1.3in minmax(0, 1fr);
-      gap: 0.08in;
-      align-items: start;
+    .cover-panel-title {
+      margin: 0 0 0.1in;
+      font-weight: 700;
+      font-size: 10pt;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
     }
-    .detail-label {
-      display: block;
+    .cover-list {
+      display: grid;
+      gap: 0.12in;
+    }
+    .cover-entry {
+      display: grid;
+      gap: 0.03in;
+    }
+    .cover-entry-label {
       font-weight: 600;
+      color: #111827;
     }
-    .detail-subline {
-      display: block;
-      padding-left: calc(1.3in + 0.08in);
+    .cover-entry-meta,
+    .cover-panel-copy {
       color: #374151;
     }
-    .shop-team-list {
+    .cover-entry-meta {
       display: grid;
-      gap: 0.05in;
-      padding-left: calc(1.3in + 0.08in);
-      color: #374151;
+      gap: 0.02in;
+    }
+    .cover-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.12in 0.18in;
     }
     .notes-heading {
       margin-top: 0.28in;
@@ -434,10 +440,14 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       font-size: 9pt;
     }
     table.word-table.equipment-table {
-      width: 6.95in;
+      width: 6.85in;
       max-width: 100%;
-      margin-left: auto;
-      margin-right: auto;
+      margin: 0;
+    }
+    .equipment-table-wrap {
+      display: flex;
+      justify-content: center;
+      width: 100%;
     }
     table.word-table th,
     table.word-table td {
@@ -534,32 +544,73 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
         <p class="revised">REVISION <?= h($revisionCode) ?> · <?= !empty($revision['is_initial']) ? 'INITIAL ORDER' : 'REVISED' ?> <?= h($revision['revision_date']) ?></p>
       </div>
 
-      <div class="contact-grid">
-        <div class="detail-block">
-          <p class="detail-row"><span class="detail-label">Designer</span><span><?= h(export_value((string) ($show['ld_name'] ?? ''))) ?></span></p>
-          <p class="detail-subline"><?= h(export_value((string) ($show['ld_email'] ?? ''))) ?></p>
-          <p class="detail-subline"><?= h(export_value((string) ($show['ld_phone'] ?? ''))) ?></p>
+      <div class="cover-grid">
+        <div class="cover-panel">
+          <p class="cover-panel-title">Creative Team</p>
+          <div class="cover-list">
+            <div class="cover-entry">
+              <div class="cover-entry-label">Designer · <?= h(export_value((string) ($show['ld_name'] ?? ''))) ?></div>
+              <div class="cover-entry-meta">
+                <div><?= h(export_value((string) ($show['ld_email'] ?? ''))) ?></div>
+                <div><?= h(export_value((string) ($show['ld_phone'] ?? ''))) ?></div>
+              </div>
+            </div>
+            <div class="cover-entry">
+              <div class="cover-entry-label">Assistant Designer · <?= h(export_value((string) ($show['assistant_ld_name'] ?? ''))) ?></div>
+              <div class="cover-entry-meta">
+                <div><?= h(export_value((string) ($show['assistant_ld_email'] ?? ''))) ?></div>
+                <div><?= h(export_value((string) ($show['assistant_ld_phone'] ?? ''))) ?></div>
+              </div>
+            </div>
+            <div class="cover-entry">
+              <div class="cover-entry-label">Production Electrician · <?= h(export_value((string) ($show['production_electrician_name'] ?? ''))) ?></div>
+              <div class="cover-entry-meta">
+                <div><?= h(export_value((string) ($show['production_electrician_email'] ?? ''))) ?></div>
+                <div><?= h(export_value((string) ($show['production_electrician_phone'] ?? ''))) ?></div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="detail-block">
-          <p class="detail-row"><span class="detail-label">Assistant Designer</span><span><?= h(export_value((string) ($show['assistant_ld_name'] ?? ''))) ?></span></p>
-          <p class="detail-subline"><?= h(export_value((string) ($show['assistant_ld_email'] ?? ''))) ?></p>
-          <p class="detail-subline"><?= h(export_value((string) ($show['assistant_ld_phone'] ?? ''))) ?></p>
+        <div class="cover-panel">
+          <p class="cover-panel-title">Show Schedule</p>
+          <div class="cover-detail-grid">
+            <div>
+              <div class="cover-entry-label">Load-In</div>
+              <div class="cover-panel-copy"><?= h(export_value((string) ($show['pull_date'] ?? ''))) ?></div>
+            </div>
+            <div>
+              <div class="cover-entry-label">Opening</div>
+              <div class="cover-panel-copy"><?= h(export_value((string) ($show['opening_date'] ?? ''))) ?></div>
+            </div>
+            <div>
+              <div class="cover-entry-label">Return</div>
+              <div class="cover-panel-copy"><?= h(export_value((string) ($show['return_date'] ?? ''))) ?></div>
+            </div>
+            <div>
+              <div class="cover-entry-label">Strike</div>
+              <div class="cover-panel-copy"><?= h(export_value((string) ($show['strike_date'] ?? ''))) ?></div>
+            </div>
+          </div>
         </div>
-        <div class="detail-block">
-          <p class="detail-row"><span class="detail-label">Production Electrician</span><span><?= h(export_value((string) ($show['production_electrician_name'] ?? ''))) ?></span></p>
-          <p class="detail-subline"><?= h(export_value((string) ($show['production_electrician_email'] ?? ''))) ?></p>
-          <p class="detail-subline"><?= h(export_value((string) ($show['production_electrician_phone'] ?? ''))) ?></p>
-        </div>
-        <div class="detail-block">
-          <p class="detail-row"><span class="detail-label">Schedule</span><span>Load-In <?= h(export_value((string) ($show['pull_date'] ?? ''))) ?></span></p>
-          <p class="detail-subline">Opening <?= h(export_value((string) ($show['opening_date'] ?? ''))) ?></p>
-          <p class="detail-subline">Strike <?= h(export_value((string) ($show['strike_date'] ?? ''))) ?></p>
-        </div>
-        <div class="detail-block detail-block-wide">
-          <p class="detail-row"><span class="detail-label">Shop Team</span><span><?= h(export_value((string) ($show['shop_name'] ?? ''))) ?></span></p>
-          <div class="shop-team-list">
-            <div><strong>Manager:</strong> <?= h(export_value((string) ($show['shop_manager_name'] ?? ''))) ?> · <?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?> · <?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></div>
-            <div><strong>Assistant:</strong> <?= h(export_value((string) ($show['assistant_shop_manager_name'] ?? ''))) ?> · <?= h(export_value((string) ($show['assistant_shop_manager_email'] ?? ''))) ?> · <?= h(export_value((string) ($show['assistant_shop_manager_phone'] ?? ''))) ?></div>
+        <div class="cover-panel cover-panel-wide">
+          <p class="cover-panel-title">Shop Team</p>
+          <div class="cover-detail-grid">
+            <div class="cover-entry">
+              <div class="cover-entry-label"><?= h(export_value((string) ($show['shop_name'] ?? ''))) ?> · Manager</div>
+              <div class="cover-entry-meta">
+                <div><?= h(export_value((string) ($show['shop_manager_name'] ?? ''))) ?></div>
+                <div><?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?></div>
+                <div><?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></div>
+              </div>
+            </div>
+            <div class="cover-entry">
+              <div class="cover-entry-label">Assistant Shop Manager</div>
+              <div class="cover-entry-meta">
+                <div><?= h(export_value((string) ($show['assistant_shop_manager_name'] ?? ''))) ?></div>
+                <div><?= h(export_value((string) ($show['assistant_shop_manager_email'] ?? ''))) ?></div>
+                <div><?= h(export_value((string) ($show['assistant_shop_manager_phone'] ?? ''))) ?></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -592,7 +643,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       </div>
       <p class="page-heading">REVISION SUMMARY</p>
       <p class="page-note">NOTE: Not everything is included here; see full revision for complete accessories, etc.</p>
-      <table class="word-table equipment-table">
+      <table class="word-table">
         <thead>
           <tr>
             <th class="col-line">LINE</th>
@@ -634,7 +685,8 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
         </div>
       </div>
       <p class="page-heading"><?= h($labels['equipment_heading']) ?></p>
-      <table class="word-table-main">
+      <div class="equipment-table-wrap">
+      <table class="word-table equipment-table">
         <thead>
           <tr>
             <th class="col-line">LINE</th>
@@ -665,6 +717,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           <?php endforeach; ?>
         </tbody>
       </table>
+      </div>
       <div class="footer">
         <span><?= h($layout['layout.footer_text']) ?></span>
       </div>

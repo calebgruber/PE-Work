@@ -68,27 +68,6 @@ ui_page_header('Shop Order Dashboard', 'Manage shows, inventory, revisions, expo
     </div>
   </div>
 
-  <?php ui_card_open('print', 'Paperwork Workflow'); ?>
-    <div class="apps-grid">
-      <a href="<?= h(url_for('show')) ?>" class="app-tile">
-        <span class="material-symbols-outlined">playlist_add</span>
-        <span class="app-tile-name">Initial Orders</span>
-      </a>
-      <a href="<?= h(url_for('show')) ?>" class="app-tile">
-        <span class="material-symbols-outlined">history</span>
-        <span class="app-tile-name">Revisions</span>
-      </a>
-      <a href="<?= h(url_for('show')) ?>" class="app-tile">
-        <span class="material-symbols-outlined">picture_as_pdf</span>
-        <span class="app-tile-name">PDF Exports</span>
-      </a>
-      <a href="<?= h(url_for('settings?tab=layout')) ?>" class="app-tile">
-        <span class="material-symbols-outlined">dashboard_customize</span>
-        <span class="app-tile-name">Layout Editor</span>
-      </a>
-    </div>
-  <?php ui_card_close(); ?>
-
   <?php ui_card_open('checklist', 'Shows'); ?>
     <?php if ($shows): ?>
     <div class="table-wrap">

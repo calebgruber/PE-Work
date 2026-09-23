@@ -295,6 +295,27 @@ assert_true((int) ($thirdLine['spare_quantity'] ?? 0) === 1, 'Expected later rev
 assert_true(($thirdLine['action'] ?? '') === '', 'Expected later revisions to reset the latest action marker back to blank.');
 assert_true(($thirdLine['line_note'] ?? '') === 'Latest revision should clone from here.', 'Expected later revisions to clone the latest note.');
 
+$deleteRevisionResult = delete_show_revision($thirdRevisionId);
+assert_true($deleteRevisionResult['ok'] === true, 'Expected deleting a saved revision to succeed.');
+assert_true(find_revision($thirdRevisionId) === null, 'Expected deleted revision to be removed.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM revision_items WHERE revision_id = ' . (int) $thirdRevisionId)->fetchColumn() === 0, 'Expected deleting a revision to remove related revision lines.');
+assert_true(delete_show_revision($initialRevisionId)['ok'] === false, 'Expected initial revision deletion to be blocked.');
+
+$resourceFolderResult = create_resource_folder('Manuals');
+assert_true($resourceFolderResult['ok'] === true, 'Expected resource folder creation to succeed.');
+$resourceFolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Manuals'")->fetchColumn();
+assert_true($resourceFolderId > 0, 'Expected resource folder id.');
+db()->prepare(
+    'INSERT INTO resources (title, original_name, stored_name, mime_type, file_size, folder_id)
+     VALUES (?, ?, ?, ?, ?, ?)'
+)->execute(['Console Cheat Sheet', 'console.pdf', '20260923000000-abcdefabcdef.pdf', 'application/pdf', 1234, $resourceFolderId]);
+$resourceId = (int) db()->lastInsertId();
+$folderResources = fetch_resources($resourceFolderId);
+assert_true(count($folderResources) === 1, 'Expected folder-filtered resources to include the inserted PDF.');
+assert_true(($folderResources[0]['folder_name'] ?? '') === 'Manuals', 'Expected fetched resource rows to include folder names.');
+assert_true(move_resource_to_folder($resourceId, null)['ok'] === true, 'Expected moving a resource back to the root library to succeed.');
+assert_true(delete_resource_folder($resourceFolderId)['ok'] === true, 'Expected deleting an empty resource folder to succeed.');
+
 $uploadFailure = store_resource_upload([
     'error' => UPLOAD_ERR_CANT_WRITE,
     'tmp_name' => '',

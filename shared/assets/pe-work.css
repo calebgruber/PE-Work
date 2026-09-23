@@ -39,10 +39,17 @@
 }
 
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
   gap: 1rem;
   flex-wrap: nowrap;
   min-height: 3.25rem;
   height: 3.25rem;
+  padding: 0 1rem;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
 }
 
 .top-nav {
@@ -59,19 +66,21 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.375rem 0.625rem;
+  padding: 0.45rem 0.75rem;
   border-radius: 999px;
   color: #94a3b8;
   text-decoration: none;
   white-space: nowrap;
   font-size: 0.8125rem;
   font-weight: 600;
+  border: 1px solid transparent;
 }
 
 .top-nav-item:hover,
 .top-nav-item.active {
   color: #f8fafc;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(148, 163, 184, 0.18);
   text-decoration: none;
 }
 
@@ -367,6 +376,41 @@
   margin-bottom: 0.75rem;
 }
 
+.resource-manager {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.resource-sidebar,
+.resource-main {
+  min-width: 0;
+}
+
+.resource-folder-list {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.resource-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.resource-folder-row .tab {
+  flex: 1;
+}
+
+.resource-grid {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.form-actions form {
+  margin: 0;
+}
+
 .workspace-tabs {
   margin-bottom: 1rem;
 }
@@ -639,6 +683,10 @@
 @media (max-width: 900px) {
   .resource-frame {
     min-height: 320px;
+  }
+
+  .resource-manager {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -69,8 +69,8 @@ function nav_items(string $active = 'dashboard'): array
     return [
         ['icon' => 'home', 'label' => 'Dashboard', 'href' => url_for(''), 'active' => $active === 'dashboard'],
         ['icon' => 'theater_comedy', 'label' => 'Shows', 'href' => url_for('show'), 'active' => $active === 'shows'],
-        ['icon' => 'settings', 'label' => 'Settings', 'href' => url_for('settings'), 'active' => $active === 'settings'],
         ['icon' => 'folder', 'label' => 'Resources', 'href' => url_for('settings?tab=resources'), 'active' => $active === 'resources'],
+        ['icon' => 'settings', 'label' => 'Settings', 'href' => url_for('settings'), 'active' => $active === 'settings'],
     ];
 }
 
@@ -600,6 +600,25 @@ function list_revisions(int $showId): array
     $stmt = db()->prepare('SELECT * FROM show_revisions WHERE show_id = ? ORDER BY revision_index DESC');
     $stmt->execute([$showId]);
     return $stmt->fetchAll();
+}
+
+function delete_show_revision(int $revisionId): array
+{
+    $revision = find_revision($revisionId);
+    if (!$revision) {
+        return ['ok' => false, 'message' => 'Revision not found.'];
+    }
+    if (!empty($revision['is_initial'])) {
+        return ['ok' => false, 'message' => 'Delete later revisions only. Keep the initial order as the base record.'];
+    }
+
+    $stmt = db()->prepare('DELETE FROM show_revisions WHERE id = ?');
+    $stmt->execute([$revisionId]);
+    if ($stmt->rowCount() !== 1) {
+        return ['ok' => false, 'message' => 'Revision not found.'];
+    }
+
+    return ['ok' => true, 'message' => 'Revision deleted.'];
 }
 
 function find_revision(int $revisionId): ?array
@@ -1504,19 +1523,115 @@ function is_trusted_uploaded_file(string $tmpPath): bool
     return $allowLocalTestUpload;
 }
 
-function fetch_resources(): array
+function normalize_resource_folder_name(string $name): string
+{
+    $name = trim(preg_replace('/\s+/', ' ', $name) ?? $name);
+    $name = str_replace('\\', '/', $name);
+    $name = trim($name, '/');
+    if ($name === '' || $name === '.' || $name === '..' || str_contains($name, '../') || str_contains($name, '/..')) {
+        return '';
+    }
+
+    return function_exists('mb_substr') ? mb_substr($name, 0, 255) : substr($name, 0, 255);
+}
+
+function fetch_resource_folders(): array
+{
+    if (!table_exists('resource_folders')) {
+        return [];
+    }
+
+    return db()->query(
+        'SELECT rf.*, COUNT(r.id) AS resource_count
+         FROM resource_folders rf
+         LEFT JOIN resources r ON r.folder_id = rf.id
+         GROUP BY rf.id, rf.name, rf.created_at
+         ORDER BY LOWER(rf.name) ASC, rf.id ASC'
+    )->fetchAll();
+}
+
+function create_resource_folder(string $name): array
+{
+    if (!table_exists('resource_folders')) {
+        return ['ok' => false, 'message' => 'Run the latest migrations before creating folders.'];
+    }
+
+    $name = normalize_resource_folder_name($name);
+    if ($name === '') {
+        return ['ok' => false, 'message' => 'Enter a folder name.'];
+    }
+
+    $stmt = db()->prepare('INSERT INTO resource_folders (name) VALUES (?)');
+    try {
+        $stmt->execute([$name]);
+    } catch (Throwable $e) {
+        if (is_unique_constraint_violation($e)) {
+            return ['ok' => false, 'message' => 'That folder already exists.'];
+        }
+        throw $e;
+    }
+
+    return ['ok' => true, 'message' => 'Folder created.'];
+}
+
+function delete_resource_folder(int $folderId): array
+{
+    if (!table_exists('resource_folders')) {
+        return ['ok' => false, 'message' => 'Resource folders are not available yet.'];
+    }
+
+    $resourceCountStmt = db()->prepare('SELECT COUNT(*) FROM resources WHERE folder_id = ?');
+    $resourceCountStmt->execute([$folderId]);
+    if ((int) $resourceCountStmt->fetchColumn() > 0) {
+        return ['ok' => false, 'message' => 'Move or remove the PDFs in this folder before deleting it.'];
+    }
+
+    $stmt = db()->prepare('DELETE FROM resource_folders WHERE id = ?');
+    $stmt->execute([$folderId]);
+    if ($stmt->rowCount() !== 1) {
+        return ['ok' => false, 'message' => 'Folder not found.'];
+    }
+
+    return ['ok' => true, 'message' => 'Folder removed.'];
+}
+
+function fetch_resources(?int $folderId = null): array
 {
     if (!table_exists('resources')) {
         return [];
     }
 
-    return db()->query('SELECT * FROM resources ORDER BY created_at DESC, id DESC')->fetchAll();
+    $supportsFolders = table_column_exists('resources', 'folder_id') && table_exists('resource_folders');
+    $select = 'SELECT r.*';
+    $join = '';
+    if ($supportsFolders) {
+        $select .= ', rf.name AS folder_name';
+        $join = ' LEFT JOIN resource_folders rf ON rf.id = r.folder_id';
+    }
+
+    if ($folderId !== null && $supportsFolders) {
+        $stmt = db()->prepare($select . ' FROM resources r' . $join . ' WHERE r.folder_id = ? ORDER BY r.created_at DESC, r.id DESC');
+        $stmt->execute([$folderId]);
+        return $stmt->fetchAll();
+    }
+
+    return db()->query($select . ' FROM resources r' . $join . ' ORDER BY r.created_at DESC, r.id DESC')->fetchAll();
 }
 
-function store_resource_upload(array $file, string $title = ''): array
+function store_resource_upload(array $file, string $title = '', ?int $folderId = null): array
 {
     if (!table_exists('resources')) {
         return ['ok' => false, 'message' => 'Run migrations before uploading resources.'];
+    }
+
+    if ($folderId !== null && $folderId > 0 && table_column_exists('resources', 'folder_id') && table_exists('resource_folders')) {
+        $folderStmt = db()->prepare('SELECT COUNT(*) FROM resource_folders WHERE id = ?');
+        $folderStmt->execute([$folderId]);
+        if ((int) $folderStmt->fetchColumn() !== 1) {
+            return ['ok' => false, 'message' => 'Choose a valid folder.'];
+        }
+    } else {
+        $folderId = null;
     }
 
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || empty($file['tmp_name'])) {
@@ -1563,18 +1678,23 @@ function store_resource_upload(array $file, string $title = ''): array
     }
 
     $resourceTitle = trim($title) !== '' ? trim($title) : pathinfo($originalName, PATHINFO_FILENAME);
+    $supportsFolders = table_column_exists('resources', 'folder_id');
     $stmt = db()->prepare(
-        'INSERT INTO resources (title, original_name, stored_name, mime_type, file_size)
-         VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO resources (title, original_name, stored_name, mime_type, file_size' . ($supportsFolders ? ', folder_id' : '') . ')
+         VALUES (?, ?, ?, ?, ?' . ($supportsFolders ? ', ?' : '') . ')'
     );
     try {
-        $stmt->execute([
+        $params = [
             $resourceTitle,
             $originalName,
             $storedName,
             'application/pdf',
             max(0, (int) ($file['size'] ?? filesize($destination))),
-        ]);
+        ];
+        if ($supportsFolders) {
+            $params[] = $folderId;
+        }
+        $stmt->execute($params);
     } catch (Throwable $e) {
         if (is_file($destination)) {
             @unlink($destination);
@@ -1583,6 +1703,30 @@ function store_resource_upload(array $file, string $title = ''): array
     }
 
     return ['ok' => true, 'message' => 'Resource uploaded.'];
+}
+
+function move_resource_to_folder(int $resourceId, ?int $folderId): array
+{
+    $resource = find_resource($resourceId);
+    if (!$resource) {
+        return ['ok' => false, 'message' => 'Resource not found.'];
+    }
+    if (!table_column_exists('resources', 'folder_id')) {
+        return ['ok' => false, 'message' => 'Run the latest migrations before moving resources.'];
+    }
+
+    $folderId = $folderId !== null && $folderId > 0 ? $folderId : null;
+    if ($folderId !== null) {
+        $stmt = db()->prepare('SELECT COUNT(*) FROM resource_folders WHERE id = ?');
+        $stmt->execute([$folderId]);
+        if ((int) $stmt->fetchColumn() !== 1) {
+            return ['ok' => false, 'message' => 'Choose a valid folder.'];
+        }
+    }
+
+    $stmt = db()->prepare('UPDATE resources SET folder_id = ? WHERE id = ?');
+    $stmt->execute([$folderId, $resourceId]);
+    return ['ok' => true, 'message' => 'Resource location updated.'];
 }
 
 function find_resource(int $resourceId): ?array

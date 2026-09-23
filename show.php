@@ -202,6 +202,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'delete_revision' && $showId) {
+        $revision = find_revision((int) ($_POST['revision_id'] ?? 0));
+        if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
+            flash('warning', 'Revision not found for this show.');
+        } else {
+            $result = delete_show_revision((int) $revision['id']);
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+        }
+        header('Location: ' . url_for('show?show_id=' . $showId . '&tab=revisions'));
+        exit;
+    }
+
     if ($action === 'validate_revision' && !empty($_POST['revision_id'])) {
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
@@ -553,6 +565,15 @@ if ($mode === 'edit' && $showId && $currentRevision) {
                   <span class="material-symbols-outlined">print</span>
                   Export
                 </a>
+                <form method="post">
+                  <?= csrf_input() ?>
+                  <input type="hidden" name="action" value="delete_revision">
+                  <input type="hidden" name="revision_id" value="<?= h((string) $revision['id']) ?>">
+                  <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="DELETE REVISION" data-confirm="Type DELETE REVISION to permanently remove this revision.">
+                    <span class="material-symbols-outlined">delete</span>
+                    Delete
+                  </button>
+                </form>
               </div>
             </div>
             <?php endforeach; ?>

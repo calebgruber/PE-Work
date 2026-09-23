@@ -9,6 +9,11 @@ $tab = $_GET['tab'] ?? 'inventory';
 if (!in_array($tab, ['inventory', 'resources', 'rules', 'layout', 'migrations'], true)) {
     $tab = 'inventory';
 }
+$resourceFolderParam = $_GET['folder'] ?? null;
+$selectedResourceFolderId = null;
+if (!is_array($resourceFolderParam) && $resourceFolderParam !== null && ctype_digit((string) $resourceFolderParam) && (int) $resourceFolderParam > 0) {
+    $selectedResourceFolderId = (int) $resourceFolderParam;
+}
 $migrationLogs = $_SESSION['migration_logs'] ?? [];
 unset($_SESSION['migration_logs']);
 
@@ -134,7 +139,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($action === 'upload_resource') {
-            $result = store_resource_upload($_FILES['resource_pdf'] ?? [], $_POST['resource_title'] ?? '');
+            $folderId = isset($_POST['folder_id']) && ctype_digit((string) $_POST['folder_id']) ? (int) $_POST['folder_id'] : null;
+            $result = store_resource_upload($_FILES['resource_pdf'] ?? [], $_POST['resource_title'] ?? '', $folderId);
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=resources'));
+            exit;
+        }
+
+        if ($action === 'create_resource_folder') {
+            $result = create_resource_folder($_POST['folder_name'] ?? '');
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=resources'));
+            exit;
+        }
+
+        if ($action === 'delete_resource_folder') {
+            $result = delete_resource_folder((int) ($_POST['folder_id'] ?? 0));
+            flash($result['ok'] ? 'success' : 'warning', $result['message']);
+            header('Location: ' . url_for('settings?tab=resources'));
+            exit;
+        }
+
+        if ($action === 'move_resource_folder') {
+            $folderId = isset($_POST['folder_id']) && ctype_digit((string) $_POST['folder_id']) ? (int) $_POST['folder_id'] : null;
+            $result = move_resource_to_folder((int) ($_POST['resource_id'] ?? 0), $folderId);
             flash($result['ok'] ? 'success' : 'warning', $result['message']);
             header('Location: ' . url_for('settings?tab=resources'));
             exit;
@@ -163,7 +191,8 @@ $rules = schema_ready() ? fetch_rules() : [];
 $layout = export_layout_settings();
 $applied = applied_migrations();
 $migrationFiles = migration_files();
-$resources = schema_ready() ? fetch_resources() : [];
+$resourceFolders = schema_ready() ? fetch_resource_folders() : [];
+$resources = schema_ready() ? fetch_resources($selectedResourceFolderId) : [];
 $ruleCatalog = [];
 foreach ($catalog as $category) {
     $filteredItems = array_values(array_filter($category['items'], static fn (array $item): bool => empty($item['is_spacer'])));
@@ -482,80 +511,153 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
         <p>Resources are available after the database migrations have been applied.</p>
       </div>
       <?php else: ?>
-      <div class="card-grid card-grid-2">
-        <div class="summary-block">
-          <strong>Upload PDF Resources</strong>
-          <form method="post" enctype="multipart/form-data" class="stack" style="margin-top:1rem;">
-            <?= csrf_input() ?>
-            <input type="hidden" name="action" value="upload_resource">
-            <div class="form-group">
-              <label for="resource_title">Title</label>
-              <input class="form-control" id="resource_title" name="resource_title" placeholder="Vectorworks guide">
+      <div class="resource-manager">
+        <aside class="resource-sidebar">
+          <div class="summary-block">
+            <strong>Folders</strong>
+            <div class="resource-folder-list">
+              <a class="tab<?= $selectedResourceFolderId === null ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=resources')) ?>">All PDFs</a>
+              <?php foreach ($resourceFolders as $folder): ?>
+              <div class="resource-folder-row">
+                <a class="tab<?= $selectedResourceFolderId === (int) $folder['id'] ? ' active' : '' ?>" href="<?= h(url_for('settings?tab=resources&folder=' . (int) $folder['id'])) ?>">
+                  <span class="material-symbols-outlined">folder</span>
+                  <?= h($folder['name']) ?>
+                  <span class="muted">(<?= h((string) $folder['resource_count']) ?>)</span>
+                </a>
+                <form method="post">
+                  <?= csrf_input() ?>
+                  <input type="hidden" name="action" value="delete_resource_folder">
+                  <input type="hidden" name="folder_id" value="<?= h((string) $folder['id']) ?>">
+                  <button type="submit" class="btn btn-ghost btn-sm" data-confirm="Delete this empty folder?">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                </form>
+              </div>
+              <?php endforeach; ?>
             </div>
-            <div class="form-group">
-              <label for="resource_pdf">PDF File</label>
-              <input class="form-control" type="file" id="resource_pdf" name="resource_pdf" accept="application/pdf,.pdf">
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn btn-primary">
-                <span class="material-symbols-outlined">upload_file</span>
-                Upload Resource
-              </button>
-            </div>
-          </form>
-        </div>
-        <div class="summary-block">
-          <strong>Use Cases</strong>
-          <div class="stack" style="margin-top:1rem;">
-            <div class="muted">Upload shop paperwork references, diagrams, manuals, or PDF examples.</div>
-            <div class="muted">Each uploaded PDF can be previewed directly in the page on desktop or downloaded on mobile.</div>
-          </div>
-        </div>
-      </div>
-
-      <?php if ($resources): ?>
-      <div class="resource-grid">
-        <?php foreach ($resources as $resource): ?>
-        <?php $resourceUrl = url_for('resource_file?id=' . (int) $resource['id'] . '&token=' . rawurlencode(resource_access_token($resource))); ?>
-        <article class="resource-card">
-          <div class="resource-card-header">
-            <div>
-              <h3><?= h($resource['title']) ?></h3>
-              <div class="muted"><?= h($resource['original_name']) ?></div>
-            </div>
-            <form method="post">
+            <form method="post" class="stack" style="margin-top:1rem;">
               <?= csrf_input() ?>
-              <input type="hidden" name="action" value="delete_resource">
-              <input type="hidden" name="resource_id" value="<?= h((string) $resource['id']) ?>">
-              <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE RESOURCE" data-confirm="Type REMOVE RESOURCE to delete this PDF.">
-                <span class="material-symbols-outlined">delete</span>
-                Remove
-              </button>
+              <input type="hidden" name="action" value="create_resource_folder">
+              <div class="form-group">
+                <label for="folder_name">New Folder</label>
+                <input class="form-control" id="folder_name" name="folder_name" placeholder="Show References">
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-ghost">
+                  <span class="material-symbols-outlined">create_new_folder</span>
+                  Create Folder
+                </button>
+              </div>
             </form>
           </div>
-          <div class="resource-actions">
-            <a class="btn btn-ghost btn-sm" href="<?= h($resourceUrl) ?>" target="_blank" rel="noopener">
-              <span class="material-symbols-outlined">open_in_new</span>
-              Open PDF
-            </a>
-            <a class="btn btn-ghost btn-sm" href="<?= h($resourceUrl . '&download=1') ?>">
-              <span class="material-symbols-outlined">download</span>
-              Download
-            </a>
+        </aside>
+        <div class="resource-main">
+          <div class="card-grid card-grid-2">
+            <div class="summary-block">
+              <strong>Upload PDF Resource</strong>
+              <form method="post" enctype="multipart/form-data" class="stack" style="margin-top:1rem;">
+                <?= csrf_input() ?>
+                <input type="hidden" name="action" value="upload_resource">
+                <div class="form-group">
+                  <label for="resource_title">Title</label>
+                  <input class="form-control" id="resource_title" name="resource_title" placeholder="Vectorworks guide">
+                </div>
+                <div class="form-group">
+                  <label for="resource_folder_id">Folder</label>
+                  <select class="form-control" id="resource_folder_id" name="folder_id">
+                    <option value="">No Folder</option>
+                    <?php foreach ($resourceFolders as $folder): ?>
+                    <option value="<?= h((string) $folder['id']) ?>" <?= $selectedResourceFolderId === (int) $folder['id'] ? 'selected' : '' ?>><?= h($folder['name']) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="resource_pdf">PDF File</label>
+                  <input class="form-control" type="file" id="resource_pdf" name="resource_pdf" accept="application/pdf,.pdf">
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-primary">
+                    <span class="material-symbols-outlined">upload_file</span>
+                    Upload Resource
+                  </button>
+                </div>
+              </form>
+            </div>
+            <div class="summary-block">
+              <strong>Library View</strong>
+              <div class="stack" style="margin-top:1rem;">
+                <div class="muted">Use folders to separate shop paperwork, diagrams, manuals, and reference PDFs.</div>
+                <div class="muted">Open, download, move, and preview PDFs from one place without leaving the app.</div>
+              </div>
+            </div>
           </div>
-          <iframe class="resource-frame" src="<?= h($resourceUrl) ?>" title="<?= h($resource['title']) ?>">
-            PDF preview unavailable. Use the Open PDF or Download buttons above.
-          </iframe>
-        </article>
-        <?php endforeach; ?>
+
+          <?php if ($resources): ?>
+          <div class="resource-grid">
+            <?php foreach ($resources as $resource): ?>
+            <?php $resourceUrl = url_for('resource_file?id=' . (int) $resource['id'] . '&token=' . rawurlencode(resource_access_token($resource))); ?>
+            <article class="resource-card">
+              <div class="resource-card-header">
+                <div>
+                  <h3><?= h($resource['title']) ?></h3>
+                  <div class="muted"><?= h($resource['original_name']) ?></div>
+                  <div class="helper-text"><?= h($resource['folder_name'] ?? 'No Folder') ?></div>
+                </div>
+                <form method="post">
+                  <?= csrf_input() ?>
+                  <input type="hidden" name="action" value="delete_resource">
+                  <input type="hidden" name="resource_id" value="<?= h((string) $resource['id']) ?>">
+                  <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE RESOURCE" data-confirm="Type REMOVE RESOURCE to delete this PDF.">
+                    <span class="material-symbols-outlined">delete</span>
+                    Remove
+                  </button>
+                </form>
+              </div>
+              <div class="resource-actions">
+                <a class="btn btn-ghost btn-sm" href="<?= h($resourceUrl) ?>" target="_blank" rel="noopener">
+                  <span class="material-symbols-outlined">open_in_new</span>
+                  Open PDF
+                </a>
+                <a class="btn btn-ghost btn-sm" href="<?= h($resourceUrl . '&download=1') ?>">
+                  <span class="material-symbols-outlined">download</span>
+                  Download
+                </a>
+              </div>
+              <form method="post" class="stack" style="margin-top:0.75rem;">
+                <?= csrf_input() ?>
+                <input type="hidden" name="action" value="move_resource_folder">
+                <input type="hidden" name="resource_id" value="<?= h((string) $resource['id']) ?>">
+                <div class="form-group">
+                  <label for="resource-folder-<?= (int) $resource['id'] ?>">Folder</label>
+                  <select class="form-control" id="resource-folder-<?= (int) $resource['id'] ?>" name="folder_id">
+                    <option value="">No Folder</option>
+                    <?php foreach ($resourceFolders as $folder): ?>
+                    <option value="<?= h((string) $folder['id']) ?>" <?= (int) ($resource['folder_id'] ?? 0) === (int) $folder['id'] ? 'selected' : '' ?>><?= h($folder['name']) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="btn btn-ghost btn-sm">
+                    <span class="material-symbols-outlined">drive_file_move</span>
+                    Move
+                  </button>
+                </div>
+              </form>
+              <iframe class="resource-frame" src="<?= h($resourceUrl) ?>" title="<?= h($resource['title']) ?>">
+                PDF preview unavailable. Use the Open PDF or Download buttons above.
+              </iframe>
+            </article>
+            <?php endforeach; ?>
+          </div>
+          <?php else: ?>
+          <div class="empty-state">
+            <span class="material-symbols-outlined">folder</span>
+            <h3>No resources here yet</h3>
+            <p>Upload PDFs and organize them into folders to build out the resource library.</p>
+          </div>
+          <?php endif; ?>
+        </div>
       </div>
-      <?php else: ?>
-      <div class="empty-state">
-        <span class="material-symbols-outlined">folder</span>
-        <h3>No resources uploaded</h3>
-        <p>Upload PDFs here to keep shop references and paperwork examples inside the app.</p>
-      </div>
-      <?php endif; ?>
       <?php endif; ?>
     <?php ui_card_close(); ?>
   <?php elseif ($tab === 'rules'): ?>

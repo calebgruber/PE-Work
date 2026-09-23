@@ -254,23 +254,39 @@ exec($resourcePageCommand, $resourcePageOutput, $resourcePageStatus);
 $resourcePageHtml = is_file($resourcePagePath) ? file_get_contents($resourcePagePath) : '';
 preg_match('/name=\"csrf_token\" value=\"([^\"]+)\"/', $resourcePageHtml, $resourceTokenMatch);
 $resourceCsrfToken = html_entity_decode($resourceTokenMatch[1] ?? '', ENT_QUOTES, 'UTF-8');
+$createFolderHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-folder-headers-');
+$createFolderResponsePath = tempnam(sys_get_temp_dir(), 'pew-resource-folder-response-');
+$testPaths[] = $createFolderHeadersPath;
+$testPaths[] = $createFolderResponsePath;
+$createFolderCommand = sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F 'action=create_resource_folder' -F 'folder_name=Manuals' %s",
+    escapeshellarg($createFolderResponsePath),
+    escapeshellarg($createFolderHeadersPath),
+    escapeshellarg($resourceCookieJar),
+    escapeshellarg($resourceCookieJar),
+    escapeshellarg('csrf_token=' . $resourceCsrfToken),
+    escapeshellarg($baseUrl . '/settings?tab=resources')
+);
+exec($createFolderCommand, $createFolderOutput, $createFolderStatus);
+$freshDb = new PDO('sqlite:' . $testDbPath, null, null, [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+]);
+$resourceFolderId = (int) $freshDb->query("SELECT id FROM resource_folders WHERE name = 'Manuals' ORDER BY id DESC LIMIT 1")->fetchColumn();
 $resourceCommand = sprintf(
-    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F 'action=upload_resource' -F 'resource_title=Shop Resource' -F 'resource_pdf=@%s;type=application/pdf;filename=resource.pdf' %s",
+    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F %s -F 'action=upload_resource' -F 'resource_title=Shop Resource' -F 'resource_pdf=@%s;type=application/pdf;filename=resource.pdf' %s",
     escapeshellarg($resourceResponsePath),
     escapeshellarg($resourceHeadersPath),
     escapeshellarg($resourceCookieJar),
     escapeshellarg($resourceCookieJar),
     escapeshellarg('csrf_token=' . $resourceCsrfToken),
+    escapeshellarg('folder_id=' . $resourceFolderId),
     escapeshellarg($pdfPath),
     escapeshellarg($baseUrl . '/settings?tab=resources')
 );
 exec($resourceCommand, $resourceOutput, $resourceStatus);
 $resourceHeaders = is_file($resourceHeadersPath) ? file_get_contents($resourceHeadersPath) : '';
 $resourceBody = is_file($resourceResponsePath) ? file_get_contents($resourceResponsePath) : '';
-$freshDb = new PDO('sqlite:' . $testDbPath, null, null, [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-]);
 $resourceStmt = $freshDb->prepare('SELECT * FROM resources WHERE title = ? ORDER BY id DESC LIMIT 1');
 $resourceStmt->execute(['Shop Resource']);
 $resourceRow = $resourceStmt->fetch() ?: [];
@@ -279,10 +295,13 @@ if ($storedName !== '') {
     $testPaths[] = upload_dir('resources') . '/' . $storedName;
 }
 
+settings_assert($createFolderStatus === 0, 'Expected resource folder creation request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($resourceStatus === 0, 'Expected resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($resourcePageStatus === 0 && $resourceCsrfToken !== '', 'Expected resources page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($resourceFolderId > 0, 'Expected resource folder creation to persist a folder row.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($resourceHeaders, 'Location: /settings?tab=resources'), 'Expected resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($storedName !== '', 'Expected resource upload action to persist the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert((int) ($resourceRow['folder_id'] ?? 0) === $resourceFolderId, 'Expected uploaded resource to be saved into the selected folder.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($resourceBody, 'Resource uploaded.'), 'Expected redirected resources page to show the upload success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
 $resourceFetchHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-fetch-headers-');
