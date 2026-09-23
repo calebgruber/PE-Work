@@ -428,6 +428,8 @@ settings_assert(str_contains($badResourceBody, 'Only PDF resources are supported
 $validationPagePath = tempnam(sys_get_temp_dir(), 'pew-validation-page-');
 $validationHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-headers-');
 $validationResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-response-');
+$autosaveHeadersPath = tempnam(sys_get_temp_dir(), 'pew-autosave-headers-');
+$autosaveResponsePath = tempnam(sys_get_temp_dir(), 'pew-autosave-response-');
 $validationInvalidHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-invalid-headers-');
 $validationInvalidResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-invalid-response-');
 $validationPersistedHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-persisted-headers-');
@@ -435,6 +437,8 @@ $validationPersistedResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-p
 $testPaths[] = $validationPagePath;
 $testPaths[] = $validationHeadersPath;
 $testPaths[] = $validationResponsePath;
+$testPaths[] = $autosaveHeadersPath;
+$testPaths[] = $autosaveResponsePath;
 $testPaths[] = $validationInvalidHeadersPath;
 $testPaths[] = $validationInvalidResponsePath;
 $testPaths[] = $validationPersistedHeadersPath;
@@ -465,6 +469,21 @@ exec(sprintf(
     escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&mode=edit&tab=orders&revision_id=' . $validationRevisionId)
 ), $validationOutput, $validationStatus);
 exec(sprintf(
+    "curl -isS -o %s -D %s -c %s -b %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
+    escapeshellarg($autosaveResponsePath),
+    escapeshellarg($autosaveHeadersPath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg('csrf_token=' . $validationCsrfToken),
+    escapeshellarg('action=autosave_revision'),
+    escapeshellarg('revision_id=' . $validationRevisionId),
+    escapeshellarg('items[' . $validationFixtureId . '][rent_quantity]=3'),
+    escapeshellarg('items[' . $validationFixtureId . '][spare_quantity]=4'),
+    escapeshellarg('items[' . $validationCableId . '][rent_quantity]=0'),
+    escapeshellarg('items[' . $validationCableId . '][spare_quantity]=0'),
+    escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&mode=edit&tab=orders&revision_id=' . $validationRevisionId)
+), $autosaveOutput, $autosaveStatus);
+exec(sprintf(
     "curl -isS -o %s -D %s -c %s -b %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
     escapeshellarg($validationInvalidResponsePath),
     escapeshellarg($validationInvalidHeadersPath),
@@ -488,16 +507,25 @@ exec(sprintf(
 ), $validationPersistedOutput, $validationPersistedStatus);
 $validationHeaders = is_file($validationHeadersPath) ? file_get_contents($validationHeadersPath) : '';
 $validationBody = is_file($validationResponsePath) ? file_get_contents($validationResponsePath) : '';
+$autosaveHeaders = is_file($autosaveHeadersPath) ? file_get_contents($autosaveHeadersPath) : '';
+$autosaveBody = is_file($autosaveResponsePath) ? file_get_contents($autosaveResponsePath) : '';
 $validationInvalidHeaders = is_file($validationInvalidHeadersPath) ? file_get_contents($validationInvalidHeadersPath) : '';
 $validationInvalidBody = is_file($validationInvalidResponsePath) ? file_get_contents($validationInvalidResponsePath) : '';
 $validationPersistedHeaders = is_file($validationPersistedHeadersPath) ? file_get_contents($validationPersistedHeadersPath) : '';
 $validationPersistedBody = is_file($validationPersistedResponsePath) ? file_get_contents($validationPersistedResponsePath) : '';
+$autosaveLineStmt = db()->prepare('SELECT rent_quantity, spare_quantity, total_quantity FROM revision_items WHERE revision_id = ? AND inventory_item_id = ?');
+$autosaveLineStmt->execute([$validationRevisionId, $validationFixtureId]);
+$autosavedLine = $autosaveLineStmt->fetch() ?: [];
 
 settings_assert($validationPageStatus === 0 && $validationCsrfToken !== '', 'Expected validation edit page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($validationStatus === 0, 'Expected validation endpoint request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationHeaders, 'Content-Type: application/json'), 'Expected validation endpoint to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationBody, 'exceeds shop stock'), 'Expected validation endpoint to report stock warnings.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationBody, 'Rule required:'), 'Expected validation endpoint to report rule warnings.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($autosaveStatus === 0, 'Expected autosave endpoint request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($autosaveHeaders, 'Content-Type: application/json'), 'Expected autosave endpoint to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($autosaveBody, '"ok":true'), 'Expected autosave endpoint to confirm the save.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert((int) ($autosavedLine['rent_quantity'] ?? 0) === 3 && (int) ($autosavedLine['spare_quantity'] ?? 0) === 4 && (int) ($autosavedLine['total_quantity'] ?? 0) === 7, 'Expected autosave endpoint to persist current revision changes.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($validationInvalidStatus === 0, 'Expected invalid validation endpoint request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationInvalidHeaders, '404 Not Found'), 'Expected invalid validation revision lookup to return 404.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationInvalidBody, 'Revision not found for this show.'), 'Expected invalid validation revision lookup to return a JSON warning message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);

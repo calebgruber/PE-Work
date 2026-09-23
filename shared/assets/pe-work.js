@@ -65,12 +65,33 @@
     const search = editor.querySelector('[data-revision-search]');
     const warningsWrap = editor.querySelector('[data-revision-warnings-wrap]');
     const warningsList = editor.querySelector('[data-revision-warnings]');
+    const autosaveStatus = editor.querySelector('[data-revision-autosave-status]');
+    const rentTotal = document.querySelector('[data-revision-rent-total]');
+    const spareTotal = document.querySelector('[data-revision-spare-total]');
+    const overallTotal = document.querySelector('[data-revision-overall-total]');
     const submitButtons = Array.prototype.slice.call(editor.querySelectorAll('[data-revision-submit]'));
     const items = Array.prototype.slice.call(editor.querySelectorAll('[data-revision-item]'));
     let allowValidatedSubmit = false;
     let validationTimer = null;
     let latestValidationRun = 0;
     let validationAbortController = null;
+    let autosaveTimer = null;
+    let latestAutosaveRun = 0;
+    let autosaveAbortController = null;
+    let hasPendingAutosave = false;
+
+    function renderAutosaveStatus(message, state) {
+      if (!autosaveStatus) return;
+      autosaveStatus.textContent = message;
+      autosaveStatus.setAttribute('data-state', state || 'idle');
+    }
+
+    function renderTotals(totals) {
+      if (!totals) return;
+      if (rentTotal) rentTotal.textContent = String(totals.rent_total || 0);
+      if (spareTotal) spareTotal.textContent = String(totals.spare_total || 0);
+      if (overallTotal) overallTotal.textContent = String(totals.overall_total || 0);
+    }
 
     function renderWarnings(warnings) {
       if (!warningsWrap || !warningsList) return;
@@ -150,6 +171,72 @@
         });
     }
 
+    function runAutosave() {
+      if (autosaveAbortController) {
+        autosaveAbortController.abort();
+      }
+      autosaveAbortController = new AbortController();
+      const abortController = autosaveAbortController;
+      const formData = new FormData(editor);
+      formData.set('action', 'autosave_revision');
+      const autosaveRun = ++latestAutosaveRun;
+      hasPendingAutosave = true;
+      renderAutosaveStatus('Saving changes…', 'saving');
+
+      fetch(editor.getAttribute('action') || window.location.href, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData,
+        signal: abortController.signal
+      })
+        .then(function (response) {
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          const responseBody = contentType.indexOf('application/json') !== -1
+            ? response.json().catch(function () { return null; })
+            : response.text().catch(function () { return ''; });
+
+          return responseBody.then(function (payload) {
+            if (!response.ok) {
+              const message = Array.isArray(payload?.warnings) && payload.warnings[0]?.message
+                ? payload.warnings[0].message
+                : (typeof payload === 'string' && payload.trim() !== '' ? payload.trim() : 'Unable to autosave this revision right now.');
+              throw new Error(message);
+            }
+            return payload;
+          });
+        })
+        .then(function (payload) {
+          if (autosaveRun !== latestAutosaveRun) {
+            return;
+          }
+          hasPendingAutosave = false;
+          renderWarnings(Array.isArray(payload?.warnings) ? payload.warnings : []);
+          renderTotals(payload?.totals || null);
+          renderAutosaveStatus('All changes saved.', 'saved');
+        })
+        .catch(function (error) {
+          if (abortController.signal.aborted) {
+            return;
+          }
+          if (autosaveRun !== latestAutosaveRun) {
+            return;
+          }
+          hasPendingAutosave = false;
+          renderAutosaveStatus(error?.message || 'Autosave failed. Use Save Changes.', 'error');
+        });
+    }
+
+    function scheduleAutosave() {
+      hasPendingAutosave = true;
+      renderAutosaveStatus('Unsaved changes…', 'saving');
+      if (autosaveTimer) {
+        window.clearTimeout(autosaveTimer);
+      }
+      autosaveTimer = window.setTimeout(runAutosave, 450);
+    }
+
     function applySearch() {
       const term = (search?.value || '').trim().toLowerCase();
 
@@ -178,14 +265,20 @@
     }
 
     items.forEach(function (item) {
-      item.querySelectorAll('[data-action-select],[data-rent-input],[data-spare-input]').forEach(function (input) {
+      item.querySelectorAll('input[name^="items["], select[name^="items["], textarea[name^="items["]').forEach(function (input) {
         input.addEventListener('change', function () {
-          updateRowState(item);
+          if (input.matches('[data-action-select],[data-rent-input],[data-spare-input]')) {
+            updateRowState(item);
+          }
           scheduleValidation();
+          scheduleAutosave();
         });
         input.addEventListener('input', function () {
-          updateRowState(item);
+          if (input.matches('[data-action-select],[data-rent-input],[data-spare-input]')) {
+            updateRowState(item);
+          }
           scheduleValidation();
+          scheduleAutosave();
         });
       });
       updateRowState(item);
@@ -198,7 +291,15 @@
     editor.addEventListener('submit', function (event) {
       if (allowValidatedSubmit) {
         allowValidatedSubmit = false;
+        renderAutosaveStatus('All changes saved.', 'saved');
         return;
+      }
+      if (autosaveTimer) {
+        window.clearTimeout(autosaveTimer);
+        autosaveTimer = null;
+      }
+      if (autosaveAbortController) {
+        autosaveAbortController.abort();
       }
       event.preventDefault();
       runValidation(function (warnings) {
@@ -214,7 +315,14 @@
       });
     });
 
+    window.addEventListener('beforeunload', function (event) {
+      if (!hasPendingAutosave) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+
     applySearch();
+    renderAutosaveStatus('Autosave ready.', 'idle');
     runValidation();
   }
 

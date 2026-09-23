@@ -466,6 +466,23 @@
   background: rgba(239, 68, 68, 0.1);
 }
 
+.revision-autosave-status {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.revision-autosave-status[data-state="saving"] {
+  color: #2563eb;
+}
+
+.revision-autosave-status[data-state="saved"] {
+  color: #15803d;
+}
+
+.revision-autosave-status[data-state="error"] {
+  color: #b91c1c;
+}
+
 .revision-category-list {
   display: grid;
   gap: 1rem;

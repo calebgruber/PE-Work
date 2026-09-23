@@ -231,6 +231,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'autosave_revision' && !empty($_POST['revision_id'])) {
+        $revisionId = (int) $_POST['revision_id'];
+        $revision = find_revision($revisionId);
+        if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
+            http_response_code(404);
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']]]);
+            exit;
+        }
+
+        $revisionOverrideItems = is_array($_POST['items'] ?? null) ? $_POST['items'] : [];
+        save_revision_lines($revisionId, $revisionOverrideItems);
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'ok' => true,
+            'warnings' => revision_validation_warnings(revision_input_snapshot($revisionId)),
+            'totals' => revision_totals($revisionId),
+        ]);
+        exit;
+    }
+
     if ($action === 'save_revision' && !empty($_POST['revision_id'])) {
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
@@ -324,9 +346,9 @@ if ($mode === 'edit' && $showId && $currentRevision) {
       <div class="show-summary">
         <div class="summary-block"><strong>Revision</strong><?= h(revision_display_code($currentRevision)) ?></div>
         <div class="summary-block"><strong>Date</strong><?= h($currentRevision['revision_date']) ?></div>
-        <div class="summary-block"><strong>Rent Total</strong><?= h((string) $totals['rent_total']) ?></div>
-        <div class="summary-block"><strong>Spare Total</strong><?= h((string) $totals['spare_total']) ?></div>
-        <div class="summary-block"><strong>Combined Total</strong><?= h((string) $totals['overall_total']) ?></div>
+        <div class="summary-block"><strong>Rent Total</strong><span data-revision-rent-total><?= h((string) $totals['rent_total']) ?></span></div>
+        <div class="summary-block"><strong>Spare Total</strong><span data-revision-spare-total><?= h((string) $totals['spare_total']) ?></span></div>
+        <div class="summary-block"><strong>Combined Total</strong><span data-revision-overall-total><?= h((string) $totals['overall_total']) ?></span></div>
       </div>
 
       <?php if (!$catalog): ?>
@@ -348,7 +370,10 @@ if ($mode === 'edit' && $showId && $currentRevision) {
           </div>
           <div class="revision-editor-helper">
             <span class="material-symbols-outlined">info</span>
-            <span>Warnings update live as you edit. Saving still keeps your order changes while flagging stock and rule follow-up.</span>
+            <div class="stack" style="gap:0.35rem;">
+              <span>Warnings update live as you edit. Saving still keeps your order changes while flagging stock and rule follow-up.</span>
+              <div class="revision-autosave-status" data-revision-autosave-status data-state="idle">Autosave ready.</div>
+            </div>
           </div>
         </div>
 
