@@ -312,14 +312,22 @@
 
   function initConfirmCodes() {
     document.querySelectorAll('[data-confirm-code]').forEach(function (button) {
-      button.addEventListener('click', function (event) {
+      const form = button.closest('form');
+      function confirmAction(event) {
         const expected = button.getAttribute('data-confirm-code') || '';
         const message = button.getAttribute('data-confirm') || ('Type ' + expected + ' to continue.');
         const entered = window.prompt(message, '');
         if (entered !== expected) {
           event.preventDefault();
+          event.stopPropagation();
         }
-      });
+      }
+
+      if (form) {
+        form.addEventListener('submit', confirmAction);
+      } else {
+        button.addEventListener('click', confirmAction);
+      }
     });
   }
 

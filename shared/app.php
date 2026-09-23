@@ -555,12 +555,6 @@ function create_initial_revision(int $showId): int
 
     try {
         $pdo->beginTransaction();
-        $existing = find_initial_revision($showId);
-        if ($existing) {
-            $pdo->commit();
-            return (int) $existing['id'];
-        }
-
         $stmt = $pdo->prepare(
             'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)
              VALUES (?, ?, ?, ?, ?, ?)'
@@ -575,7 +569,7 @@ function create_initial_revision(int $showId): int
             $pdo->rollBack();
         }
         if (is_unique_constraint_violation($e)) {
-            $existing = find_latest_revision($showId);
+            $existing = find_initial_revision($showId);
             if ($existing) {
                 return (int) $existing['id'];
             }
@@ -1172,11 +1166,7 @@ function store_resource_upload(array $file, string $title = ''): array
     }
 
     $isUploadedFile = is_trusted_uploaded_file((string) $file['tmp_name']);
-    $allowTestUpload = defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS')
-        && ALLOW_LOCAL_UPLOADS_FOR_TESTS
-        && in_array(PHP_SAPI, ['cli', 'cli-server'], true)
-        && is_file((string) $file['tmp_name']);
-    if (!$isUploadedFile && !$allowTestUpload) {
+    if (!$isUploadedFile) {
         return ['ok' => false, 'message' => 'Choose a valid uploaded PDF file.'];
     }
 
@@ -1202,7 +1192,7 @@ function store_resource_upload(array $file, string $title = ''): array
     if (!move_uploaded_file($file['tmp_name'], $destination)) {
         $tmpPath = (string) $file['tmp_name'];
         $moved = false;
-        if ($allowTestUpload) {
+        if (is_file($tmpPath)) {
             $moved = @rename($tmpPath, $destination) || @copy($tmpPath, $destination);
         }
         if (!$moved) {

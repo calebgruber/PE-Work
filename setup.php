@@ -41,7 +41,7 @@ $dbReady = schema_ready();
       <div class="alerts">
         <div class="alert alert-info" style="--alert-accent:#3b82f6;--alert-accent-rgb:59,130,246;--alert-text-on-solid:#ffffff">
           <span class="material-symbols-outlined">info</span>
-          <span class="alert-text">Default local development uses SQLite at <code><?= h(DB_SQLITE_PATH) ?></code>. Switch to MySQL in <code>config.local.php</code> or with environment variables when deploying to cPanel.</span>
+          <span class="alert-text">Normal runtime expects MySQL. Configure <code>config.local.php</code> with your MySQL connection details before running setup. SQLite is reserved for the automated test harness.</span>
         </div>
       </div>
 
