@@ -2,9 +2,10 @@
 
 $repoRoot = dirname(__DIR__);
 $localConfig = $repoRoot . '/config.local.php';
-$localBackup = $repoRoot . '/config.local.php.test-backup';
+$localBackup = $repoRoot . '/config.local.php.test-backup-' . uniqid('', true);
+$movedLocalConfig = false;
 if (file_exists($localConfig)) {
-    rename($localConfig, $localBackup);
+    $movedLocalConfig = rename($localConfig, $localBackup);
 }
 
 $testDbPath = '/tmp/pe-work-settings-test-' . uniqid('', true) . '.sqlite';
@@ -22,7 +23,7 @@ require_once $repoRoot . '/shared/config.php';
 require_once $repoRoot . '/shared/db.php';
 require_once $repoRoot . '/shared/app.php';
 
-function settings_test_cleanup(string $repoRoot, string $localConfig, string $localBackup, $process, array $pipes, array $paths): void
+function settings_test_cleanup(string $repoRoot, string $localConfig, string $localBackup, bool $movedLocalConfig, $process, array $pipes, array $paths): void
 {
     foreach ($pipes as $pipe) {
         if (is_resource($pipe)) {
@@ -47,21 +48,21 @@ function settings_test_cleanup(string $repoRoot, string $localConfig, string $lo
             @unlink($path);
         }
     }
-    if (file_exists($localConfig)) {
+    if (!$movedLocalConfig && file_exists($localConfig)) {
         unlink($localConfig);
     }
     @unlink(DB_SQLITE_PATH);
     @unlink(DB_SQLITE_PATH . '-wal');
     @unlink(DB_SQLITE_PATH . '-shm');
-    if (file_exists($localBackup)) {
+    if ($movedLocalConfig && file_exists($localBackup)) {
         rename($localBackup, $localConfig);
     }
 }
 
-function settings_assert(bool $condition, string $message, string $repoRoot, string $localConfig, string $localBackup, $process, array $pipes, array $paths): void
+function settings_assert(bool $condition, string $message, string $repoRoot, string $localConfig, string $localBackup, bool $movedLocalConfig, $process, array $pipes, array $paths): void
 {
     if (!$condition) {
-        settings_test_cleanup($repoRoot, $localConfig, $localBackup, $process, $pipes, $paths);
+        settings_test_cleanup($repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $paths);
         fwrite(STDERR, $message . PHP_EOL);
         exit(1);
     }
@@ -78,7 +79,7 @@ $descriptors = [
     2 => ['file', '/tmp/pe-work-settings-server.log', 'a'],
 ];
 $socket = stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
-settings_assert($socket !== false, 'Expected to reserve an ephemeral port for the local PHP server.', $repoRoot, $localConfig, $localBackup, null, [], [$csvPath]);
+settings_assert($socket !== false, 'Expected to reserve an ephemeral port for the local PHP server.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, null, [], [$csvPath]);
 $serverAddress = stream_socket_get_name($socket, false) ?: '127.0.0.1:8099';
 fclose($socket);
 $port = (int) substr(strrchr($serverAddress, ':'), 1);
@@ -94,7 +95,7 @@ for ($attempt = 0; $attempt < 20; $attempt++) {
     usleep(250000);
 }
 
-settings_assert($serverReady, 'Expected local PHP server to start before running import requests.', $repoRoot, $localConfig, $localBackup, $process, $pipes, [$csvPath]);
+settings_assert($serverReady, 'Expected local PHP server to start before running import requests.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, [$csvPath]);
 
 $cookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-');
 $inventoryPagePath = tempnam(sys_get_temp_dir(), 'pew-inventory-page-');
@@ -131,11 +132,11 @@ $stmt = db()->prepare('SELECT shop_quantity FROM inventory_items WHERE name = ?'
 $stmt->execute(['Import Action Item']);
 $quantity = (int) $stmt->fetchColumn();
 
-settings_assert($inventoryPageStatus === 0 && $csrfToken !== '', 'Expected inventory page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert($curlStatus === 0, 'Expected curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert(str_contains($headers, 'Location: /settings?tab=inventory'), 'Expected settings import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert($quantity === 7, 'Expected settings import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert(str_contains($responseBody, 'Import complete'), 'Expected redirected settings page to show the import success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert($inventoryPageStatus === 0 && $csrfToken !== '', 'Expected inventory page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($curlStatus === 0, 'Expected curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($headers, 'Location: /settings?tab=inventory'), 'Expected settings import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($quantity === 7, 'Expected settings import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($responseBody, 'Import complete'), 'Expected redirected settings page to show the import success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
 $warningHeadersPath = tempnam(sys_get_temp_dir(), 'pew-warning-headers-');
 $warningResponsePath = tempnam(sys_get_temp_dir(), 'pew-warning-response-');
@@ -154,9 +155,9 @@ exec($warningCommand, $warningOutput, $warningStatus);
 $warningHeaders = is_file($warningHeadersPath) ? file_get_contents($warningHeadersPath) : '';
 $warningBody = is_file($warningResponsePath) ? file_get_contents($warningResponsePath) : '';
 
-settings_assert($warningStatus === 0, 'Expected warning-path curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert(str_contains($warningHeaders, 'Location: /settings?tab=inventory'), 'Expected warning-path import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert(str_contains($warningBody, 'Choose a CSV file to import.'), 'Expected redirected settings page to show the missing-file warning.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert($warningStatus === 0, 'Expected warning-path curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($warningHeaders, 'Location: /settings?tab=inventory'), 'Expected warning-path import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($warningBody, 'Choose a CSV file to import.'), 'Expected redirected settings page to show the missing-file warning.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
 $pasteHeadersPath = tempnam(sys_get_temp_dir(), 'pew-paste-headers-');
 $pasteResponsePath = tempnam(sys_get_temp_dir(), 'pew-paste-response-');
@@ -180,10 +181,10 @@ $pasteBody = is_file($pasteResponsePath) ? file_get_contents($pasteResponsePath)
 $stmt->execute(['Pasted Item']);
 $pastedQuantity = (int) $stmt->fetchColumn();
 
-settings_assert($pasteStatus === 0, 'Expected pasted import curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert(str_contains($pasteHeaders, 'Location: /settings?tab=inventory'), 'Expected pasted import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert($pastedQuantity === 9, 'Expected pasted import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert(str_contains($pasteBody, 'Import complete'), 'Expected redirected settings page to show the pasted import success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert($pasteStatus === 0, 'Expected pasted import curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($pasteHeaders, 'Location: /settings?tab=inventory'), 'Expected pasted import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($pastedQuantity === 9, 'Expected pasted import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($pasteBody, 'Import complete'), 'Expected redirected settings page to show the pasted import success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
 $pdfPath = tempnam(sys_get_temp_dir(), 'pew-resource-pdf-');
 file_put_contents($pdfPath, "%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF");
@@ -231,11 +232,11 @@ if ($storedName !== '') {
     $testPaths[] = $repoRoot . '/storage/uploads/resources/' . $storedName;
 }
 
-settings_assert($resourceStatus === 0, 'Expected resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert($resourcePageStatus === 0 && $resourceCsrfToken !== '', 'Expected resources page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert(str_contains($resourceHeaders, 'Location: /settings?tab=resources'), 'Expected resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert($storedName !== '', 'Expected resource upload action to persist the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert(str_contains($resourceBody, 'Resource uploaded.'), 'Expected redirected resources page to show the upload success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert($resourceStatus === 0, 'Expected resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($resourcePageStatus === 0 && $resourceCsrfToken !== '', 'Expected resources page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceHeaders, 'Location: /settings?tab=resources'), 'Expected resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($storedName !== '', 'Expected resource upload action to persist the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceBody, 'Resource uploaded.'), 'Expected redirected resources page to show the upload success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
 $textPath = tempnam(sys_get_temp_dir(), 'pew-resource-text-');
 file_put_contents($textPath, "not a pdf");
@@ -260,10 +261,10 @@ $badResourceBody = is_file($badResourceResponsePath) ? file_get_contents($badRes
 $resourceStmt->execute(['Bad Resource']);
 $badStoredName = $resourceStmt->fetchColumn();
 
-settings_assert($badResourceStatus === 0, 'Expected invalid resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert(str_contains($badResourceHeaders, 'Location: /settings?tab=resources'), 'Expected invalid resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert($badStoredName === false, 'Expected invalid resource upload to avoid persisting a resource row.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
-settings_assert(str_contains($badResourceBody, 'Only PDF resources are supported.'), 'Expected redirected resources page to show the non-PDF warning.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert($badResourceStatus === 0, 'Expected invalid resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($badResourceHeaders, 'Location: /settings?tab=resources'), 'Expected invalid resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($badStoredName === false, 'Expected invalid resource upload to avoid persisting a resource row.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($badResourceBody, 'Only PDF resources are supported.'), 'Expected redirected resources page to show the non-PDF warning.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 
-settings_test_cleanup($repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_test_cleanup($repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 echo "settings import action test passed\n";

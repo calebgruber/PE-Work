@@ -113,13 +113,7 @@ function revision_return_tab(?array $revision): string
 
 function show_has_initial_revision(int $showId): bool
 {
-    foreach (list_revisions($showId) as $revision) {
-        if ((int) ($revision['is_initial'] ?? 0) === 1) {
-            return true;
-        }
-    }
-
-    return false;
+    return find_initial_revision($showId) !== null;
 }
 
 if (!schema_ready()) {
@@ -160,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'create_initial_revision' && $showId) {
-        $existing = find_latest_revision($showId);
+        $existing = find_initial_revision($showId);
         if ($existing) {
             $revisionId = (int) $existing['id'];
             flash('info', 'Initial shop order already exists.');
@@ -178,8 +172,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . url_for('show?show_id=' . $showId . '&tab=orders'));
             exit;
         }
-        $revisionId = create_next_revision($showId);
-        flash('success', 'Next revision created.');
+        try {
+            $revisionId = create_next_revision($showId);
+            flash('success', 'Next revision created.');
+        } catch (RuntimeException $e) {
+            flash('warning', $e->getMessage());
+            header('Location: ' . url_for('show?show_id=' . $showId . '&tab=orders'));
+            exit;
+        }
         header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=revisions&revision_id=' . $revisionId));
         exit;
     }

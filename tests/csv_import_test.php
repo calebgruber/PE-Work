@@ -2,9 +2,10 @@
 
 $repoRoot = dirname(__DIR__);
 $localConfig = $repoRoot . '/config.local.php';
-$localBackup = $repoRoot . '/config.local.php.test-backup';
+$localBackup = $repoRoot . '/config.local.php.test-backup-' . uniqid('', true);
+$movedLocalConfig = false;
 if (file_exists($localConfig)) {
-    rename($localConfig, $localBackup);
+    $movedLocalConfig = rename($localConfig, $localBackup);
 }
 
 define('DB_DRIVER', 'sqlite');
@@ -243,7 +244,7 @@ assert_true(str_contains($missingPathResult['message'], 'Unable to read'), 'Expe
 @unlink(DB_SQLITE_PATH);
 @unlink(DB_SQLITE_PATH . '-wal');
 @unlink(DB_SQLITE_PATH . '-shm');
-if (file_exists($localBackup)) {
+if ($movedLocalConfig && file_exists($localBackup)) {
     rename($localBackup, $localConfig);
 }
 

@@ -513,6 +513,14 @@ function find_latest_revision(int $showId): ?array
     return $revision ?: null;
 }
 
+function find_initial_revision(int $showId): ?array
+{
+    $stmt = db()->prepare('SELECT * FROM show_revisions WHERE show_id = ? AND is_initial = 1 ORDER BY revision_index ASC LIMIT 1');
+    $stmt->execute([$showId]);
+    $revision = $stmt->fetch();
+    return $revision ?: null;
+}
+
 function list_revisions(int $showId): array
 {
     $stmt = db()->prepare('SELECT * FROM show_revisions WHERE show_id = ? ORDER BY revision_index DESC');
@@ -547,7 +555,7 @@ function create_initial_revision(int $showId): int
 
     try {
         $pdo->beginTransaction();
-        $existing = find_latest_revision($showId);
+        $existing = find_initial_revision($showId);
         if ($existing) {
             $pdo->commit();
             return (int) $existing['id'];
@@ -583,16 +591,8 @@ function create_next_revision(int $showId): int
     try {
         $pdo->beginTransaction();
         $latest = find_latest_revision($showId);
-        if (!$latest) {
-            $stmt = $pdo->prepare(
-                'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)
-                 VALUES (?, ?, ?, ?, ?, ?)'
-            );
-            $stmt->execute([$showId, 'Initial', 0, date('Y-m-d'), 1, 'Initial shop order']);
-            $revisionId = (int) $pdo->lastInsertId();
-            seed_revision_items($revisionId);
-            $pdo->commit();
-            return $revisionId;
+        if (!$latest || (int) ($latest['is_initial'] ?? 0) !== 1 && !find_initial_revision($showId)) {
+            throw new RuntimeException('Create the initial order before adding revisions.');
         }
 
         $nextIndex = (int) $latest['revision_index'] + 1;

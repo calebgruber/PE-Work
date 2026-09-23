@@ -140,6 +140,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . url_for('settings?tab=resources'));
             exit;
         }
+
+        flash('warning', 'That settings action is not available right now.');
+        header('Location: ' . url_for('settings?tab=' . $tab));
+        exit;
+    } else {
+        flash('warning', 'Run migrations before changing settings.');
+        header('Location: ' . url_for('settings?tab=migrations'));
+        exit;
     }
 }
 
