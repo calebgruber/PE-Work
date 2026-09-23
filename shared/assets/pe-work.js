@@ -23,6 +23,16 @@
 
     const totalValue = (parseInt(rent.value || '0', 10) || 0) + (parseInt(spares.value || '0', 10) || 0);
     total.textContent = String(totalValue);
+
+    const stockWarning = row.querySelector('[data-stock-warning]');
+    const shopQuantity = parseInt(row.getAttribute('data-shop-quantity') || '0', 10) || 0;
+    if (stockWarning) {
+      const overStock = totalValue > shopQuantity;
+      stockWarning.classList.toggle('hidden', !overStock);
+      if (overStock) {
+        stockWarning.textContent = 'This line currently exceeds shop stock.';
+      }
+    }
   }
 
   function initRevisionRows() {
@@ -33,6 +43,119 @@
       });
       updateRowState(row);
     });
+  }
+
+  function initRevisionEditor() {
+    const editor = document.querySelector('[data-revision-editor]');
+    if (!editor) return;
+
+    const search = editor.querySelector('[data-revision-search]');
+    const warningsWrap = editor.querySelector('[data-revision-warnings-wrap]');
+    const warningsList = editor.querySelector('[data-revision-warnings]');
+    const items = Array.prototype.slice.call(editor.querySelectorAll('[data-revision-item]'));
+    const rulesNode = document.getElementById('revision-rules-data');
+    let rules = [];
+
+    if (rulesNode) {
+      try {
+        rules = JSON.parse(rulesNode.textContent || '[]');
+      } catch (error) {
+        rules = [];
+      }
+    }
+
+    function itemRent(item) {
+      const input = item.querySelector('[data-rent-input]');
+      return parseInt(input?.value || '0', 10) || 0;
+    }
+
+    function itemTotal(item) {
+      const rent = item.querySelector('[data-rent-input]');
+      const spares = item.querySelector('[data-spare-input]');
+      return (parseInt(rent?.value || '0', 10) || 0) + (parseInt(spares?.value || '0', 10) || 0);
+    }
+
+    function renderWarnings() {
+      if (!warningsWrap || !warningsList) return;
+
+      const warnings = [];
+      const rentByItem = {};
+
+      items.forEach(function (item) {
+        updateRowState(item);
+        const itemId = parseInt(item.getAttribute('data-item-id') || '0', 10) || 0;
+        const label = item.getAttribute('data-item-label') || 'Item';
+        const total = itemTotal(item);
+        const stock = parseInt(item.getAttribute('data-shop-quantity') || '0', 10) || 0;
+
+        rentByItem[itemId] = itemRent(item);
+        if (total > stock) {
+          warnings.push(label + ' exceeds shop stock (' + total + ' requested, ' + stock + ' available).');
+        }
+      });
+
+      rules.forEach(function (rule) {
+        const triggerQty = parseInt(rule.trigger_quantity || 0, 10) || 0;
+        const requiredQty = parseInt(rule.required_quantity || 0, 10) || 0;
+        const triggerCurrent = rentByItem[parseInt(rule.trigger_item_id || 0, 10) || 0] || 0;
+        const requiredCurrent = rentByItem[parseInt(rule.required_item_id || 0, 10) || 0] || 0;
+
+        if (triggerQty <= 0 || requiredQty <= 0 || triggerCurrent < triggerQty) {
+          return;
+        }
+
+        const recommended = Math.ceil(triggerCurrent / triggerQty) * requiredQty;
+        if (requiredCurrent < recommended) {
+          let warning = 'Rule warning: ' + rule.trigger_item_name + ' may need ' + rule.required_item_name + ' (' + recommended + ' suggested, ' + requiredCurrent + ' currently on the order).';
+          if (rule.note) {
+            warning += ' ' + rule.note;
+          }
+          warnings.push(warning);
+        }
+      });
+
+      warningsList.innerHTML = '';
+      warningsWrap.classList.toggle('hidden', warnings.length === 0);
+      warnings.forEach(function (warning) {
+        const item = document.createElement('div');
+        item.className = 'revision-alert';
+        item.textContent = warning;
+        warningsList.appendChild(item);
+      });
+    }
+
+    function applySearch() {
+      const term = (search?.value || '').trim().toLowerCase();
+
+      editor.querySelectorAll('[data-revision-category]').forEach(function (category) {
+        const categoryName = category.getAttribute('data-category-name') || '';
+        let visibleCount = 0;
+
+        category.querySelectorAll('[data-revision-item]').forEach(function (item) {
+          const haystack = item.getAttribute('data-item-name') || '';
+          const match = !term || haystack.indexOf(term) !== -1 || categoryName.indexOf(term) !== -1;
+          item.classList.toggle('hidden', !match);
+          if (match) visibleCount += 1;
+        });
+
+        category.classList.toggle('hidden', visibleCount === 0);
+      });
+    }
+
+    items.forEach(function (item) {
+      item.querySelectorAll('[data-action-select],[data-rent-input],[data-spare-input]').forEach(function (input) {
+        input.addEventListener('change', renderWarnings);
+        input.addEventListener('input', renderWarnings);
+      });
+      updateRowState(item);
+    });
+
+    if (search) {
+      search.addEventListener('input', applySearch);
+    }
+
+    applySearch();
+    renderWarnings();
   }
 
   function initNoteModal() {
@@ -194,6 +317,7 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     initRevisionRows();
+    initRevisionEditor();
     initNoteModal();
     initPrintActions();
     initAccordion();

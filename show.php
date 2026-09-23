@@ -106,12 +106,22 @@ function render_show_form(array $show): void
     <?php
 }
 
+function revision_return_tab(?array $revision): string
+{
+    return !empty($revision['is_initial']) ? 'orders' : 'revisions';
+}
+
 if (!schema_ready()) {
     header('Location: ' . url_for('setup'));
     exit;
 }
 
 $showId = isset($_GET['show_id']) ? (int) $_GET['show_id'] : null;
+$tab = $_GET['tab'] ?? 'info';
+if (!in_array($tab, ['info', 'orders', 'revisions'], true)) {
+    $tab = 'info';
+}
+$mode = ($_GET['mode'] ?? '') === 'edit' ? 'edit' : 'view';
 $show = $showId ? find_show($showId) : blank_show();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -128,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $show = $result['show'];
             $showId = (int) $show['id'];
             flash('success', 'Show information saved.');
-            header('Location: ' . url_for('show?show_id=' . $showId));
+            header('Location: ' . url_for('show?show_id=' . $showId . '&tab=info'));
             exit;
         }
     }
@@ -142,14 +152,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $revisionId = create_initial_revision($showId);
             flash('success', 'Initial shop order created.');
         }
-        header('Location: ' . url_for('show?show_id=' . $showId . '&revision_id=' . $revisionId));
+        header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=orders&revision_id=' . $revisionId));
         exit;
     }
 
     if ($action === 'create_revision' && $showId) {
         $revisionId = create_next_revision($showId);
         flash('success', 'Next revision created.');
-        header('Location: ' . url_for('show?show_id=' . $showId . '&revision_id=' . $revisionId));
+        header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=revisions&revision_id=' . $revisionId));
         exit;
     }
 
@@ -160,38 +170,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             http_response_code(404);
             exit('Revision not found for this show.');
         }
+
         save_revision_lines($revisionId, $_POST['items'] ?? []);
-        flash('success', 'Revision line items saved.');
-        header('Location: ' . url_for('show?show_id=' . $showId . '&revision_id=' . $revisionId));
+        flash('success', 'Order changes saved.');
+
+        $returnTab = revision_return_tab($revision);
+        if (isset($_POST['finish_revision'])) {
+            header('Location: ' . url_for('show?show_id=' . $showId . '&tab=' . $returnTab));
+        } else {
+            header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=' . $returnTab . '&revision_id=' . $revisionId));
+        }
         exit;
     }
 }
 
-$revisions = $showId ? list_revisions($showId) : [];
-$currentRevision = null;
-if (!empty($_GET['revision_id'])) {
-    $currentRevision = find_revision((int) $_GET['revision_id']);
-    if ($currentRevision && $showId && (int) $currentRevision['show_id'] !== (int) $showId) {
-        $currentRevision = null;
-    }
-}
-if (!$currentRevision && $showId) {
-    $currentRevision = find_latest_revision($showId);
+if ($showId && !$show) {
+    http_response_code(404);
+    exit('Show not found.');
 }
 
-$catalog = $currentRevision ? catalog_for_revision((int) $currentRevision['id']) : fetch_inventory_catalog();
-$totals = $currentRevision ? revision_totals((int) $currentRevision['id']) : ['rent_total' => 0, 'spare_total' => 0, 'overall_total' => 0];
-$suggestions = $currentRevision ? rule_suggestions((int) $currentRevision['id']) : [];
+$revisions = $showId ? list_revisions($showId) : [];
+$initialRevision = null;
+$savedRevisions = [];
+foreach ($revisions as $revisionRow) {
+    if ((int) ($revisionRow['is_initial'] ?? 0) === 1) {
+        $initialRevision = $revisionRow;
+    } else {
+        $savedRevisions[] = $revisionRow;
+    }
+}
+
+$latestRevision = $showId ? find_latest_revision($showId) : null;
+$currentRevision = null;
+if ($mode === 'edit' && !empty($_GET['revision_id'])) {
+    $currentRevision = find_revision((int) $_GET['revision_id']);
+    if (!$currentRevision || (int) $currentRevision['show_id'] !== (int) $showId) {
+        http_response_code(404);
+        exit('Revision not found for this show.');
+    }
+}
+
+$catalog = [];
+$totals = ['rent_total' => 0, 'spare_total' => 0, 'overall_total' => 0];
+$editorRules = [];
+if ($mode === 'edit' && $currentRevision) {
+    $catalog = catalog_for_revision((int) $currentRevision['id']);
+    $totals = revision_totals((int) $currentRevision['id']);
+    foreach (fetch_rules() as $rule) {
+        $editorRules[] = [
+            'trigger_item_id' => (int) $rule['trigger_item_id'],
+            'trigger_quantity' => (int) $rule['trigger_quantity'],
+            'required_item_id' => (int) $rule['required_item_id'],
+            'required_quantity' => (int) $rule['required_quantity'],
+            'trigger_item_name' => (string) $rule['trigger_item_name'],
+            'required_item_name' => (string) $rule['required_item_name'],
+            'note' => (string) ($rule['note'] ?? ''),
+        ];
+    }
+}
 
 ui_head('Show Builder', '', APP_NAME, 'theater_comedy');
 ui_sidebar(APP_NAME, 'theater_comedy', nav_items('shows'));
 
 $actions = '<a class="btn btn-ghost" href="' . h(url_for('settings')) . '"><span class="material-symbols-outlined">inventory_2</span>Inventory</a>';
-if ($showId && $currentRevision) {
-    $actions .= '<a class="btn btn-primary" href="' . h(url_for('export?show_id=' . $showId . '&revision_id=' . (int) $currentRevision['id'])) . '"><span class="material-symbols-outlined">print</span>Exports</a>';
+if ($showId && $latestRevision) {
+    $actions .= '<a class="btn btn-primary" href="' . h(url_for('export?show_id=' . $showId . '&revision_id=' . (int) $latestRevision['id'])) . '"><span class="material-symbols-outlined">print</span>Exports</a>';
 }
 
-ui_page_header($showId ? ($show['show_name'] ?: 'Show Workspace') : 'Create Show', 'Required contacts are enforced; dates, addresses, and image are optional.', $actions);
+if ($mode === 'edit' && $showId && $currentRevision) {
+    $backTab = revision_return_tab($currentRevision);
+    $actions = '<a class="btn btn-ghost" href="' . h(url_for('show?show_id=' . $showId . '&tab=' . $backTab)) . '"><span class="material-symbols-outlined">arrow_back</span>Back</a>';
+    $actions .= '<a class="btn btn-primary" href="' . h(url_for('export?show_id=' . $showId . '&revision_id=' . (int) $currentRevision['id'])) . '"><span class="material-symbols-outlined">print</span>Exports</a>';
+    ui_page_header(($show['show_name'] ?: 'Show Workspace') . ' · ' . $currentRevision['revision_code'], 'Edit line items in a focused workspace. Search, review warnings, then click Done when you are finished.', $actions);
+} else {
+    ui_page_header($showId ? ($show['show_name'] ?: 'Show Workspace') : 'Create Show', 'Required contacts are enforced; dates, addresses, and image are optional.', $actions);
+}
 ?>
 <div class="page-body">
   <?php ui_flash(); ?>
@@ -200,120 +253,95 @@ ui_page_header($showId ? ($show['show_name'] ?: 'Show Workspace') : 'Create Show
     <?php ui_card_open('theater_comedy', 'Create Show'); ?>
       <?php render_show_form($show); ?>
     <?php ui_card_close(); ?>
-  <?php else: ?>
-  <div class="card-grid">
-    <?php ui_card_open('theater_comedy', 'Show Information'); ?>
-      <?php render_show_form($show); ?>
-    <?php ui_card_close(); ?>
-
-    <?php ui_card_open('history', 'Revisions'); ?>
+  <?php elseif ($mode === 'edit' && $currentRevision): ?>
+    <?php ui_card_open($currentRevision['is_initial'] ? 'checklist' : 'history', $currentRevision['is_initial'] ? 'Edit Initial Order' : 'Edit ' . $currentRevision['revision_code']); ?>
       <div class="show-summary">
-        <div class="summary-block"><strong>Selected Revision</strong><?= h($currentRevision['revision_code'] ?? 'None yet') ?></div>
-        <div class="summary-block"><strong>Revision Date</strong><?= h($currentRevision['revision_date'] ?? '—') ?></div>
+        <div class="summary-block"><strong>Revision</strong><?= h($currentRevision['revision_code']) ?></div>
+        <div class="summary-block"><strong>Date</strong><?= h($currentRevision['revision_date']) ?></div>
         <div class="summary-block"><strong>Rent Total</strong><?= h((string) $totals['rent_total']) ?></div>
         <div class="summary-block"><strong>Spare Total</strong><?= h((string) $totals['spare_total']) ?></div>
         <div class="summary-block"><strong>Combined Total</strong><?= h((string) $totals['overall_total']) ?></div>
       </div>
 
-      <div class="pill-row" style="margin:1rem 0;">
-        <?php foreach ($revisions as $revision): ?>
-          <a class="tab<?= $currentRevision && (int) $currentRevision['id'] === (int) $revision['id'] ? ' active' : '' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&revision_id=' . (int) $revision['id'])) ?>">
-            <span class="material-symbols-outlined">history</span>
-            <?= h($revision['revision_code']) ?> · <?= h($revision['revision_date']) ?>
-          </a>
-        <?php endforeach; ?>
-      </div>
-
-      <div class="form-actions">
-        <?php if (!$revisions): ?>
-        <form method="post">
-          <input type="hidden" name="action" value="create_initial_revision">
-          <button type="submit" class="btn btn-primary">
-            <span class="material-symbols-outlined">playlist_add</span>
-            Create Initial Order
-          </button>
-        </form>
-        <?php else: ?>
-        <form method="post">
-          <input type="hidden" name="action" value="create_revision">
-          <button type="submit" class="btn btn-ghost">
-            <span class="material-symbols-outlined">add_circle</span>
-            Create Next Revision
-          </button>
-        </form>
-        <?php endif; ?>
-      </div>
-    <?php ui_card_close(); ?>
-  </div>
-
-  <?php if ($showId && $currentRevision): ?>
-  <div class="card-grid">
-    <?php ui_card_open('rule', 'Rule Suggestions'); ?>
-      <?php if ($suggestions): ?>
-      <div class="stack">
-        <?php foreach ($suggestions as $suggestion): ?>
-        <div class="summary-block">
-          <strong><?= h($suggestion['rule']['trigger_item_name']) ?> → <?= h($suggestion['rule']['required_item_name']) ?></strong>
-          <div class="muted">Recommended: <?= h((string) $suggestion['recommended_quantity']) ?> | Currently on order: <?= h((string) $suggestion['current_quantity']) ?></div>
-          <?php if ($suggestion['rule']['note']): ?><div style="margin-top:0.5rem;"><?= h($suggestion['rule']['note']) ?></div><?php endif; ?>
-        </div>
-        <?php endforeach; ?>
-      </div>
-      <?php else: ?>
-      <div class="empty-state">
-        <span class="material-symbols-outlined">rule</span>
-        <h3>No rule alerts for this revision</h3>
-        <p>Add or adjust global item rules in system settings to surface pack-planning reminders here.</p>
-      </div>
-      <?php endif; ?>
-    <?php ui_card_close(); ?>
-
-    <?php ui_card_open('checklist', 'Revision Line Items'); ?>
       <?php if (!$catalog): ?>
         <div class="empty-state">
           <span class="material-symbols-outlined">inventory_2</span>
           <h3>No inventory yet</h3>
-          <p>Seeded items should appear after migration. Add more items or import a CSV from the inventory tab in settings.</p>
+          <p>Add inventory in settings before building orders or revisions.</p>
         </div>
       <?php else: ?>
-      <form method="post">
+      <form method="post" data-revision-editor>
         <input type="hidden" name="action" value="save_revision">
         <input type="hidden" name="revision_id" value="<?= h((string) $currentRevision['id']) ?>">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Shop Has</th>
-                <th>Rent</th>
-                <th>Spares</th>
-                <th>Total</th>
-                <th>Action</th>
-                <th>Item Pull</th>
-                <th>Item Return</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($catalog as $category): ?>
-                <tr class="table-section-row"><td colspan="9"><?= h($category['name']) ?></td></tr>
-                <?php foreach ($category['items'] as $item): ?>
-                <?php $line = $item['line']; ?>
-                <tr class="revision-row" data-action-row>
-                  <td>
-                    <strong><?= h($item['name']) ?></strong>
-                    <?php if (!empty($item['default_note'])): ?>
+        <script id="revision-rules-data" type="application/json"><?= h(json_encode($editorRules, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '[]') ?></script>
+
+        <div class="revision-editor-toolbar">
+          <div class="form-group">
+            <label for="revision-search">Search Items</label>
+            <input class="form-control" id="revision-search" type="search" placeholder="Search by item, description, or notes..." data-revision-search>
+          </div>
+          <div class="revision-editor-helper">
+            <span class="material-symbols-outlined">info</span>
+            <span>Warnings update live as you edit. Orders and revisions stay editable after you click Done.</span>
+          </div>
+        </div>
+
+        <div class="revision-alerts hidden" data-revision-warnings-wrap>
+          <strong>Warnings</strong>
+          <div class="revision-alert-list" data-revision-warnings></div>
+        </div>
+
+        <div class="revision-category-list">
+          <?php foreach ($catalog as $category): ?>
+          <section class="revision-category" data-revision-category data-category-name="<?= h(strtolower($category['name'])) ?>">
+            <div class="revision-category-header">
+              <div>
+                <h3><?= h($category['name']) ?></h3>
+                <div class="muted"><?= h((string) count($category['items'])) ?> item<?= count($category['items']) === 1 ? '' : 's' ?></div>
+              </div>
+            </div>
+            <div class="revision-item-grid">
+              <?php foreach ($category['items'] as $item): ?>
+              <?php $line = $item['line']; $currentTotal = (int) ($line['total_quantity'] ?? 0); $shopQuantity = (int) ($item['shop_quantity'] ?? 0); ?>
+              <article
+                class="revision-item-card"
+                data-action-row
+                data-revision-item
+                data-item-id="<?= h((string) $item['id']) ?>"
+                data-item-name="<?= h(strtolower($item['name'] . ' ' . ($item['description'] ?? '') . ' ' . ($item['default_note'] ?? ''))) ?>"
+                data-item-label="<?= h($item['name']) ?>"
+                data-shop-quantity="<?= h((string) $shopQuantity) ?>"
+              >
+                <div class="revision-item-top">
+                  <div>
+                    <div class="revision-item-title-row">
+                      <h4><?= h($item['name']) ?></h4>
+                      <?php if (!empty($item['default_note'])): ?>
                       <button type="button" class="icon-link" data-note-trigger data-note-title="<?= h($item['name']) ?> note" data-note-body="<?= h($item['default_note']) ?>">
                         <span class="material-symbols-outlined">info</span>
                       </button>
-                    <?php endif; ?>
+                      <?php endif; ?>
+                    </div>
                     <?php if (!empty($item['description'])): ?><div class="muted"><?= h($item['description']) ?></div><?php endif; ?>
-                  </td>
-                  <td><?= h((string) $item['shop_quantity']) ?><?= !empty($item['unit']) ? ' ' . h($item['unit']) : '' ?></td>
-                  <td><input class="form-control compact-input" data-rent-input type="number" min="0" name="items[<?= h((string) $item['id']) ?>][rent_quantity]" value="<?= h((string) ($line['rent_quantity'] ?? 0)) ?>"></td>
-                  <td><input class="form-control compact-input" data-spare-input type="number" min="0" name="items[<?= h((string) $item['id']) ?>][spare_quantity]" value="<?= h((string) ($line['spare_quantity'] ?? 0)) ?>"></td>
-                  <td class="qty-total" data-total-output><?= h((string) ($line['total_quantity'] ?? 0)) ?></td>
-                  <td>
+                  </div>
+                  <div class="revision-stock-pill">Shop has <?= h((string) $shopQuantity) ?><?= !empty($item['unit']) ? ' ' . h($item['unit']) : '' ?></div>
+                </div>
+
+                <div class="revision-item-fields">
+                  <div class="form-group">
+                    <label>Rent</label>
+                    <input class="form-control compact-input" data-rent-input type="number" min="0" name="items[<?= h((string) $item['id']) ?>][rent_quantity]" value="<?= h((string) ($line['rent_quantity'] ?? 0)) ?>">
+                  </div>
+                  <div class="form-group">
+                    <label>Spares</label>
+                    <input class="form-control compact-input" data-spare-input type="number" min="0" name="items[<?= h((string) $item['id']) ?>][spare_quantity]" value="<?= h((string) ($line['spare_quantity'] ?? 0)) ?>">
+                  </div>
+                  <div class="form-group">
+                    <label>Total</label>
+                    <div class="revision-total-box" data-total-output><?= h((string) $currentTotal) ?></div>
+                  </div>
+                  <div class="form-group">
+                    <label>Action</label>
                     <select class="form-control compact-input" data-action-select name="items[<?= h((string) $item['id']) ?>][action]">
                       <option value="" <?= empty($line['action']) ? 'selected' : '' ?>>Blank</option>
                       <option value="add" <?= ($line['action'] ?? '') === 'add' ? 'selected' : '' ?>>Add</option>
@@ -321,27 +349,166 @@ ui_page_header($showId ? ($show['show_name'] ?: 'Show Workspace') : 'Create Show
                       <option value="exchange" <?= ($line['action'] ?? '') === 'exchange' ? 'selected' : '' ?>>Exchange</option>
                       <option value="note" <?= ($line['action'] ?? '') === 'note' ? 'selected' : '' ?>>See Notes</option>
                     </select>
-                  </td>
-                  <td><input class="form-control" type="date" name="items[<?= h((string) $item['id']) ?>][pickup_date]" value="<?= h($line['pickup_date'] ?? '') ?>"></td>
-                  <td><input class="form-control" type="date" name="items[<?= h((string) $item['id']) ?>][return_date]" value="<?= h($line['return_date'] ?? '') ?>"></td>
-                  <td><textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][line_note]"><?= h($line['line_note'] ?? '') ?></textarea></td>
-                </tr>
-                <?php endforeach; ?>
+                  </div>
+                </div>
+
+                <div class="revision-inline-warning<?= $currentTotal > $shopQuantity ? '' : ' hidden' ?>" data-stock-warning>
+                  This line currently exceeds shop stock.
+                </div>
+
+                <div class="revision-date-grid">
+                  <div class="form-group">
+                    <label>Item Pull</label>
+                    <input class="form-control" type="date" name="items[<?= h((string) $item['id']) ?>][pickup_date]" value="<?= h($line['pickup_date'] ?? '') ?>">
+                  </div>
+                  <div class="form-group">
+                    <label>Item Return</label>
+                    <input class="form-control" type="date" name="items[<?= h((string) $item['id']) ?>][return_date]" value="<?= h($line['return_date'] ?? '') ?>">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Notes</label>
+                  <textarea class="form-control" name="items[<?= h((string) $item['id']) ?>][line_note]"><?= h($line['line_note'] ?? '') ?></textarea>
+                </div>
+              </article>
               <?php endforeach; ?>
-            </tbody>
-          </table>
+            </div>
+          </section>
+          <?php endforeach; ?>
         </div>
+
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">
+          <button type="submit" class="btn btn-ghost" name="save_continue" value="1">
             <span class="material-symbols-outlined">save</span>
-            Save Revision
+            Save &amp; Keep Editing
+          </button>
+          <button type="submit" class="btn btn-primary" name="finish_revision" value="1">
+            <span class="material-symbols-outlined">done</span>
+            Done
           </button>
         </div>
       </form>
       <?php endif; ?>
     <?php ui_card_close(); ?>
-  </div>
-  <?php endif; ?>
+  <?php else: ?>
+    <div class="pill-row workspace-tabs" role="tablist" aria-label="Show workspace sections">
+      <a role="tab" aria-selected="<?= $tab === 'info' ? 'true' : 'false' ?>" class="tab<?= $tab === 'info' ? ' active' : '' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=info')) ?>">
+        <span class="material-symbols-outlined">badge</span>
+        Show Information
+      </a>
+      <a role="tab" aria-selected="<?= $tab === 'orders' ? 'true' : 'false' ?>" class="tab<?= $tab === 'orders' ? ' active' : '' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=orders')) ?>">
+        <span class="material-symbols-outlined">assignment</span>
+        Orders
+      </a>
+      <a role="tab" aria-selected="<?= $tab === 'revisions' ? 'true' : 'false' ?>" class="tab<?= $tab === 'revisions' ? ' active' : '' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=revisions')) ?>">
+        <span class="material-symbols-outlined">history</span>
+        Revisions
+      </a>
+    </div>
+
+    <?php if ($tab === 'info'): ?>
+      <?php ui_card_open('theater_comedy', 'Show Information'); ?>
+        <?php render_show_form($show); ?>
+      <?php ui_card_close(); ?>
+    <?php elseif ($tab === 'orders'): ?>
+      <?php ui_card_open('assignment', 'Initial Order'); ?>
+        <?php if (!$initialRevision): ?>
+          <div class="empty-state">
+            <span class="material-symbols-outlined">assignment</span>
+            <h3>No initial order yet</h3>
+            <p>Create the initial order first, then edit it on its own full-page workspace.</p>
+          </div>
+          <div class="form-actions">
+            <form method="post">
+              <input type="hidden" name="action" value="create_initial_revision">
+              <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-outlined">playlist_add</span>
+                Create Initial Order
+              </button>
+            </form>
+          </div>
+        <?php else: ?>
+          <?php $initialTotals = revision_totals((int) $initialRevision['id']); ?>
+          <div class="show-summary">
+            <div class="summary-block"><strong>Order</strong><?= h($initialRevision['revision_code']) ?></div>
+            <div class="summary-block"><strong>Date</strong><?= h($initialRevision['revision_date']) ?></div>
+            <div class="summary-block"><strong>Rent Total</strong><?= h((string) $initialTotals['rent_total']) ?></div>
+            <div class="summary-block"><strong>Spare Total</strong><?= h((string) $initialTotals['spare_total']) ?></div>
+            <div class="summary-block"><strong>Combined Total</strong><?= h((string) $initialTotals['overall_total']) ?></div>
+          </div>
+          <div class="helper-text" style="margin-top:1rem;">Initial orders stay editable. Open it any time to adjust quantities, dates, or notes.</div>
+          <div class="form-actions">
+            <a class="btn btn-primary" href="<?= h(url_for('show?show_id=' . $showId . '&mode=edit&tab=orders&revision_id=' . (int) $initialRevision['id'])) ?>">
+              <span class="material-symbols-outlined">edit</span>
+              Edit Initial Order
+            </a>
+            <a class="btn btn-ghost" href="<?= h(url_for('export?show_id=' . $showId . '&revision_id=' . (int) $initialRevision['id'])) ?>">
+              <span class="material-symbols-outlined">print</span>
+              Export Initial Order
+            </a>
+          </div>
+        <?php endif; ?>
+      <?php ui_card_close(); ?>
+    <?php else: ?>
+      <?php ui_card_open('history', 'Revisions'); ?>
+        <?php if (!$initialRevision): ?>
+          <div class="empty-state">
+            <span class="material-symbols-outlined">history</span>
+            <h3>Create the initial order first</h3>
+            <p>Revisions build from the initial order, so start there before adding revision rounds.</p>
+          </div>
+        <?php else: ?>
+          <div class="form-actions">
+            <form method="post">
+              <input type="hidden" name="action" value="create_revision">
+              <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-outlined">add_circle</span>
+                Create Next Revision
+              </button>
+            </form>
+          </div>
+
+          <?php if ($savedRevisions): ?>
+          <div class="stack">
+            <?php foreach ($savedRevisions as $revision): ?>
+            <?php $revisionTotals = revision_totals((int) $revision['id']); ?>
+            <div class="summary-block revision-list-card">
+              <div class="revision-list-header">
+                <div>
+                  <strong><?= h($revision['revision_code']) ?></strong>
+                  <div class="muted"><?= h($revision['revision_date']) ?></div>
+                </div>
+                <div class="pill-row">
+                  <span class="revision-stock-pill">Rent <?= h((string) $revisionTotals['rent_total']) ?></span>
+                  <span class="revision-stock-pill">Spares <?= h((string) $revisionTotals['spare_total']) ?></span>
+                  <span class="revision-stock-pill">Total <?= h((string) $revisionTotals['overall_total']) ?></span>
+                </div>
+              </div>
+              <?php if (!empty($revision['summary_note'])): ?><div class="muted"><?= h($revision['summary_note']) ?></div><?php endif; ?>
+              <div class="form-actions">
+                <a class="btn btn-primary btn-sm" href="<?= h(url_for('show?show_id=' . $showId . '&mode=edit&tab=revisions&revision_id=' . (int) $revision['id'])) ?>">
+                  <span class="material-symbols-outlined">edit</span>
+                  Edit Revision
+                </a>
+                <a class="btn btn-ghost btn-sm" href="<?= h(url_for('export?show_id=' . $showId . '&revision_id=' . (int) $revision['id'])) ?>">
+                  <span class="material-symbols-outlined">print</span>
+                  Export
+                </a>
+              </div>
+            </div>
+            <?php endforeach; ?>
+          </div>
+          <?php else: ?>
+          <div class="empty-state">
+            <span class="material-symbols-outlined">history</span>
+            <h3>No revisions yet</h3>
+            <p>Create the next revision to open a full-page editing workspace for changes.</p>
+          </div>
+          <?php endif; ?>
+        <?php endif; ?>
+      <?php ui_card_close(); ?>
+    <?php endif; ?>
   <?php endif; ?>
 </div>
 <?php ui_end(); ?>

@@ -64,10 +64,20 @@
 .action-row-exchange td { background: rgba(245, 158, 11, 0.16); }
 .action-row-note td { background: rgba(59, 130, 246, 0.14); }
 
+.revision-item-card.action-row-add { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3); }
+.revision-item-card.action-row-return { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3); }
+.revision-item-card.action-row-exchange { background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.3); }
+.revision-item-card.action-row-note { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.3); }
+
 [data-theme="dark"] .action-row-add td { background: rgba(16, 185, 129, 0.18); }
 [data-theme="dark"] .action-row-return td { background: rgba(239, 68, 68, 0.2); }
 [data-theme="dark"] .action-row-exchange td { background: rgba(245, 158, 11, 0.2); }
 [data-theme="dark"] .action-row-note td { background: rgba(59, 130, 246, 0.2); }
+
+[data-theme="dark"] .revision-item-card.action-row-add { background: rgba(16, 185, 129, 0.14); }
+[data-theme="dark"] .revision-item-card.action-row-return { background: rgba(239, 68, 68, 0.14); }
+[data-theme="dark"] .revision-item-card.action-row-exchange { background: rgba(245, 158, 11, 0.14); }
+[data-theme="dark"] .revision-item-card.action-row-note { background: rgba(59, 130, 246, 0.14); }
 
 .table-section-row td {
   background: var(--surface-raised);
@@ -242,6 +252,134 @@
   margin-bottom: 0.75rem;
 }
 
+.workspace-tabs {
+  margin-bottom: 1rem;
+}
+
+.revision-editor-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr);
+  gap: 1rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.revision-editor-helper {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--text-muted);
+}
+
+.revision-alerts {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.revision-alert-list {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.revision-alert {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.revision-category-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.revision-category {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 1rem;
+}
+
+.revision-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.revision-category-header h3,
+.revision-item-title-row h4 {
+  margin: 0;
+}
+
+.revision-item-grid {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.revision-item-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  padding: 1rem;
+  display: grid;
+  gap: 0.875rem;
+}
+
+.revision-item-top,
+.revision-list-header,
+.revision-item-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.revision-stock-pill,
+.revision-total-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.revision-total-box {
+  min-height: 44px;
+  border-radius: var(--radius);
+}
+
+.revision-inline-warning {
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radius);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: var(--text);
+  font-size: 0.875rem;
+}
+
+.revision-date-grid,
+.revision-item-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.875rem;
+}
+
+.revision-list-card {
+  display: grid;
+  gap: 0.875rem;
+}
+
 .resource-frame {
   width: 100%;
   min-height: 420px;
@@ -332,8 +470,18 @@
   .inventory-accordion-panel,
   .inventory-item-card,
   .resource-card,
-  .category-editor {
+  .category-editor,
+  .revision-item-card,
+  .revision-category {
     padding: 0.875rem;
+  }
+
+  .revision-editor-toolbar,
+  .revision-item-top,
+  .revision-list-header,
+  .revision-item-title-row {
+    grid-template-columns: 1fr;
+    display: grid;
   }
 
   .resource-frame {
