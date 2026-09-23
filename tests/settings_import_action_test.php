@@ -430,6 +430,8 @@ $validationHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-headers-');
 $validationResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-response-');
 $autosaveHeadersPath = tempnam(sys_get_temp_dir(), 'pew-autosave-headers-');
 $autosaveResponsePath = tempnam(sys_get_temp_dir(), 'pew-autosave-response-');
+$saveHeadersPath = tempnam(sys_get_temp_dir(), 'pew-save-headers-');
+$saveResponsePath = tempnam(sys_get_temp_dir(), 'pew-save-response-');
 $validationInvalidHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-invalid-headers-');
 $validationInvalidResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-invalid-response-');
 $validationPersistedHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-persisted-headers-');
@@ -439,6 +441,8 @@ $testPaths[] = $validationHeadersPath;
 $testPaths[] = $validationResponsePath;
 $testPaths[] = $autosaveHeadersPath;
 $testPaths[] = $autosaveResponsePath;
+$testPaths[] = $saveHeadersPath;
+$testPaths[] = $saveResponsePath;
 $testPaths[] = $validationInvalidHeadersPath;
 $testPaths[] = $validationInvalidResponsePath;
 $testPaths[] = $validationPersistedHeadersPath;
@@ -453,8 +457,12 @@ exec(sprintf(
 $validationPageHtml = is_file($validationPagePath) ? file_get_contents($validationPagePath) : '';
 preg_match('/name=\"csrf_token\" value=\"([^\"]+)\"/', $validationPageHtml, $validationTokenMatch);
 $validationCsrfToken = html_entity_decode($validationTokenMatch[1] ?? '', ENT_QUOTES, 'UTF-8');
+$validationPayload = json_encode([
+    (string) $validationFixtureId => ['rent_quantity' => 3, 'spare_quantity' => 4],
+    (string) $validationCableId => ['rent_quantity' => 0, 'spare_quantity' => 0],
+], JSON_UNESCAPED_SLASHES);
 exec(sprintf(
-    "curl -isS -o %s -D %s -c %s -b %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
+    "curl -isS -o %s -D %s -c %s -b %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
     escapeshellarg($validationResponsePath),
     escapeshellarg($validationHeadersPath),
     escapeshellarg($cookieJar),
@@ -462,14 +470,11 @@ exec(sprintf(
     escapeshellarg('csrf_token=' . $validationCsrfToken),
     escapeshellarg('action=validate_revision'),
     escapeshellarg('revision_id=' . $validationRevisionId),
-    escapeshellarg('items[' . $validationFixtureId . '][rent_quantity]=3'),
-    escapeshellarg('items[' . $validationFixtureId . '][spare_quantity]=4'),
-    escapeshellarg('items[' . $validationCableId . '][rent_quantity]=0'),
-    escapeshellarg('items[' . $validationCableId . '][spare_quantity]=0'),
+    escapeshellarg('revision_payload=' . $validationPayload),
     escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&mode=edit&tab=orders&revision_id=' . $validationRevisionId)
 ), $validationOutput, $validationStatus);
 exec(sprintf(
-    "curl -isS -o %s -D %s -c %s -b %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
+    "curl -isS -o %s -D %s -c %s -b %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
     escapeshellarg($autosaveResponsePath),
     escapeshellarg($autosaveHeadersPath),
     escapeshellarg($cookieJar),
@@ -477,12 +482,22 @@ exec(sprintf(
     escapeshellarg('csrf_token=' . $validationCsrfToken),
     escapeshellarg('action=autosave_revision'),
     escapeshellarg('revision_id=' . $validationRevisionId),
-    escapeshellarg('items[' . $validationFixtureId . '][rent_quantity]=3'),
-    escapeshellarg('items[' . $validationFixtureId . '][spare_quantity]=4'),
-    escapeshellarg('items[' . $validationCableId . '][rent_quantity]=0'),
-    escapeshellarg('items[' . $validationCableId . '][spare_quantity]=0'),
+    escapeshellarg('revision_payload=' . $validationPayload),
     escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&mode=edit&tab=orders&revision_id=' . $validationRevisionId)
 ), $autosaveOutput, $autosaveStatus);
+exec(sprintf(
+    "curl -isS -o %s -D %s -c %s -b %s -H %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
+    escapeshellarg($saveResponsePath),
+    escapeshellarg($saveHeadersPath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg('X-Requested-With: XMLHttpRequest'),
+    escapeshellarg('csrf_token=' . $validationCsrfToken),
+    escapeshellarg('action=save_revision'),
+    escapeshellarg('revision_id=' . $validationRevisionId),
+    escapeshellarg('revision_payload=' . $validationPayload),
+    escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&mode=edit&tab=orders&revision_id=' . $validationRevisionId)
+), $saveOutput, $saveStatus);
 exec(sprintf(
     "curl -isS -o %s -D %s -c %s -b %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
     escapeshellarg($validationInvalidResponsePath),
@@ -509,6 +524,8 @@ $validationHeaders = is_file($validationHeadersPath) ? file_get_contents($valida
 $validationBody = is_file($validationResponsePath) ? file_get_contents($validationResponsePath) : '';
 $autosaveHeaders = is_file($autosaveHeadersPath) ? file_get_contents($autosaveHeadersPath) : '';
 $autosaveBody = is_file($autosaveResponsePath) ? file_get_contents($autosaveResponsePath) : '';
+$saveHeaders = is_file($saveHeadersPath) ? file_get_contents($saveHeadersPath) : '';
+$saveBody = is_file($saveResponsePath) ? file_get_contents($saveResponsePath) : '';
 $validationInvalidHeaders = is_file($validationInvalidHeadersPath) ? file_get_contents($validationInvalidHeadersPath) : '';
 $validationInvalidBody = is_file($validationInvalidResponsePath) ? file_get_contents($validationInvalidResponsePath) : '';
 $validationPersistedHeaders = is_file($validationPersistedHeadersPath) ? file_get_contents($validationPersistedHeadersPath) : '';
@@ -523,6 +540,9 @@ settings_assert($autosaveStatus === 0, 'Expected autosave endpoint request to su
 settings_assert(str_contains($autosaveHeaders, 'Content-Type: application/json'), 'Expected autosave endpoint to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($autosaveBody, '"ok":true'), 'Expected autosave endpoint to confirm the save.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($autosaveBody, '"overall_total":7'), 'Expected autosave endpoint totals to reflect the current revision changes.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($saveStatus === 0, 'Expected AJAX save request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($saveHeaders, 'Content-Type: application/json'), 'Expected AJAX save request to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($saveBody, '"message":"Order changes saved."'), 'Expected AJAX save request to confirm the save.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($validationInvalidStatus === 0, 'Expected invalid validation endpoint request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationInvalidHeaders, '404 Not Found'), 'Expected invalid validation revision lookup to return 404.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationInvalidBody, 'Revision not found for this show.'), 'Expected invalid validation revision lookup to return a JSON warning message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);

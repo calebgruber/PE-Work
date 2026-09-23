@@ -80,6 +80,30 @@
     let autosaveAbortController = null;
     let hasPendingAutosave = false;
 
+    function buildRevisionPayload() {
+      const payload = {};
+      editor.querySelectorAll('input[name^="items["], select[name^="items["], textarea[name^="items["]').forEach(function (input) {
+        const match = input.name.match(/^items\[(\d+)\]\[([^\]]+)\]$/);
+        if (!match) return;
+        const itemId = match[1];
+        const field = match[2];
+        if (!payload[itemId]) payload[itemId] = {};
+        payload[itemId][field] = input.value;
+      });
+      return payload;
+    }
+
+    function buildRevisionFormData(actionName) {
+      const formData = new FormData();
+      const csrf = editor.querySelector('input[name="csrf_token"]');
+      const revisionId = editor.querySelector('input[name="revision_id"]');
+      if (csrf) formData.set('csrf_token', csrf.value);
+      if (revisionId) formData.set('revision_id', revisionId.value);
+      formData.set('action', actionName);
+      formData.set('revision_payload', JSON.stringify(buildRevisionPayload()));
+      return formData;
+    }
+
     function renderAutosaveStatus(message, state) {
       if (!autosaveStatus) return;
       autosaveStatus.textContent = message;
@@ -119,8 +143,7 @@
       }
       validationAbortController = new AbortController();
       const abortController = validationAbortController;
-      const formData = new FormData(editor);
-      formData.set('action', 'validate_revision');
+      const formData = buildRevisionFormData('validate_revision');
       const validationRun = ++latestValidationRun;
 
       fetch(editor.getAttribute('action') || window.location.href, {
@@ -177,8 +200,7 @@
       }
       autosaveAbortController = new AbortController();
       const abortController = autosaveAbortController;
-      const formData = new FormData(editor);
-      formData.set('action', 'autosave_revision');
+      const formData = buildRevisionFormData('autosave_revision');
       const autosaveRun = ++latestAutosaveRun;
       hasPendingAutosave = true;
       renderAutosaveStatus('Saving changes…', 'saving');
@@ -302,17 +324,42 @@
         autosaveAbortController.abort();
       }
       event.preventDefault();
-      runValidation(function (warnings) {
-        if (warnings.length > 0 && warningsWrap) {
-          warningsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        allowValidatedSubmit = true;
-        if (event.submitter && typeof editor.requestSubmit === 'function') {
-          editor.requestSubmit(event.submitter);
-          return;
-        }
-        editor.submit();
-      });
+      renderAutosaveStatus('Saving changes…', 'saving');
+      fetch(editor.getAttribute('action') || window.location.href, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: buildRevisionFormData('save_revision')
+      })
+        .then(function (response) {
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          const responseBody = contentType.indexOf('application/json') !== -1
+            ? response.json().catch(function () { return null; })
+            : response.text().catch(function () { return ''; });
+
+          return responseBody.then(function (payload) {
+            if (!response.ok) {
+              const message = Array.isArray(payload?.warnings) && payload.warnings[0]?.message
+                ? payload.warnings[0].message
+                : (typeof payload === 'string' && payload.trim() !== '' ? payload.trim() : 'Unable to save this revision right now.');
+              throw new Error(message);
+            }
+            return payload;
+          });
+        })
+        .then(function (payload) {
+          hasPendingAutosave = false;
+          renderWarnings(Array.isArray(payload?.warnings) ? payload.warnings : []);
+          renderTotals(payload?.totals || null);
+          renderAutosaveStatus(payload?.message || 'All changes saved.', 'saved');
+          if (Array.isArray(payload?.warnings) && payload.warnings.length > 0 && warningsWrap) {
+            warningsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        })
+        .catch(function (error) {
+          renderAutosaveStatus(error?.message || 'Save failed. Try again.', 'error');
+        });
     });
 
     window.addEventListener('beforeunload', function (event) {

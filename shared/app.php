@@ -794,6 +794,19 @@ function normalize_revision_lines_input(array $items): array
         $normalized[(int) $itemId] = normalize_revision_line_input(is_array($row) ? $row : []);
     }
     return $normalized;
+    return $normalized;
+}
+function revision_request_items(array $input): array
+{
+    $payload = $input['revision_payload'] ?? null;
+    if (is_string($payload) && trim($payload) !== '') {
+        $decoded = json_decode($payload, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+    }
+
+    return is_array($input['items'] ?? null) ? $input['items'] : [];
 }
 
 function revision_input_snapshot(int $revisionId, array $overrides = []): array

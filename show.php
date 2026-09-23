@@ -117,6 +117,11 @@ function revision_return_tab(?array $revision): string
     return !empty($revision['is_initial']) ? 'orders' : 'revisions';
 }
 
+function is_ajax_request(): bool
+{
+    return strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+}
+
 function show_has_initial_revision(int $showId): bool
 {
     return find_initial_revision($showId) !== null;
@@ -226,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         header('Content-Type: application/json');
         echo json_encode([
-            'warnings' => revision_validation_warnings(revision_input_snapshot($revisionId, is_array($_POST['items'] ?? null) ? $_POST['items'] : [])),
+            'warnings' => revision_validation_warnings(revision_input_snapshot($revisionId, revision_request_items($_POST))),
         ]);
         exit;
     }
@@ -241,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $revisionOverrideItems = is_array($_POST['items'] ?? null) ? $_POST['items'] : [];
+        $revisionOverrideItems = revision_request_items($_POST);
         save_revision_lines($revisionId, $revisionOverrideItems);
 
         header('Content-Type: application/json');
@@ -261,14 +266,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit('Revision not found for this show.');
         }
 
-        $revisionOverrideItems = is_array($_POST['items'] ?? null) ? $_POST['items'] : [];
+        $revisionOverrideItems = revision_request_items($_POST);
         $validationWarnings = revision_validation_warnings(revision_input_snapshot($revisionId, $revisionOverrideItems));
         save_revision_lines($revisionId, $revisionOverrideItems);
+        if (is_ajax_request()) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'ok' => true,
+                'message' => 'Order changes saved.',
+                'warnings' => revision_validation_warnings(revision_input_snapshot($revisionId)),
+                'totals' => revision_totals($revisionId),
+            ]);
+            exit;
+        }
+
         flash('success', 'Order changes saved.');
         foreach ($validationWarnings as $warning) {
             flash('warning', $warning['message']);
         }
-
         $returnTab = revision_return_tab($revision);
         header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=' . $returnTab . '&revision_id=' . $revisionId));
         exit;
