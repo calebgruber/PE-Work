@@ -66,6 +66,20 @@ assert_true((int) $stmt->fetchColumn() === 10, 'Expected Excel-style CSV import 
 $fixtureCategoryCount = (int) db()->query("SELECT COUNT(*) FROM inventory_categories WHERE LOWER(name) = 'fixtures'")->fetchColumn();
 assert_true($fixtureCategoryCount === 1, 'Expected uppercase spreadsheet categories to reuse the existing Fixtures category.');
 
+$utf16Csv = tempnam(sys_get_temp_dir(), 'pew-utf16-');
+$utf16Contents = "category,name,shop_quantity,unit,default_note,description\r\nFIXTURES,HES Solaframe Theatre,12,ea,.,.\r\n";
+$utf16Encoded = "\xFF\xFE" . iconv('UTF-8', 'UTF-16LE//IGNORE', $utf16Contents);
+file_put_contents($utf16Csv, $utf16Encoded);
+$utf16Result = import_inventory_csv($utf16Csv);
+assert_true($utf16Result['ok'] === true, 'Expected UTF-16 Excel-style CSV import to succeed.');
+
+$utf16Stmt = db()->prepare('SELECT unit, default_note, description FROM inventory_items WHERE name = ?');
+$utf16Stmt->execute(['HES Solaframe Theatre']);
+$utf16Item = $utf16Stmt->fetch() ?: [];
+assert_true(($utf16Item['unit'] ?? '') === 'ea', 'Expected UTF-16 Excel-style CSV import to preserve unit values.');
+assert_true(($utf16Item['default_note'] ?? '') === '', 'Expected dot placeholders to import as blank notes.');
+assert_true(($utf16Item['description'] ?? '') === '', 'Expected dot placeholders to import as blank descriptions.');
+
 $showResult = save_show_record([
     'show_name' => 'Revision Clone Test',
     'theatre_name' => 'Mainstage',
@@ -149,6 +163,7 @@ assert_true(str_contains($missingPathResult['message'], 'Unable to read'), 'Expe
 @unlink($invalidCsv);
 @unlink($dynamicCsv);
 @unlink($excelCsv);
+@unlink($utf16Csv);
 @unlink($emptyCsv);
 @unlink(DB_SQLITE_PATH);
 if (file_exists($localBackup)) {

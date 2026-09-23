@@ -87,9 +87,67 @@ function sanitize_local_asset_path(?string $value): ?string
 function normalize_csv_header(string $value): string
 {
     $value = preg_replace('/^\xEF\xBB\xBF/', '', $value) ?? $value;
+    $value = str_replace("\0", '', $value);
     $value = strtolower(trim($value));
 
     return str_replace([' ', '-'], '_', $value);
+}
+
+function normalize_csv_value(?string $value): string
+{
+    $value = str_replace("\0", '', trim((string) $value));
+
+    return $value === '.' ? '' : $value;
+}
+
+function csv_stream_handle(string $tmpPath)
+{
+    $contents = @file_get_contents($tmpPath);
+    if ($contents === false) {
+        return false;
+    }
+
+    if (str_starts_with($contents, "\xFF\xFE")) {
+        $converted = @iconv('UTF-16LE', 'UTF-8//IGNORE', substr($contents, 2));
+        if ($converted !== false) {
+            $contents = $converted;
+        }
+    } elseif (str_starts_with($contents, "\xFE\xFF")) {
+        $converted = @iconv('UTF-16BE', 'UTF-8//IGNORE', substr($contents, 2));
+        if ($converted !== false) {
+            $contents = $converted;
+        }
+    } elseif (str_starts_with($contents, "\xEF\xBB\xBF")) {
+        $contents = substr($contents, 3);
+    }
+
+    $contents = str_replace(["\r\n", "\r"], "\n", $contents);
+    $handle = fopen('php://temp', 'r+b');
+    if (!$handle) {
+        return false;
+    }
+
+    fwrite($handle, $contents);
+    rewind($handle);
+
+    return $handle;
+}
+
+function detect_csv_delimiter(array $headerRow): string
+{
+    $candidates = [',', ';', "\t"];
+    $bestDelimiter = ',';
+    $bestCount = -1;
+
+    foreach ($candidates as $delimiter) {
+        $count = count(str_getcsv($headerRow[0] ?? '', $delimiter));
+        if ($count > $bestCount) {
+            $bestCount = $count;
+            $bestDelimiter = $delimiter;
+        }
+    }
+
+    return $bestDelimiter;
 }
 
 function blank_show(): array
@@ -803,12 +861,20 @@ function category_id_for_name(string $name): int
 
 function import_inventory_csv(string $tmpPath): array
 {
-    $handle = @fopen($tmpPath, 'rb');
+    $handle = csv_stream_handle($tmpPath);
     if (!$handle) {
         return ['ok' => false, 'message' => 'Unable to read uploaded CSV.'];
     }
 
-    $header = fgetcsv($handle);
+    $firstLine = fgets($handle);
+    if ($firstLine === false) {
+        fclose($handle);
+        return ['ok' => false, 'message' => 'CSV is empty.'];
+    }
+
+    $delimiter = detect_csv_delimiter([$firstLine]);
+    rewind($handle);
+    $header = fgetcsv($handle, 0, $delimiter);
     if (!$header) {
         fclose($handle);
         return ['ok' => false, 'message' => 'CSV is empty.'];
@@ -846,18 +912,18 @@ function import_inventory_csv(string $tmpPath): array
         'INSERT INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
          VALUES (?, ?, ?, ?, ?, ?)'
     );
-    while (($row = fgetcsv($handle)) !== false) {
-        $category = trim((string) ($row[$headerMap['category']] ?? ''));
-        $name = trim((string) ($row[$headerMap['name']] ?? ''));
+    while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+        $category = normalize_csv_value($row[$headerMap['category']] ?? '');
+        $name = normalize_csv_value($row[$headerMap['name']] ?? '');
         if ($category === '' || $name === '') {
             continue;
         }
 
         $categoryId = category_id_for_name($category);
         $shopQuantity = max(0, (int) ($row[$headerMap['shop_quantity']] ?? 0));
-        $unit = trim((string) ($row[$headerMap['unit']] ?? ''));
-        $defaultNote = trim((string) ($row[$headerMap['default_note']] ?? ''));
-        $description = trim((string) ($row[$headerMap['description']] ?? ''));
+        $unit = normalize_csv_value($row[$headerMap['unit']] ?? '');
+        $defaultNote = normalize_csv_value($row[$headerMap['default_note']] ?? '');
+        $description = normalize_csv_value($row[$headerMap['description']] ?? '');
 
         if ($categoryId > 0) {
             $lookupWithCategory->execute([$categoryId, $name]);
