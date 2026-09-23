@@ -119,7 +119,7 @@ foreach ($orderingCatalog as $category) {
         break;
     }
 }
-assert_true(count($orderingItems) === 2, 'Expected ordering category to include both test inventory items.');
+assert_true(count($orderingItems) === 3, 'Expected ordering category to include all ordering test inventory items before moving one.');
 assert_true(($orderingItems[0]['name'] ?? '') === 'Spacer Break', 'Expected lower sort order item to render first.');
 assert_true((int) ($orderingItems[0]['is_spacer'] ?? 0) === 1, 'Expected spacer item flag to persist.');
 $orderingSpacerId = (int) ($orderingItems[0]['id'] ?? 0);
