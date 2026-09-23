@@ -1,0 +1,4 @@
+config.local.php
+storage/*.sqlite
+storage/uploads/*
+!storage/uploads/.gitignore
