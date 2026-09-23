@@ -20,6 +20,26 @@ require_once __DIR__ . '/../shared/config.php';
 require_once __DIR__ . '/../shared/db.php';
 require_once __DIR__ . '/../shared/app.php';
 
+function csv_test_cleanup(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    global $localConfig, $localBackup, $movedLocalConfig;
+
+    @unlink(DB_SQLITE_PATH);
+    @unlink(DB_SQLITE_PATH . '-wal');
+    @unlink(DB_SQLITE_PATH . '-shm');
+    if ($movedLocalConfig && file_exists($localBackup)) {
+        rename($localBackup, $localConfig);
+    }
+}
+
+register_shutdown_function('csv_test_cleanup');
+
 function assert_true(bool $condition, string $message): void
 {
     if (!$condition) {
@@ -342,11 +362,6 @@ assert_true(str_contains($missingPathResult['message'], 'Unable to read'), 'Expe
 @unlink($excelCsv);
 @unlink($utf16Csv);
 @unlink($emptyCsv);
-@unlink(DB_SQLITE_PATH);
-@unlink(DB_SQLITE_PATH . '-wal');
-@unlink(DB_SQLITE_PATH . '-shm');
-if ($movedLocalConfig && file_exists($localBackup)) {
-    rename($localBackup, $localConfig);
-}
+csv_test_cleanup();
 
 echo "csv import tests passed\n";

@@ -70,6 +70,7 @@
     let allowValidatedSubmit = false;
     let validationTimer = null;
     let latestValidationRun = 0;
+    let validationAbortController = null;
 
     function renderWarnings(warnings) {
       if (!warningsWrap || !warningsList) return;
@@ -95,6 +96,11 @@
     }
 
     function runValidation(callback) {
+      if (validationAbortController) {
+        validationAbortController.abort();
+      }
+      validationAbortController = new AbortController();
+      const abortController = validationAbortController;
       const formData = new FormData(editor);
       formData.set('action', 'validate_revision');
       const validationRun = ++latestValidationRun;
@@ -104,7 +110,8 @@
         headers: {
           'X-Requested-With': 'XMLHttpRequest'
         },
-        body: formData
+        body: formData,
+        signal: abortController.signal
       })
         .then(function (response) {
           if (!response.ok) {
@@ -123,6 +130,9 @@
           }
         })
         .catch(function () {
+          if (abortController.signal.aborted) {
+            return;
+          }
           if (validationRun !== latestValidationRun) {
             return;
           }
