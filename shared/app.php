@@ -622,10 +622,27 @@ function create_category(string $name): array
         return ['ok' => false, 'message' => 'That category already exists.'];
     }
 
-    $sortOrder = (int) db()->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM inventory_categories')->fetchColumn();
-    $insert = db()->prepare('INSERT INTO inventory_categories (name, sort_order) VALUES (?, ?)');
-    $insert->execute([$name, $sortOrder]);
-    return ['ok' => true, 'message' => 'Category added.'];
+    $pdo = db();
+    $insert = $pdo->prepare(
+        'INSERT INTO inventory_categories (name, sort_order)
+         SELECT ?, COALESCE(MAX(sort_order), 0) + 1
+         FROM inventory_categories'
+    );
+
+    try {
+        $pdo->beginTransaction();
+        $insert->execute([$name]);
+        $pdo->commit();
+        return ['ok' => true, 'message' => 'Category added.'];
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        if (is_unique_constraint_violation($e)) {
+            return ['ok' => false, 'message' => 'That category already exists.'];
+        }
+        throw $e;
+    }
 }
 
 function update_category(array $input): array
@@ -720,9 +737,14 @@ function category_id_for_name(string $name): int
     }
 
     try {
-        create_category($trimmed);
+        $result = create_category($trimmed);
+        if (!$result['ok'] && !str_contains(strtolower($result['message']), 'already exists')) {
+            return 0;
+        }
     } catch (Throwable $e) {
-        // Another request may have created the category concurrently.
+        if (!is_unique_constraint_violation($e)) {
+            throw $e;
+        }
     }
     $stmt->execute([$trimmed]);
     return (int) $stmt->fetchColumn();
@@ -762,6 +784,17 @@ function import_inventory_csv(string $tmpPath): array
 
     $created = 0;
     $updated = 0;
+    $lookupWithCategory = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id = ? AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
+    $lookupWithoutCategory = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id IS NULL AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
+    $updateItem = db()->prepare(
+        'UPDATE inventory_items
+         SET shop_quantity = ?, unit = ?, default_note = ?, description = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?'
+    );
+    $insertItem = db()->prepare(
+        'INSERT INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
+         VALUES (?, ?, ?, ?, ?, ?)'
+    );
     while (($row = fgetcsv($handle)) !== false) {
         $category = trim((string) ($row[$headerMap['category']] ?? ''));
         $name = trim((string) ($row[$headerMap['name']] ?? ''));
@@ -776,29 +809,19 @@ function import_inventory_csv(string $tmpPath): array
         $description = trim((string) ($row[$headerMap['description']] ?? ''));
 
         if ($categoryId > 0) {
-            $lookup = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id = ? AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
-            $lookup->execute([$categoryId, $name]);
+            $lookupWithCategory->execute([$categoryId, $name]);
+            $existing = $lookupWithCategory->fetch();
         } else {
-            $lookup = db()->prepare('SELECT id, is_active FROM inventory_items WHERE category_id IS NULL AND name = ? ORDER BY is_active DESC, id ASC LIMIT 1');
-            $lookup->execute([$name]);
+            $lookupWithoutCategory->execute([$name]);
+            $existing = $lookupWithoutCategory->fetch();
         }
-        $existing = $lookup->fetch();
         $itemId = $existing['id'] ?? null;
 
         if ($itemId) {
-            $stmt = db()->prepare(
-                'UPDATE inventory_items
-                 SET shop_quantity = ?, unit = ?, default_note = ?, description = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP
-                 WHERE id = ?'
-            );
-            $stmt->execute([$shopQuantity, $unit, $defaultNote, $description, $itemId]);
+            $updateItem->execute([$shopQuantity, $unit, $defaultNote, $description, $itemId]);
             $updated++;
         } else {
-            $stmt = db()->prepare(
-                'INSERT INTO inventory_items (category_id, name, shop_quantity, unit, default_note, description)
-                 VALUES (?, ?, ?, ?, ?, ?)'
-            );
-            $stmt->execute([$categoryId, $name, $shopQuantity, $unit, $defaultNote, $description]);
+            $insertItem->execute([$categoryId, $name, $shopQuantity, $unit, $defaultNote, $description]);
             $created++;
         }
     }
@@ -909,7 +932,8 @@ function store_resource_upload(array $file, string $title = ''): array
         }
     }
 
-    if ($extension !== 'pdf' || !in_array($mimeType, ['', 'application/pdf'], true)) {
+    $signature = @file_get_contents((string) $file['tmp_name'], false, null, 0, 5);
+    if ($extension !== 'pdf' || $mimeType !== 'application/pdf' || $signature !== '%PDF-') {
         return ['ok' => false, 'message' => 'Only PDF resources are supported.'];
     }
 
@@ -958,6 +982,20 @@ function find_resource(int $resourceId): ?array
 function resource_path(array $resource): string
 {
     return upload_dir('resources') . '/' . $resource['stored_name'];
+}
+
+function is_unique_constraint_violation(Throwable $e): bool
+{
+    if (!$e instanceof PDOException) {
+        return false;
+    }
+
+    $sqlState = (string) ($e->getCode() ?? '');
+    if ($sqlState === '23000' || $sqlState === '23505') {
+        return true;
+    }
+
+    return str_contains(strtolower($e->getMessage()), 'unique');
 }
 
 function delete_resource(int $resourceId): array

@@ -24,8 +24,12 @@ if (!is_file($path)) {
 
 header('Content-Type: application/pdf');
 header('X-Content-Type-Options: nosniff');
+header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 header('Content-Length: ' . (string) filesize($path));
 $filename = (string) $resource['original_name'];
 $asciiFilename = preg_replace('/[^A-Za-z0-9.\-_ ]/', '_', $filename) ?: 'resource.pdf';
-header('Content-Disposition: inline; filename="' . str_replace('"', '', $asciiFilename) . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
+$disposition = isset($_GET['download']) && $_GET['download'] === '1' ? 'attachment' : 'inline';
+header('Content-Disposition: ' . $disposition . '; filename="' . str_replace('"', '', $asciiFilename) . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
 readfile($path);

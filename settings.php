@@ -403,6 +403,10 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <span class="material-symbols-outlined">open_in_new</span>
               Open PDF
             </a>
+            <a class="btn btn-secondary btn-sm" href="<?= h(url_for('resource_file?id=' . (int) $resource['id'] . '&download=1')) ?>">
+              <span class="material-symbols-outlined">download</span>
+              Download
+            </a>
           </div>
           <iframe class="resource-frame" src="<?= h(url_for('resource_file?id=' . (int) $resource['id'])) ?>" title="<?= h($resource['title']) ?>"></iframe>
         </article>

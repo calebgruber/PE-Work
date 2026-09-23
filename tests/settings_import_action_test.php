@@ -21,7 +21,7 @@ require_once $repoRoot . '/shared/config.php';
 require_once $repoRoot . '/shared/db.php';
 require_once $repoRoot . '/shared/app.php';
 
-function settings_test_cleanup(string $repoRoot, string $localConfig, string $localBackup, $process, array $pipes, string $csvPath): void
+function settings_test_cleanup(string $repoRoot, string $localConfig, string $localBackup, $process, array $pipes, array $paths): void
 {
     foreach ($pipes as $pipe) {
         if (is_resource($pipe)) {
@@ -34,7 +34,11 @@ function settings_test_cleanup(string $repoRoot, string $localConfig, string $lo
         proc_close($process);
     }
 
-    @unlink($csvPath);
+    foreach ($paths as $path) {
+        if (is_string($path) && $path !== '') {
+            @unlink($path);
+        }
+    }
     if (file_exists($localConfig)) {
         unlink($localConfig);
     }
@@ -44,10 +48,10 @@ function settings_test_cleanup(string $repoRoot, string $localConfig, string $lo
     }
 }
 
-function settings_assert(bool $condition, string $message, string $repoRoot, string $localConfig, string $localBackup, $process, array $pipes, string $csvPath): void
+function settings_assert(bool $condition, string $message, string $repoRoot, string $localConfig, string $localBackup, $process, array $pipes, array $paths): void
 {
     if (!$condition) {
-        settings_test_cleanup($repoRoot, $localConfig, $localBackup, $process, $pipes, $csvPath);
+        settings_test_cleanup($repoRoot, $localConfig, $localBackup, $process, $pipes, $paths);
         fwrite(STDERR, $message . PHP_EOL);
         exit(1);
     }
@@ -83,19 +87,37 @@ exec($command, $output, $curlStatus);
 
 $headers = is_file('/tmp/pew-settings-headers.txt') ? file_get_contents('/tmp/pew-settings-headers.txt') : '';
 $responseBody = is_file('/tmp/pew-settings-response.txt') ? file_get_contents('/tmp/pew-settings-response.txt') : '';
+$testPaths = [$csvPath, $cookieJar, '/tmp/pew-settings-response.txt', '/tmp/pew-settings-headers.txt'];
 
 $stmt = db()->prepare('SELECT shop_quantity FROM inventory_items WHERE name = ?');
 $stmt->execute(['Import Action Item']);
 $quantity = (int) $stmt->fetchColumn();
 
-settings_assert($curlStatus === 0, 'Expected curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $csvPath);
-settings_assert(str_contains($headers, 'Location: /settings?tab=inventory'), 'Expected settings import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $csvPath);
-settings_assert($quantity === 7, 'Expected settings import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $csvPath);
-settings_assert(str_contains($responseBody, 'Import complete'), 'Expected redirected settings page to show the import success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $csvPath);
+settings_assert($curlStatus === 0, 'Expected curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert(str_contains($headers, 'Location: /settings?tab=inventory'), 'Expected settings import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert($quantity === 7, 'Expected settings import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert(str_contains($responseBody, 'Import complete'), 'Expected redirected settings page to show the import success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 
-@unlink($cookieJar);
-@unlink('/tmp/pew-settings-response.txt');
-@unlink('/tmp/pew-settings-headers.txt');
+$warningCookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-warning-');
+$warningHeadersPath = '/tmp/pew-settings-warning-headers.txt';
+$warningResponsePath = '/tmp/pew-settings-warning-response.txt';
+$testPaths[] = $warningCookieJar;
+$testPaths[] = $warningHeadersPath;
+$testPaths[] = $warningResponsePath;
+$warningCommand = sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=import_inventory' 'http://127.0.0.1:8099/settings?tab=inventory'",
+    escapeshellarg($warningResponsePath),
+    escapeshellarg($warningHeadersPath),
+    escapeshellarg($warningCookieJar),
+    escapeshellarg($warningCookieJar)
+);
+exec($warningCommand, $warningOutput, $warningStatus);
+$warningHeaders = is_file($warningHeadersPath) ? file_get_contents($warningHeadersPath) : '';
+$warningBody = is_file($warningResponsePath) ? file_get_contents($warningResponsePath) : '';
 
-settings_test_cleanup($repoRoot, $localConfig, $localBackup, $process, $pipes, $csvPath);
+settings_assert($warningStatus === 0, 'Expected warning-path curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert(str_contains($warningHeaders, 'Location: /settings?tab=inventory'), 'Expected warning-path import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert(str_contains($warningBody, 'Choose a CSV file to import.'), 'Expected redirected settings page to show the missing-file warning.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+
+settings_test_cleanup($repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 echo "settings import action test passed\n";
