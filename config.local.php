@@ -5,4 +5,4 @@ define('DB_PORT', 3306);
 define('DB_NAME', 'voxelnodes_pe');
 define('DB_USER', 'voxelnodes_pe');
 define('DB_PASS', 'OO1--#]p$?jC+Lf4');
-define('APP_BASE_URL', '/your-cpanel-folder');
+define('APP_BASE_URL', 'elec.calebgruber.me');
