@@ -273,7 +273,7 @@ save_revision_lines($nextRevisionId, [
     ],
 ]);
 $bulkRevisionLines = [];
-for ($bulkIndex = 1; $bulkIndex <= 45; $bulkIndex++) {
+for ($bulkIndex = 1; $bulkIndex <= 70; $bulkIndex++) {
     $bulkItemId = ensure_catalog_item('Fixtures', 'Paged Fixture ' . $bulkIndex, 5, 'ea', '', 'Paged export test item');
     $bulkRevisionLines[$bulkItemId] = [
         'rent_quantity' => 1,
@@ -299,10 +299,12 @@ assert_true(str_contains($exportHtml, 'Return 2026-10-16'), 'Expected equipment 
 assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
+assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
 assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => '']) === 'background:#CCCCCC;', 'Expected export zebra striping to use the darker gray.');
-assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 2, 'Expected long equipment breakdowns to spill onto additional pages.');
-assert_true(str_contains($exportHtml, '<strong>Page</strong> 3 of 4'), 'Expected the first equipment breakdown page number to account for fixed pagination.');
-assert_true(str_contains($exportHtml, '<strong>Page</strong> 4 of 4'), 'Expected the second equipment breakdown page number to account for fixed pagination.');
+assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cover to remove the extra shop info box above the show title.');
+assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
+assert_true(str_contains($exportHtml, '<strong>Page</strong> 3 of 5'), 'Expected the first equipment breakdown page number to account for fixed pagination.');
+assert_true(str_contains($exportHtml, '<strong>Page</strong> 5 of 5'), 'Expected the final equipment breakdown page number to account for all generated pages.');
 
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);

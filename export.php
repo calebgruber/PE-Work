@@ -289,6 +289,10 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?= h($show['show_name']) ?> <?= h($labels['title']) ?></title>
   <style>
+    @page {
+      size: Letter portrait;
+      margin: 0;
+    }
     body {
       margin: 0;
       background: #f3f4f6;
@@ -321,29 +325,26 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       margin: 0 auto 2rem;
     }
     .page {
+      position: relative;
       width: 8.5in;
       min-height: 11in;
       height: 11in;
       margin: 0 auto 1rem;
       padding: 0.55in 0.7in 0.6in;
       box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
       background: #fff;
       box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-      overflow: hidden;
       break-inside: avoid-page;
       page-break-inside: avoid;
       page-break-after: always;
     }
     .page:last-child { page-break-after: auto; }
     .page.equipment-page {
-      padding-left: 0.45in;
-      padding-right: 0.45in;
+      padding-left: 0.3in;
+      padding-right: 0.3in;
     }
     .page-content {
-      flex: 1 1 auto;
-      min-height: 0;
+      padding-bottom: 0.55in;
     }
     .top-rule {
       border-bottom: 1px solid #000;
@@ -390,32 +391,6 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     .center-title .revised {
       margin-top: 0.22in;
       text-decoration: underline;
-    }
-    .cover-contact-bar {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 0.1in 0.18in;
-      margin-bottom: 0.18in;
-      padding: 0.12in 0.16in;
-      border: 1px solid #d6dbe3;
-      border-radius: 0.1in;
-      background: #fafbfc;
-    }
-    .cover-contact-cell {
-      min-width: 0;
-    }
-    .cover-contact-label {
-      display: block;
-      margin-bottom: 0.03in;
-      font-size: 8.5pt;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      color: #4b5563;
-    }
-    .cover-contact-value {
-      color: #111827;
-      word-break: break-word;
     }
     .cover-grid {
       display: grid;
@@ -494,9 +469,9 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table.equipment-table {
       width: 100%;
-      max-width: 7.55in;
+      max-width: 7.9in;
       margin: 0 auto;
-      font-size: 8.25pt;
+      font-size: 7.8pt;
     }
     .equipment-table-wrap {
       display: flex;
@@ -506,11 +481,10 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table th,
     table.word-table td {
-      padding: 0.035in 0.05in;
+      padding: 0.025in 0.04in;
       vertical-align: middle;
       text-align: left;
       white-space: nowrap;
-      overflow: hidden;
     }
     table.word-table th:first-child,
     table.word-table td:first-child {
@@ -521,15 +495,15 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       text-decoration: underline;
       font-weight: 700;
     }
-    .col-line { width: 4.5%; }
-    .col-item { width: 40%; }
-    .col-description { width: 20%; }
+    .col-line { width: 4%; }
+    .col-item { width: 44%; }
+    .col-description { width: 22%; }
     .col-action { width: 11%; }
     .col-qty { width: 13%; }
     .col-used,
-    .col-spare { width: 5.5%; }
-    .col-total { width: 7%; }
-    .col-notes { width: 17.5%; }
+    .col-spare { width: 4.5%; }
+    .col-total { width: 5.5%; }
+    .col-notes { width: 15.5%; }
     .item-cell,
     .description-cell,
     .notes-cell {
@@ -564,10 +538,12 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       }
     }
     .footer {
+      position: absolute;
+      left: 0.7in;
+      right: 0.7in;
+      bottom: 0.28in;
       display: flex;
       justify-content: flex-end;
-      margin-top: auto;
-      padding-top: 0.2in;
       font-size: 9pt;
       color: #374151;
       page-break-inside: avoid;
@@ -605,25 +581,6 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
           </div>
         </div>
       </div>
-      <div class="cover-contact-bar">
-        <div class="cover-contact-cell">
-          <span class="cover-contact-label">Shop</span>
-          <div class="cover-contact-value"><?= h(export_value((string) ($show['shop_name'] ?? ''))) ?></div>
-        </div>
-        <div class="cover-contact-cell">
-          <span class="cover-contact-label">Manager Contact</span>
-          <div class="cover-contact-value"><?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></div>
-        </div>
-        <div class="cover-contact-cell">
-          <span class="cover-contact-label">Address</span>
-          <div class="cover-contact-value"><?= h(export_value((string) ($show['shop_address'] ?? ''))) ?></div>
-        </div>
-        <div class="cover-contact-cell">
-          <span class="cover-contact-label">Email</span>
-          <div class="cover-contact-value"><?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?></div>
-        </div>
-      </div>
-
       <div class="center-title">
         <p class="show-name">&quot;<?= h($show['show_name']) ?>&quot;</p>
         <p class="subtitle"><?= h($labels['title']) ?></p>
