@@ -5,6 +5,26 @@ function h(?string $value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+function csrf_token(): string
+{
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = upload_random_suffix() . upload_random_suffix();
+    }
+
+    return (string) $_SESSION['csrf_token'];
+}
+
+function verify_csrf_token(?string $token): bool
+{
+    $sessionToken = (string) ($_SESSION['csrf_token'] ?? '');
+    return $sessionToken !== '' && is_string($token) && hash_equals($sessionToken, $token);
+}
+
+function csrf_input(): string
+{
+    return '<input type="hidden" name="csrf_token" value="' . h(csrf_token()) . '">';
+}
+
 function app_base_url(): string
 {
     if (APP_BASE_URL !== '') {
@@ -1225,7 +1245,7 @@ function resource_path(array $resource): string
 
 function resource_access_token(array $resource): string
 {
-    return hash_hmac('sha256', (string) $resource['id'] . '|' . (string) $resource['stored_name'], session_id());
+    return hash_hmac('sha256', (string) $resource['id'] . '|' . (string) $resource['stored_name'], APP_SECRET);
 }
 
 function is_unique_constraint_violation(Throwable $e): bool

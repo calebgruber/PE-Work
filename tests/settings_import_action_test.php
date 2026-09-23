@@ -96,14 +96,27 @@ for ($attempt = 0; $attempt < 20; $attempt++) {
 settings_assert($serverReady, 'Expected local PHP server to start before running import requests.', $repoRoot, $localConfig, $localBackup, $process, $pipes, [$csvPath]);
 
 $cookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-');
+$inventoryPagePath = tempnam(sys_get_temp_dir(), 'pew-inventory-page-');
 $headersPath = tempnam(sys_get_temp_dir(), 'pew-headers-');
 $responsePath = tempnam(sys_get_temp_dir(), 'pew-response-');
+$inventoryPageCommand = sprintf(
+    "curl -fsS -o %s -c %s -b %s %s",
+    escapeshellarg($inventoryPagePath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg($baseUrl . '/settings?tab=inventory')
+);
+exec($inventoryPageCommand, $inventoryPageOutput, $inventoryPageStatus);
+$inventoryPageHtml = is_file($inventoryPagePath) ? file_get_contents($inventoryPagePath) : '';
+preg_match('/name=\"csrf_token\" value=\"([^\"]+)\"/', $inventoryPageHtml, $inventoryTokenMatch);
+$csrfToken = html_entity_decode($inventoryTokenMatch[1] ?? '', ENT_QUOTES, 'UTF-8');
 $command = sprintf(
-    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=import_inventory' -F 'inventory_csv=@%s;type=text/csv' %s",
+    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F 'action=import_inventory' -F 'inventory_csv=@%s;type=text/csv' %s",
     escapeshellarg($responsePath),
     escapeshellarg($headersPath),
     escapeshellarg($cookieJar),
     escapeshellarg($cookieJar),
+    escapeshellarg('csrf_token=' . $csrfToken),
     escapeshellarg($csvPath),
     escapeshellarg($baseUrl . '/settings?tab=inventory')
 );
@@ -111,29 +124,29 @@ exec($command, $output, $curlStatus);
 
 $headers = is_file($headersPath) ? file_get_contents($headersPath) : '';
 $responseBody = is_file($responsePath) ? file_get_contents($responsePath) : '';
-$testPaths = [$csvPath, $cookieJar, $responsePath, $headersPath];
+$testPaths = [$csvPath, $cookieJar, $inventoryPagePath, $responsePath, $headersPath];
 
 $stmt = db()->prepare('SELECT shop_quantity FROM inventory_items WHERE name = ?');
 $stmt->execute(['Import Action Item']);
 $quantity = (int) $stmt->fetchColumn();
 
+settings_assert($inventoryPageStatus === 0 && $csrfToken !== '', 'Expected inventory page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 settings_assert($curlStatus === 0, 'Expected curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 settings_assert(str_contains($headers, 'Location: /settings?tab=inventory'), 'Expected settings import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 settings_assert($quantity === 7, 'Expected settings import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 settings_assert(str_contains($responseBody, 'Import complete'), 'Expected redirected settings page to show the import success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 
-$warningCookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-warning-');
 $warningHeadersPath = tempnam(sys_get_temp_dir(), 'pew-warning-headers-');
 $warningResponsePath = tempnam(sys_get_temp_dir(), 'pew-warning-response-');
-$testPaths[] = $warningCookieJar;
 $testPaths[] = $warningHeadersPath;
 $testPaths[] = $warningResponsePath;
 $warningCommand = sprintf(
-    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=import_inventory' %s",
+    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F 'action=import_inventory' %s",
     escapeshellarg($warningResponsePath),
     escapeshellarg($warningHeadersPath),
-    escapeshellarg($warningCookieJar),
-    escapeshellarg($warningCookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg('csrf_token=' . $csrfToken),
     escapeshellarg($baseUrl . '/settings?tab=inventory')
 );
 exec($warningCommand, $warningOutput, $warningStatus);
@@ -144,19 +157,18 @@ settings_assert($warningStatus === 0, 'Expected warning-path curl request to suc
 settings_assert(str_contains($warningHeaders, 'Location: /settings?tab=inventory'), 'Expected warning-path import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 settings_assert(str_contains($warningBody, 'Choose a CSV file to import.'), 'Expected redirected settings page to show the missing-file warning.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 
-$pasteCookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-paste-');
 $pasteHeadersPath = tempnam(sys_get_temp_dir(), 'pew-paste-headers-');
 $pasteResponsePath = tempnam(sys_get_temp_dir(), 'pew-paste-response-');
-$testPaths[] = $pasteCookieJar;
 $testPaths[] = $pasteHeadersPath;
 $testPaths[] = $pasteResponsePath;
 $pastePayload = "category,name,shop_quantity,unit,default_note,description\nFIXTURES,Pasted Item,9,ea,.,.\n";
 $pasteCommand = sprintf(
-    "curl -isS -o %s -D %s -L -c %s -b %s --data-urlencode %s --data-urlencode %s %s",
+    "curl -isS -o %s -D %s -L -c %s -b %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
     escapeshellarg($pasteResponsePath),
     escapeshellarg($pasteHeadersPath),
-    escapeshellarg($pasteCookieJar),
-    escapeshellarg($pasteCookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg('csrf_token=' . $csrfToken),
     escapeshellarg('action=import_inventory'),
     escapeshellarg('inventory_csv_text=' . $pastePayload),
     escapeshellarg($baseUrl . '/settings?tab=inventory')
@@ -175,18 +187,32 @@ settings_assert(str_contains($pasteBody, 'Import complete'), 'Expected redirecte
 $pdfPath = tempnam(sys_get_temp_dir(), 'pew-resource-pdf-');
 file_put_contents($pdfPath, "%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF");
 $resourceCookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-resource-');
+$resourcePagePath = tempnam(sys_get_temp_dir(), 'pew-resource-page-');
 $resourceHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-headers-');
 $resourceResponsePath = tempnam(sys_get_temp_dir(), 'pew-resource-response-');
 $testPaths[] = $pdfPath;
 $testPaths[] = $resourceCookieJar;
+$testPaths[] = $resourcePagePath;
 $testPaths[] = $resourceHeadersPath;
 $testPaths[] = $resourceResponsePath;
+$resourcePageCommand = sprintf(
+    "curl -fsS -o %s -c %s -b %s %s",
+    escapeshellarg($resourcePagePath),
+    escapeshellarg($resourceCookieJar),
+    escapeshellarg($resourceCookieJar),
+    escapeshellarg($baseUrl . '/settings?tab=resources')
+);
+exec($resourcePageCommand, $resourcePageOutput, $resourcePageStatus);
+$resourcePageHtml = is_file($resourcePagePath) ? file_get_contents($resourcePagePath) : '';
+preg_match('/name=\"csrf_token\" value=\"([^\"]+)\"/', $resourcePageHtml, $resourceTokenMatch);
+$resourceCsrfToken = html_entity_decode($resourceTokenMatch[1] ?? '', ENT_QUOTES, 'UTF-8');
 $resourceCommand = sprintf(
-    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=upload_resource' -F 'resource_title=Shop Resource' -F 'resource_pdf=@%s;type=application/pdf;filename=resource.pdf' %s",
+    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F 'action=upload_resource' -F 'resource_title=Shop Resource' -F 'resource_pdf=@%s;type=application/pdf;filename=resource.pdf' %s",
     escapeshellarg($resourceResponsePath),
     escapeshellarg($resourceHeadersPath),
     escapeshellarg($resourceCookieJar),
     escapeshellarg($resourceCookieJar),
+    escapeshellarg('csrf_token=' . $resourceCsrfToken),
     escapeshellarg($pdfPath),
     escapeshellarg($baseUrl . '/settings?tab=resources')
 );
@@ -205,25 +231,25 @@ if ($storedName !== '') {
 }
 
 settings_assert($resourceStatus === 0, 'Expected resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
+settings_assert($resourcePageStatus === 0 && $resourceCsrfToken !== '', 'Expected resources page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 settings_assert(str_contains($resourceHeaders, 'Location: /settings?tab=resources'), 'Expected resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 settings_assert($storedName !== '', 'Expected resource upload action to persist the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 settings_assert(str_contains($resourceBody, 'Resource uploaded.'), 'Expected redirected resources page to show the upload success message.', $repoRoot, $localConfig, $localBackup, $process, $pipes, $testPaths);
 
 $textPath = tempnam(sys_get_temp_dir(), 'pew-resource-text-');
 file_put_contents($textPath, "not a pdf");
-$badResourceCookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-bad-resource-');
 $badResourceHeadersPath = tempnam(sys_get_temp_dir(), 'pew-bad-resource-headers-');
 $badResourceResponsePath = tempnam(sys_get_temp_dir(), 'pew-bad-resource-response-');
 $testPaths[] = $textPath;
-$testPaths[] = $badResourceCookieJar;
 $testPaths[] = $badResourceHeadersPath;
 $testPaths[] = $badResourceResponsePath;
 $badResourceCommand = sprintf(
-    "curl -isS -o %s -D %s -L -c %s -b %s -F 'action=upload_resource' -F 'resource_title=Bad Resource' -F 'resource_pdf=@%s;type=text/plain;filename=resource.txt' %s",
+    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F 'action=upload_resource' -F 'resource_title=Bad Resource' -F 'resource_pdf=@%s;type=text/plain;filename=resource.txt' %s",
     escapeshellarg($badResourceResponsePath),
     escapeshellarg($badResourceHeadersPath),
-    escapeshellarg($badResourceCookieJar),
-    escapeshellarg($badResourceCookieJar),
+    escapeshellarg($resourceCookieJar),
+    escapeshellarg($resourceCookieJar),
+    escapeshellarg('csrf_token=' . $resourceCsrfToken),
     escapeshellarg($textPath),
     escapeshellarg($baseUrl . '/settings?tab=resources')
 );

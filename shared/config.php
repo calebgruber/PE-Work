@@ -20,6 +20,7 @@ defined('DB_CHARSET') || define('DB_CHARSET', 'utf8mb4');
 defined('DB_SQLITE_PATH') || define('DB_SQLITE_PATH', __DIR__ . '/../storage/pe-work.sqlite');
 
 defined('SESSION_NAME') || define('SESSION_NAME', 'pe_work_session');
+defined('APP_SECRET') || define('APP_SECRET', getenv('APP_SECRET') ?: hash('sha256', __DIR__ . '|' . DB_DRIVER . '|' . DB_NAME . '|' . DB_SQLITE_PATH . '|' . SESSION_NAME));
 
 date_default_timezone_set(APP_TIMEZONE);
 

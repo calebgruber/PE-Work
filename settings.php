@@ -6,10 +6,19 @@ require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
 $tab = $_GET['tab'] ?? 'inventory';
+if (!in_array($tab, ['inventory', 'resources', 'rules', 'layout', 'migrations'], true)) {
+    $tab = 'inventory';
+}
 $migrationLogs = $_SESSION['migration_logs'] ?? [];
 unset($_SESSION['migration_logs']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
+        flash('danger', 'Your session expired. Refresh the page and try again.');
+        header('Location: ' . url_for('settings?tab=' . $tab));
+        exit;
+    }
+
     $action = $_POST['action'] ?? '';
 
     if ($action === 'run_migrations') {
@@ -189,6 +198,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                 <?php foreach ($category['items'] as $item): ?>
                 <div class="inventory-item-wrap" data-inventory-item data-item-name="<?= h(strtolower($item['name'] . ' ' . ($item['description'] ?? '') . ' ' . ($item['default_note'] ?? ''))) ?>">
                   <form method="post" class="inventory-item-card">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="save_inventory">
                     <div class="inventory-item-header">
                       <div>
@@ -229,6 +239,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                     </div>
                   </form>
                   <form method="post" class="inventory-item-delete">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="delete_inventory_item">
                     <input type="hidden" name="item_id" value="<?= h((string) $item['id']) ?>">
                     <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE ITEM" data-confirm="Type REMOVE ITEM to permanently remove this inventory item.">
@@ -250,6 +261,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           <div class="stack">
             <?php foreach ($categories as $category): ?>
             <form method="post" class="category-editor">
+              <?= csrf_input() ?>
               <input type="hidden" name="action" value="update_category">
               <input type="hidden" name="category_id" value="<?= h((string) $category['id']) ?>">
               <div class="category-editor-grid">
@@ -270,6 +282,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               </div>
             </form>
             <form method="post" class="category-delete-form">
+              <?= csrf_input() ?>
               <input type="hidden" name="action" value="delete_category">
               <input type="hidden" name="category_id" value="<?= h((string) $category['id']) ?>">
               <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE CATEGORY" data-confirm="Type REMOVE CATEGORY to delete this category.">
@@ -283,6 +296,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0;">
 
           <form method="post" class="stack">
+            <?= csrf_input() ?>
             <input type="hidden" name="action" value="add_category">
             <div class="form-group">
               <label for="category_name">New Category</label>
@@ -299,6 +313,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
 
         <?php ui_card_open('add_box', 'Add Inventory / Import'); ?>
           <form method="post" class="stack">
+            <?= csrf_input() ?>
             <input type="hidden" name="action" value="add_item">
             <div class="form-group">
               <label for="category_id">Category</label>
@@ -343,6 +358,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
 
           <p class="helper-text">Upload a CSV exported from Excel with columns: <code>category,name,shop_quantity,unit,default_note,description</code>.</p>
           <form method="post" enctype="multipart/form-data" class="stack">
+            <?= csrf_input() ?>
             <input type="hidden" name="action" value="import_inventory">
             <div class="form-group">
               <label for="inventory_csv">CSV File</label>
@@ -376,6 +392,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
         <div class="summary-block">
           <strong>Upload PDF Resources</strong>
           <form method="post" enctype="multipart/form-data" class="stack" style="margin-top:1rem;">
+            <?= csrf_input() ?>
             <input type="hidden" name="action" value="upload_resource">
             <div class="form-group">
               <label for="resource_title">Title</label>
@@ -413,6 +430,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <div class="muted"><?= h($resource['original_name']) ?></div>
             </div>
             <form method="post">
+              <?= csrf_input() ?>
               <input type="hidden" name="action" value="delete_resource">
               <input type="hidden" name="resource_id" value="<?= h((string) $resource['id']) ?>">
               <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE RESOURCE" data-confirm="Type REMOVE RESOURCE to delete this PDF.">
@@ -487,6 +505,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                 </td>
                 <td>
                   <form method="post" id="rule-form-<?= (int) $rule['id'] ?>" class="stack">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="save_rule">
                     <input type="hidden" name="rule_id" value="<?= (int) $rule['id'] ?>">
                     <button type="submit" class="btn btn-primary btn-sm">
@@ -495,6 +514,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                     </button>
                   </form>
                   <form method="post" style="margin-top:0.5rem;">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="delete_rule">
                     <input type="hidden" name="rule_id" value="<?= (int) $rule['id'] ?>">
                     <button type="submit" class="btn btn-danger btn-sm" data-confirm-code="REMOVE RULE" data-confirm="Type REMOVE RULE to delete this rule.">
@@ -510,6 +530,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
         </div>
 
         <form method="post" class="stack" style="margin-top:1rem;">
+          <?= csrf_input() ?>
           <input type="hidden" name="action" value="save_rule">
           <div class="card-grid">
             <div class="form-group">
@@ -556,6 +577,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
     <?php ui_card_open('dashboard_customize', 'Paperwork Layout Starter'); ?>
       <p class="helper-text">This tab stores the first export layout controls in the database so later drag-and-drop editor work has a migration-backed home.</p>
       <form method="post">
+        <?= csrf_input() ?>
         <input type="hidden" name="action" value="save_layout">
         <div class="card-grid">
           <div class="form-group">
@@ -583,6 +605,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
   <?php else: ?>
     <?php ui_card_open('database', 'Database Migrations'); ?>
       <form method="post">
+        <?= csrf_input() ?>
         <input type="hidden" name="action" value="run_migrations">
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">
