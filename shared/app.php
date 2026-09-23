@@ -345,39 +345,82 @@ function revision_alpha(int $index): string
 
 function create_initial_revision(int $showId): int
 {
-    $existing = find_latest_revision($showId);
-    if ($existing) {
-        return (int) $existing['id'];
-    }
+    $pdo = db();
 
-    $stmt = db()->prepare(
-        'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)
-         VALUES (?, ?, ?, ?, ?, ?)'
-    );
-    $stmt->execute([$showId, 'Initial', 0, date('Y-m-d'), 1, 'Initial shop order']);
-    $revisionId = (int) db()->lastInsertId();
-    seed_revision_items($revisionId);
-    return $revisionId;
+    try {
+        $pdo->beginTransaction();
+        $existing = find_latest_revision($showId);
+        if ($existing) {
+            $pdo->commit();
+            return (int) $existing['id'];
+        }
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([$showId, 'Initial', 0, date('Y-m-d'), 1, 'Initial shop order']);
+        $revisionId = (int) $pdo->lastInsertId();
+        seed_revision_items($revisionId);
+        $pdo->commit();
+        return $revisionId;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        if (is_unique_constraint_violation($e)) {
+            $existing = find_latest_revision($showId);
+            if ($existing) {
+                return (int) $existing['id'];
+            }
+        }
+        throw $e;
+    }
 }
 
 function create_next_revision(int $showId): int
 {
-    $latest = find_latest_revision($showId);
-    if (!$latest) {
-        return create_initial_revision($showId);
+    $pdo = db();
+
+    try {
+        $pdo->beginTransaction();
+        $latest = find_latest_revision($showId);
+        if (!$latest) {
+            $stmt = $pdo->prepare(
+                'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)
+                 VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$showId, 'Initial', 0, date('Y-m-d'), 1, 'Initial shop order']);
+            $revisionId = (int) $pdo->lastInsertId();
+            seed_revision_items($revisionId);
+            $pdo->commit();
+            return $revisionId;
+        }
+
+        $nextIndex = (int) $latest['revision_index'] + 1;
+        $code = 'Rev ' . revision_alpha($nextIndex - 1);
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([$showId, $code, $nextIndex, date('Y-m-d'), 0, 'Revision created from ' . $latest['revision_code']]);
+        $revisionId = (int) $pdo->lastInsertId();
+        seed_revision_items($revisionId, (int) $latest['id']);
+        $pdo->commit();
+        return $revisionId;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        if (is_unique_constraint_violation($e)) {
+            $latest = find_latest_revision($showId);
+            if ($latest) {
+                return (int) $latest['id'];
+            }
+        }
+        throw $e;
     }
-
-    $nextIndex = (int) $latest['revision_index'] + 1;
-    $code = 'Rev ' . revision_alpha($nextIndex - 1);
-
-    $stmt = db()->prepare(
-        'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)
-         VALUES (?, ?, ?, ?, ?, ?)'
-    );
-    $stmt->execute([$showId, $code, $nextIndex, date('Y-m-d'), 0, 'Revision created from ' . $latest['revision_code']]);
-    $revisionId = (int) db()->lastInsertId();
-    seed_revision_items($revisionId, (int) $latest['id']);
-    return $revisionId;
 }
 
 function seed_revision_items(int $revisionId, ?int $sourceRevisionId = null): void
@@ -892,9 +935,13 @@ function delete_inventory_item(int $itemId): array
 
 function upload_dir(string $subdir = ''): string
 {
-    $path = __DIR__ . '/../storage/uploads';
+    $path = realpath(__DIR__ . '/../storage/uploads') ?: (__DIR__ . '/../storage/uploads');
     if ($subdir !== '') {
-        $path .= '/' . trim($subdir, '/');
+        $safeSubdir = trim($subdir, '/');
+        if (!preg_match('/^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/', $safeSubdir)) {
+            throw new InvalidArgumentException('Invalid upload directory.');
+        }
+        $path .= '/' . $safeSubdir;
     }
     if (!is_dir($path)) {
         mkdir($path, 0775, true);
@@ -933,7 +980,7 @@ function store_resource_upload(array $file, string $title = ''): array
     }
 
     $signature = @file_get_contents((string) $file['tmp_name'], false, null, 0, 5);
-    if ($extension !== 'pdf' || $mimeType !== 'application/pdf' || $signature !== '%PDF-') {
+    if ($extension !== 'pdf' || ($mimeType !== '' && $mimeType !== 'application/pdf') || $signature !== '%PDF-') {
         return ['ok' => false, 'message' => 'Only PDF resources are supported.'];
     }
 

@@ -69,8 +69,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($action === 'import_inventory') {
-            $tmpPath = $_FILES['inventory_csv']['tmp_name'] ?? '';
-            $result = $tmpPath !== '' ? import_inventory_csv($tmpPath) : ['ok' => false, 'message' => 'Choose a CSV file to import.'];
+            $upload = $_FILES['inventory_csv'] ?? null;
+            $tmpPath = (string) ($upload['tmp_name'] ?? '');
+            $uploadError = (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE);
+            $isUploadedFile = $tmpPath !== '' && (PHP_SAPI === 'cli' || is_uploaded_file($tmpPath));
+            if ($uploadError !== UPLOAD_ERR_OK || !$isUploadedFile) {
+                $result = ['ok' => false, 'message' => 'Choose a CSV file to import.'];
+            } else {
+                $result = import_inventory_csv($tmpPath);
+            }
             flash($result['ok'] ? 'success' : 'warning', $result['message']);
             header('Location: ' . url_for('settings?tab=inventory'));
             exit;
@@ -403,7 +410,7 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
               <span class="material-symbols-outlined">open_in_new</span>
               Open PDF
             </a>
-            <a class="btn btn-secondary btn-sm" href="<?= h(url_for('resource_file?id=' . (int) $resource['id'] . '&download=1')) ?>">
+            <a class="btn btn-ghost btn-sm" href="<?= h(url_for('resource_file?id=' . (int) $resource['id'] . '&download=1')) ?>">
               <span class="material-symbols-outlined">download</span>
               Download
             </a>
