@@ -1155,7 +1155,7 @@ function store_resource_upload(array $file, string $title = ''): array
         return ['ok' => false, 'message' => 'Only PDF resources are supported.'];
     }
 
-    $storedName = date('YmdHis') . '-' . bin2hex(random_bytes(6)) . '.pdf';
+    $storedName = date('YmdHis') . '-' . upload_random_suffix() . '.pdf';
     $destination = upload_dir('resources') . '/' . $storedName;
 
     if (!move_uploaded_file($file['tmp_name'], $destination)) {
@@ -1214,6 +1214,19 @@ function is_unique_constraint_violation(Throwable $e): bool
     }
 
     return str_contains(strtolower($e->getMessage()), 'unique');
+}
+
+function upload_random_suffix(): string
+{
+    if (function_exists('random_bytes')) {
+        try {
+            return bin2hex(random_bytes(6));
+        } catch (Throwable $e) {
+            // Fall back below.
+        }
+    }
+
+    return substr(sha1(uniqid((string) mt_rand(), true)), 0, 12);
 }
 
 function delete_resource(int $resourceId): array

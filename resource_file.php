@@ -22,6 +22,10 @@ if (!is_file($path)) {
     exit('Not found');
 }
 
+while (ob_get_level() > 0) {
+    ob_end_clean();
+}
+
 header('Content-Type: application/pdf');
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');

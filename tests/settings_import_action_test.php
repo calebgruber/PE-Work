@@ -67,10 +67,16 @@ $descriptors = [
     1 => ['file', '/tmp/pe-work-settings-server.log', 'a'],
     2 => ['file', '/tmp/pe-work-settings-server.log', 'a'],
 ];
-$process = proc_open('php -S 127.0.0.1:8099 router.php', $descriptors, $pipes, $repoRoot);
+$socket = stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+settings_assert($socket !== false, 'Expected to reserve an ephemeral port for the local PHP server.', $repoRoot, $localConfig, $localBackup, null, [], [$csvPath]);
+$serverAddress = stream_socket_get_name($socket, false) ?: '127.0.0.1:8099';
+fclose($socket);
+$port = (int) substr(strrchr($serverAddress, ':'), 1);
+$baseUrl = 'http://127.0.0.1:' . $port;
+$process = proc_open('php -S 127.0.0.1:' . $port . ' router.php', $descriptors, $pipes, $repoRoot);
 $serverReady = false;
 for ($attempt = 0; $attempt < 20; $attempt++) {
-    $probe = @file_get_contents('http://127.0.0.1:8099/settings?tab=inventory');
+    $probe = @file_get_contents($baseUrl . '/settings?tab=inventory');
     if ($probe !== false) {
         $serverReady = true;
         break;
@@ -91,6 +97,7 @@ $command = sprintf(
     escapeshellarg($cookieJar),
     escapeshellarg($csvPath)
 );
+$command = str_replace('http://127.0.0.1:8099', $baseUrl, $command);
 exec($command, $output, $curlStatus);
 
 $headers = is_file($headersPath) ? file_get_contents($headersPath) : '';
@@ -119,6 +126,7 @@ $warningCommand = sprintf(
     escapeshellarg($warningCookieJar),
     escapeshellarg($warningCookieJar)
 );
+$warningCommand = str_replace('http://127.0.0.1:8099', $baseUrl, $warningCommand);
 exec($warningCommand, $warningOutput, $warningStatus);
 $warningHeaders = is_file($warningHeadersPath) ? file_get_contents($warningHeadersPath) : '';
 $warningBody = is_file($warningResponsePath) ? file_get_contents($warningResponsePath) : '';
@@ -143,6 +151,7 @@ $pasteCommand = sprintf(
     escapeshellarg('action=import_inventory'),
     escapeshellarg('inventory_csv_text=' . $pastePayload)
 );
+$pasteCommand = str_replace('http://127.0.0.1:8099', $baseUrl, $pasteCommand);
 exec($pasteCommand, $pasteOutput, $pasteStatus);
 $pasteHeaders = is_file($pasteHeadersPath) ? file_get_contents($pasteHeadersPath) : '';
 $pasteBody = is_file($pasteResponsePath) ? file_get_contents($pasteResponsePath) : '';

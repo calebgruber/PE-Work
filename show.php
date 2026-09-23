@@ -116,7 +116,12 @@ if (!schema_ready()) {
     exit;
 }
 
-$showId = isset($_GET['show_id']) ? (int) $_GET['show_id'] : null;
+$showIdParam = $_GET['show_id'] ?? null;
+if ($showIdParam !== null && (!ctype_digit((string) $showIdParam) || (int) $showIdParam <= 0)) {
+    http_response_code(404);
+    exit('Show not found.');
+}
+$showId = $showIdParam !== null ? (int) $showIdParam : null;
 $tab = $_GET['tab'] ?? 'info';
 if (!in_array($tab, ['info', 'orders', 'revisions'], true)) {
     $tab = 'info';
@@ -392,20 +397,20 @@ if ($mode === 'edit' && $showId && $currentRevision) {
       <?php endif; ?>
     <?php ui_card_close(); ?>
   <?php else: ?>
-    <div class="pill-row workspace-tabs" role="tablist" aria-label="Show workspace sections">
-      <a role="tab" aria-selected="<?= $tab === 'info' ? 'true' : 'false' ?>" class="tab<?= $tab === 'info' ? ' active' : '' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=info')) ?>">
+    <nav class="pill-row workspace-tabs" aria-label="Show workspace sections">
+      <a class="tab<?= $tab === 'info' ? ' active' : '' ?>" aria-current="<?= $tab === 'info' ? 'page' : 'false' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=info')) ?>">
         <span class="material-symbols-outlined">badge</span>
         Show Information
       </a>
-      <a role="tab" aria-selected="<?= $tab === 'orders' ? 'true' : 'false' ?>" class="tab<?= $tab === 'orders' ? ' active' : '' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=orders')) ?>">
+      <a class="tab<?= $tab === 'orders' ? ' active' : '' ?>" aria-current="<?= $tab === 'orders' ? 'page' : 'false' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=orders')) ?>">
         <span class="material-symbols-outlined">assignment</span>
         Orders
       </a>
-      <a role="tab" aria-selected="<?= $tab === 'revisions' ? 'true' : 'false' ?>" class="tab<?= $tab === 'revisions' ? ' active' : '' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=revisions')) ?>">
+      <a class="tab<?= $tab === 'revisions' ? ' active' : '' ?>" aria-current="<?= $tab === 'revisions' ? 'page' : 'false' ?>" href="<?= h(url_for('show?show_id=' . $showId . '&tab=revisions')) ?>">
         <span class="material-symbols-outlined">history</span>
         Revisions
       </a>
-    </div>
+    </nav>
 
     <?php if ($tab === 'info'): ?>
       <?php ui_card_open('theater_comedy', 'Show Information'); ?>
