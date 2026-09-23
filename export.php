@@ -141,25 +141,31 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
     return $rows;
 }
 
-function export_item_notes(array $rows): array
+function export_item_notes(array $catalog): array
 {
     $itemNotes = [];
-    foreach ($rows as $row) {
-        $line = $row['line'] ?? [];
-        $itemName = trim((string) (($row['item']['name'] ?? '')));
-        $note = trim((string) ($line['line_note'] ?? ''));
-        if ($note !== '') {
+    foreach ($catalog as $category) {
+        foreach (($category['items'] ?? []) as $item) {
+            if (!empty($item['is_spacer'])) {
+                continue;
+            }
+            $line = $item['line'] ?? [];
+            $note = trim((string) ($line['line_note'] ?? ''));
+            if ($note === '') {
+                continue;
+            }
+            $itemName = trim((string) ($item['name'] ?? ''));
             $itemNotes[] = $itemName !== '' ? ($itemName . ': ' . $note) : $note;
         }
     }
     return array_values(array_unique($itemNotes));
 }
 
-function export_notes_list(array $layout, array $show, array $rows = []): array
+function export_notes_list(array $layout, array $show, array $catalog = []): array
 {
     $notes = preg_split('/\r\n|\r|\n/', (string) ($layout['layout.export_notes'] ?? '')) ?: [];
     $showNotes = preg_split('/\r\n|\r|\n/', (string) ($show['show_notes'] ?? '')) ?: [];
-    $combined = array_merge($notes, $showNotes, export_item_notes($rows));
+    $combined = array_merge($notes, $showNotes, export_item_notes($catalog));
     $combined = array_map(static fn ($note) => trim((string) $note), $combined);
     return array_values(array_filter(array_unique($combined), static fn ($note) => $note !== ''));
 }
@@ -297,40 +303,37 @@ function export_equipment_note(array $item, array $line): string
 
 function export_equipment_layout_metrics(array $layout): array
 {
-    $tableWidth = max(70.0, min(100.0, (float) ($layout['layout.equipment_table_width'] ?? 100)));
-    $minRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_min_rows_per_page'] ?? 0)));
-    $maxRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_max_rows_per_page'] ?? 0)));
-    $rowPadding = max(0.0, (float) ($layout['layout.equipment_row_padding'] ?? 0.016));
-    $headerRowPadding = max(0.0, (float) ($layout['layout.equipment_header_row_padding'] ?? 0.22));
-    $categoryRowPadding = max(0.0, (float) ($layout['layout.equipment_category_row_padding'] ?? 0.26));
-    $categoryGap = max(0.0, (float) ($layout['layout.equipment_category_gap'] ?? 0.08));
-    $fontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
-    $lineHeight = max(0.9, min(2.2, (float) ($layout['layout.equipment_line_height'] ?? 1.1)));
-    $lineWidth = max(2.0, min(12.0, (float) ($layout['layout.equipment_col_line'] ?? 4)));
+    $tableWidth = (float) ($layout['layout.equipment_table_width'] ?? 100);
+    $minRowsPerPage = (int) ($layout['layout.equipment_min_rows_per_page'] ?? 0);
+    $maxRowsPerPage = (int) ($layout['layout.equipment_max_rows_per_page'] ?? 0);
+    $rowPadding = (float) ($layout['layout.equipment_row_padding'] ?? 0.016);
+    $headerRowPadding = (float) ($layout['layout.equipment_header_row_padding'] ?? 0.22);
+    $categoryRowPadding = (float) ($layout['layout.equipment_category_row_padding'] ?? 0.26);
+    $categoryGap = (float) ($layout['layout.equipment_category_gap'] ?? 0.08);
+    $fontSize = (float) ($layout['layout.equipment_font_size'] ?? 7.35);
+    $lineHeight = (float) ($layout['layout.equipment_line_height'] ?? 1.1);
+    $lineWidth = (float) ($layout['layout.equipment_col_line'] ?? 4);
     $rawColumns = [
-        'item' => max(1.0, (float) ($layout['layout.equipment_col_item'] ?? 45)),
-        'description' => max(1.0, (float) ($layout['layout.equipment_col_description'] ?? 23)),
-        'used' => max(1.0, (float) ($layout['layout.equipment_col_used'] ?? 5)),
-        'spare' => max(1.0, (float) ($layout['layout.equipment_col_spare'] ?? 5)),
-        'total' => max(1.0, (float) ($layout['layout.equipment_col_total'] ?? 6)),
-        'notes' => max(1.0, (float) ($layout['layout.equipment_col_notes'] ?? 12)),
+        'item' => (float) ($layout['layout.equipment_col_item'] ?? 45),
+        'description' => (float) ($layout['layout.equipment_col_description'] ?? 23),
+        'used' => (float) ($layout['layout.equipment_col_used'] ?? 5),
+        'spare' => (float) ($layout['layout.equipment_col_spare'] ?? 5),
+        'total' => (float) ($layout['layout.equipment_col_total'] ?? 6),
+        'notes' => (float) ($layout['layout.equipment_col_notes'] ?? 12),
     ];
     $columnFontSizes = [
-        'line' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_line'] ?? 6.9))),
-        'item' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_item'] ?? $fontSize))),
-        'description' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_description'] ?? $fontSize))),
-        'used' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_used'] ?? $fontSize))),
-        'spare' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_spare'] ?? $fontSize))),
-        'total' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_total'] ?? $fontSize))),
-        'action' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_action'] ?? $fontSize))),
-        'notes' => max(5.0, min(18.0, (float) ($layout['layout.equipment_font_notes'] ?? $fontSize))),
+        'line' => (float) ($layout['layout.equipment_font_line'] ?? 6.9),
+        'item' => (float) ($layout['layout.equipment_font_item'] ?? $fontSize),
+        'description' => (float) ($layout['layout.equipment_font_description'] ?? $fontSize),
+        'used' => (float) ($layout['layout.equipment_font_used'] ?? $fontSize),
+        'spare' => (float) ($layout['layout.equipment_font_spare'] ?? $fontSize),
+        'total' => (float) ($layout['layout.equipment_font_total'] ?? $fontSize),
+        'action' => (float) ($layout['layout.equipment_font_action'] ?? $fontSize),
+        'notes' => (float) ($layout['layout.equipment_font_notes'] ?? $fontSize),
     ];
-    $remainingWidth = max(1.0, 100.0 - $lineWidth);
-    $rawTotal = array_sum($rawColumns) ?: $remainingWidth;
-    $scale = $rawTotal > $remainingWidth ? ($remainingWidth / $rawTotal) : 1.0;
     $columns = [];
     foreach ($rawColumns as $key => $value) {
-        $columns[$key] = round($value * $scale, 3);
+        $columns[$key] = round($value, 3);
     }
     $summaryActionWidth = round(($columns['used'] ?? 0) + ($columns['spare'] ?? 0), 3);
 
@@ -466,7 +469,7 @@ $revisionHistory = export_revision_history($showId, $revision);
 $equipmentRows = export_equipment_rows($catalog, $type);
 $equipmentPages = export_equipment_pages($equipmentRows, $layout);
 $summaryRows = !empty($revision['is_initial']) ? [] : export_summary_rows($catalog, $revision, $type);
-$notes = export_notes_list($layout, $show, $equipmentRows);
+$notes = export_notes_list($layout, $show, $catalog);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id'] . '&export_type=' . rawurlencode((string) $type));
 $renderSummaryPage = empty($revision['is_initial']);
