@@ -626,20 +626,6 @@ function seed_revision_items(int $revisionId, ?int $sourceRevisionId = null): vo
         $items = $rows->fetchAll();
     } else {
         $items = [];
-        foreach (fetch_inventory_catalog() as $category) {
-            foreach ($category['items'] as $item) {
-                $items[] = [
-                    'inventory_item_id' => $item['id'],
-                    'rent_quantity' => 0,
-                    'spare_quantity' => 0,
-                    'total_quantity' => 0,
-                    'action' => '',
-                    'line_note' => '',
-                    'pickup_date' => null,
-                    'return_date' => null,
-                ];
-            }
-        }
     }
 
     $insert = db()->prepare(

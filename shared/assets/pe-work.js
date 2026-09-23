@@ -148,6 +148,10 @@
 
         category.classList.toggle('hidden', visibleCount === 0);
         if (trigger && panel) {
+          if (visibleCount === 0) {
+            setAccordionState(trigger, panel, false);
+            return;
+          }
           setAccordionState(trigger, panel, term ? visibleCount > 0 : false);
         }
       });
@@ -295,8 +299,12 @@
         });
 
         category.classList.toggle('hidden', visibleItems === 0 || !categoryMatches);
-        if (trigger && panel && (searchTerm || categoryFilter)) {
-          setAccordionState(trigger, panel, visibleItems > 0 && categoryMatches);
+        if (trigger && panel) {
+          if (visibleItems === 0 || !categoryMatches) {
+            setAccordionState(trigger, panel, false);
+          } else if (searchTerm || categoryFilter) {
+            setAccordionState(trigger, panel, true);
+          }
         }
       });
     }

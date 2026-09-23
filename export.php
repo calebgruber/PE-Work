@@ -42,7 +42,7 @@ function export_rows(array $catalog, string $type): array
             if ($type === 'spares' && (int) $line['spare_quantity'] <= 0) {
                 continue;
             }
-            if ($type === 'returns' && ($line['action'] ?? '') !== 'return') {
+            if ($type === 'returns' && (($line['action'] ?? '') !== 'return' || (int) ($line['total_quantity'] ?? 0) <= 0)) {
                 continue;
             }
             $rows[] = ['category' => $category['name'], 'item' => $item, 'line' => $line];
