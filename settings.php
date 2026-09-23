@@ -817,7 +817,12 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           </div>
           <div class="form-group">
             <label for="cover_title_revision_spacing">Cover Title To Revision Spacing (in)</label>
-            <input class="form-control" id="cover_title_revision_spacing" type="number" min="0.05" max="2" step="0.001" name="cover_title_revision_spacing" value="<?= h($layout['layout.cover_title_revision_spacing'] ?? '0.52') ?>">
+            <input class="form-control" id="cover_title_revision_spacing" type="number" min="0" step="0.001" name="cover_title_revision_spacing" value="<?= h($layout['layout.cover_title_revision_spacing'] ?? '0.52') ?>">
+          </div>
+          <div class="form-group">
+            <label for="cover_footer_logo_url">Cover Footer Logo Path</label>
+            <input class="form-control" id="cover_footer_logo_url" name="cover_footer_logo_url" placeholder="images/my-logo.png" value="<?= h($layout['layout.cover_footer_logo_url'] ?? '') ?>">
+            <div class="helper-text">Optional local path for a centered logo at the bottom of the cover page.</div>
           </div>
         </div>
         <div class="form-group" style="margin-top:1rem;">
@@ -851,15 +856,19 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           </div>
           <div class="form-group">
             <label for="equipment_row_padding">Row Padding (in)</label>
-            <input class="form-control" id="equipment_row_padding" type="number" min="0.008" max="0.04" step="0.001" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
+            <input class="form-control" id="equipment_row_padding" type="number" min="0" step="0.001" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_header_row_padding">Header Row Height (in)</label>
-            <input class="form-control" id="equipment_header_row_padding" type="number" min="0.008" max="0.08" step="0.001" name="equipment_header_row_padding" value="<?= h($layout['layout.equipment_header_row_padding'] ?? '0.022') ?>">
+            <input class="form-control" id="equipment_header_row_padding" type="number" min="0" step="0.001" name="equipment_header_row_padding" value="<?= h($layout['layout.equipment_header_row_padding'] ?? '0.022') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_category_row_padding">Category Row Height (in)</label>
-            <input class="form-control" id="equipment_category_row_padding" type="number" min="0.008" max="0.1" step="0.001" name="equipment_category_row_padding" value="<?= h($layout['layout.equipment_category_row_padding'] ?? '0.03') ?>">
+            <input class="form-control" id="equipment_category_row_padding" type="number" min="0" step="0.001" name="equipment_category_row_padding" value="<?= h($layout['layout.equipment_category_row_padding'] ?? '0.03') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_category_gap">Space Above Categories (in)</label>
+            <input class="form-control" id="equipment_category_gap" type="number" min="0" step="0.001" name="equipment_category_gap" value="<?= h($layout['layout.equipment_category_gap'] ?? '0.08') ?>">
           </div>
           <div class="form-group">
             <label for="equipment_font_size">Font Size (pt)</label>

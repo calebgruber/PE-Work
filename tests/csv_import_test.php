@@ -309,6 +309,7 @@ save_export_layout([
     'show_page_numbers' => '1',
     'show_revision_summary' => '1',
     'cover_title_revision_spacing' => '0.73',
+    'cover_footer_logo_url' => 'images/footer-logo.png',
     'equipment_table_width' => '100',
     'equipment_min_rows_per_page' => '0',
     'equipment_max_rows_per_page' => '0',
@@ -316,6 +317,7 @@ save_export_layout([
     'equipment_row_padding' => '0.016',
     'equipment_header_row_padding' => '0.028',
     'equipment_category_row_padding' => '0.036',
+    'equipment_category_gap' => '0.222',
     'equipment_header_fill' => '#ABCDEF',
     'equipment_category_fill' => '#FEDCBA',
     'equipment_font_size' => '7.35',
@@ -385,26 +387,29 @@ $exportHtml = ob_get_clean();
 $_GET = $previousGet;
 assert_true(!str_contains($exportHtml, 'Spacer Break'), 'Expected spacer rows to stay out of final paperwork.');
 assert_true(!str_contains($exportHtml, 'col-summary-notes'), 'Expected revision summary export to omit the notes column.');
-assert_true(str_contains($exportHtml, 'Pull October 2 2026'), 'Expected equipment breakdown notes to include item-specific pull dates in month day year format.');
-assert_true(str_contains($exportHtml, 'Return October 16 2026'), 'Expected equipment breakdown notes to include item-specific return dates in month day year format.');
+assert_true(str_contains($exportHtml, 'Pull 10/02/26'), 'Expected equipment breakdown notes to include item-specific pull dates in mm/dd/yy format.');
+assert_true(str_contains($exportHtml, 'Return 10/16/26'), 'Expected equipment breakdown notes to include item-specific return dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Latest revision should clone from here.'), 'Expected order or revision line notes to print on the breakdown paperwork.');
 assert_true(str_contains($exportHtml, '<div class="cover-title-fallback">Revision Clone Test</div>'), 'Expected the cover page to fall back to the show title when no show image is configured.');
 assert_true(str_contains($exportHtml, '<p class="cover-venue-name">Mainstage</p>'), 'Expected the cover page to show the theatre name on its own line.');
 assert_true(str_contains($exportHtml, '<p class="cover-venue-address">123 Theatre Way</p>'), 'Expected the cover page to show the theatre address on a separate line.');
 assert_true(str_contains($exportHtml, 'LIGHTING SHOP ORDER'), 'Expected the cover page to label the paperwork as a lighting shop order.');
-assert_true(str_contains($exportHtml, '&gt;&gt; REVISION 1.1 - September 15 2026 &lt;&lt;'), 'Expected the cover page to highlight the current revision with arrows and a formatted date.');
-assert_true(str_contains($exportHtml, 'INITIAL ORDER - September 1 2026'), 'Expected the cover page to list past revision dates.');
+assert_true(str_contains($exportHtml, '&gt;&gt; REVISION 1.1 - 09/15/2026 &lt;&lt;'), 'Expected the cover page to highlight the current revision with arrows and a mm/dd/yyyy date.');
+assert_true(str_contains($exportHtml, 'INITIAL ORDER - 09/01/2026'), 'Expected the cover page to list past revision dates in mm/dd/yyyy format.');
 assert_true(str_contains($exportHtml, '<p class="details-page-heading">CREW &amp; NOTES</p>'), 'Expected the second paperwork page to contain the crew and notes section.');
-assert_true(str_contains($exportHtml, 'September 20 2026'), 'Expected show schedule dates to use month day year formatting.');
+assert_true(str_contains($exportHtml, '09/20/2026'), 'Expected show schedule dates to use mm/dd/yyyy formatting.');
 assert_true(str_contains($exportHtml, 'margin-bottom: 0.730in;'), 'Expected the cover title-to-revision spacing to use the saved layout setting.');
-assert_true(str_contains($exportHtml, 'margin-top: 0.42in;'), 'Expected notes to have more space above them.');
+assert_true(str_contains($exportHtml, 'margin-top: 0.9in;'), 'Expected notes to have much more space above them.');
+assert_true(str_contains($exportHtml, 'line-height: 1.55;'), 'Expected the cover page to add more vertical space between lines.');
+assert_true(str_contains($exportHtml, 'src="/images/footer-logo.png"'), 'Expected the cover page footer to support a centered personal logo.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
 assert_true(str_contains($exportHtml, 'Only lines with changed counts or explicit revision actions are listed here.'), 'Expected revision summary copy to explain the changed-lines filter.');
-assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="col-used">USED<\/td>.*?<td class="col-action">ACTION<\/td>.*?<td class="col-notes">NOTES<\/td>/s', $exportHtml), 'Expected revision summary to use used, action, and notes columns.');
-assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="description-cell">Manual test fixture row<\/td>.*?<td>EXCHANGE<\/td>.*?Latest revision should clone from here\./s', $exportHtml), 'Expected revision summary to show description, explicit action, and notes in separate columns.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="col-total">TOTAL<\/td>.*?<td class="col-action">ACTION<\/td>.*?<td class="col-notes">NOTES<\/td>/s', $exportHtml), 'Expected revision summary to use total, action, and notes columns.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="description-cell">Manual test fixture row<\/td>.*?>9\s*<span class="delta delta-positive">\(\+1\)<\/span><\/td>.*?<td>EXCHANGE<\/td>.*?Latest revision should clone from here\./s', $exportHtml), 'Expected revision summary to show description, total deltas, explicit action, and notes in separate columns.');
 assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">Late Added Feeder<\/td>.*?<td>CHANGE<\/td>.*?Changed without an explicit action\./s', $exportHtml), 'Expected revision summary rows without an explicit action to display CHANGE.');
 assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<tr class="category-header-row">\s*<td colspan="6">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected revision summary to include category headers followed by repeated table headers.');
+assert_true(str_contains($exportHtml, 'table.word-table.revision-summary-table'), 'Expected the revision summary table to have its own centered table styling.');
 assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
 assert_true((bool) preg_match('/>\s*9\s*<span class="delta delta-positive">\(\+1\)<\/span>/', $exportHtml), 'Expected equipment breakdown totals to show total-quantity deltas in black text.');
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
@@ -420,6 +425,7 @@ assert_true(str_contains($exportHtml, 'background: #ABCDEF;'), 'Expected export 
 assert_true(str_contains($exportHtml, 'background: #FEDCBA;'), 'Expected export category rows to use the saved category color.');
 assert_true(str_contains($exportHtml, 'padding-top: 0.028in;'), 'Expected export header rows to use the saved header row height.');
 assert_true(str_contains($exportHtml, 'padding-top: 0.036in;'), 'Expected export category rows to use the saved category row height.');
+assert_true(str_contains($exportHtml, 'padding: 0.222in 0 0;'), 'Expected category spacing above each section to use the saved layout setting.');
 $syntheticLayout = export_layout_settings();
 $syntheticLayout['layout.equipment_min_rows_per_page'] = '4';
 $syntheticLayout['layout.equipment_max_rows_per_page'] = '2';

@@ -204,7 +204,7 @@ function export_item_description(array $item): string
     return trim((string) ($item['description'] ?? ''));
 }
 
-function export_paperwork_date(?string $value, string $fallback = '—'): string
+function export_note_date(?string $value, string $fallback = '—'): string
 {
     $value = trim((string) $value);
     if ($value === '') {
@@ -216,7 +216,22 @@ function export_paperwork_date(?string $value, string $fallback = '—'): string
         return $value;
     }
 
-    return date('F j Y', $timestamp);
+    return date('m/d/y', $timestamp);
+}
+
+function export_cover_date(?string $value, string $fallback = '—'): string
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        return $fallback;
+    }
+
+    $timestamp = strtotime($value);
+    if ($timestamp === false) {
+        return $value;
+    }
+
+    return date('m/d/Y', $timestamp);
 }
 
 function export_revision_history(int $showId, array $revision): array
@@ -231,10 +246,10 @@ function export_revision_history(int $showId, array $revision): array
 function export_revision_history_label(array $revision): string
 {
     if (!empty($revision['is_initial'])) {
-        return 'INITIAL ORDER - ' . export_paperwork_date((string) ($revision['revision_date'] ?? ''), '');
+        return 'INITIAL ORDER - ' . export_cover_date((string) ($revision['revision_date'] ?? ''), '');
     }
 
-    return 'REVISION ' . revision_display_code($revision) . ' - ' . export_paperwork_date((string) ($revision['revision_date'] ?? ''), '');
+    return 'REVISION ' . revision_display_code($revision) . ' - ' . export_cover_date((string) ($revision['revision_date'] ?? ''), '');
 }
 
 function export_summary_action_label(array $line): string
@@ -256,10 +271,10 @@ function export_equipment_note(array $item, array $line): string
         $parts[] = $lineNote;
     }
     if (!empty($line['pickup_date'])) {
-        $parts[] = 'Pull ' . export_paperwork_date((string) $line['pickup_date'], (string) $line['pickup_date']);
+        $parts[] = 'Pull ' . export_note_date((string) $line['pickup_date'], (string) $line['pickup_date']);
     }
     if (!empty($line['return_date'])) {
-        $parts[] = 'Return ' . export_paperwork_date((string) $line['return_date'], (string) $line['return_date']);
+        $parts[] = 'Return ' . export_note_date((string) $line['return_date'], (string) $line['return_date']);
     }
 
     return implode(' · ', $parts);
@@ -270,9 +285,10 @@ function export_equipment_layout_metrics(array $layout): array
     $tableWidth = max(70.0, min(100.0, (float) ($layout['layout.equipment_table_width'] ?? 100)));
     $minRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_min_rows_per_page'] ?? 0)));
     $maxRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_max_rows_per_page'] ?? 0)));
-    $rowPadding = max(0.008, min(0.04, (float) ($layout['layout.equipment_row_padding'] ?? 0.016)));
-    $headerRowPadding = max(0.008, min(0.08, (float) ($layout['layout.equipment_header_row_padding'] ?? 0.022)));
-    $categoryRowPadding = max(0.008, min(0.1, (float) ($layout['layout.equipment_category_row_padding'] ?? 0.03)));
+    $rowPadding = max(0.0, (float) ($layout['layout.equipment_row_padding'] ?? 0.016));
+    $headerRowPadding = max(0.0, (float) ($layout['layout.equipment_header_row_padding'] ?? 0.022));
+    $categoryRowPadding = max(0.0, (float) ($layout['layout.equipment_category_row_padding'] ?? 0.03));
+    $categoryGap = max(0.0, (float) ($layout['layout.equipment_category_gap'] ?? 0.08));
     $fontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
     $lineHeight = max(0.9, min(2.2, (float) ($layout['layout.equipment_line_height'] ?? 1.1)));
     $lineWidth = 4.0;
@@ -297,6 +313,7 @@ function export_equipment_layout_metrics(array $layout): array
         'row_padding' => $rowPadding,
         'header_row_padding' => $headerRowPadding,
         'category_row_padding' => $categoryRowPadding,
+        'category_gap' => $categoryGap,
         'font_size' => $fontSize,
         'line_height' => $lineHeight,
         'line_width' => $lineWidth,
@@ -351,7 +368,7 @@ function export_equipment_category_row_height(array $metrics): float
 
 function export_equipment_category_transition_height(bool $hasPreviousCategory, array $metrics): float
 {
-    $gapHeight = $hasPreviousCategory ? 0.16 : 0.0;
+    $gapHeight = $hasPreviousCategory ? (float) ($metrics['category_gap'] ?? 0.08) : 0.0;
     return $gapHeight + export_equipment_category_row_height($metrics) + export_equipment_header_row_height($metrics);
 }
 
@@ -439,7 +456,9 @@ $equipmentCategoryFill = strtoupper(trim((string) ($layout['layout.equipment_cat
 if (!preg_match('/^#[0-9A-F]{6}$/', $equipmentCategoryFill)) {
     $equipmentCategoryFill = '#E5E7EB';
 }
-$coverTitleRevisionSpacing = max(0.05, min(2.0, (float) ($layout['layout.cover_title_revision_spacing'] ?? 0.52)));
+$coverTitleRevisionSpacing = max(0.0, (float) ($layout['layout.cover_title_revision_spacing'] ?? 0.52));
+$coverFooterLogoPath = sanitize_local_asset_path((string) ($layout['layout.cover_footer_logo_url'] ?? ''));
+$coverFooterLogoUrl = $coverFooterLogoPath ? url_for($coverFooterLogoPath) : '';
 $coverTheatreName = trim((string) ($show['theatre_name'] ?? ''));
 $coverTheatreAddress = trim((string) ($show['theatre_address'] ?? ''));
 $coverTitle = $type === 'order' ? 'LIGHTING SHOP ORDER' : strtoupper($labels['title']);
@@ -525,6 +544,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
     .cover-body {
       width: 100%;
       text-align: center;
+      line-height: 1.55;
     }
     .cover-art {
       margin: 0 auto 0.55in;
@@ -565,12 +585,14 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       font-size: 17pt;
       font-weight: 600;
       letter-spacing: 0.01em;
+      line-height: 1.55;
     }
     .cover-revision-history {
-      margin-top: 0.08in;
+      margin-top: 0.12in;
       display: grid;
-      gap: 0.05in;
+      gap: 0.11in;
       font-size: 13.5pt;
+      line-height: 1.45;
     }
     .details-page .page-content {
       display: flex;
@@ -645,9 +667,14 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       gap: 0.1in 0.16in;
     }
     .notes-heading {
-      margin-top: 0.42in;
+      margin-top: 0.9in;
       text-decoration: underline;
       font-weight: 600;
+    }
+    table.word-table.revision-summary-table {
+      width: 92%;
+      margin-left: auto;
+      margin-right: auto;
     }
     ol.notes-list {
       margin: 0.1in 0 0 0.28in;
@@ -741,7 +768,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       background: #f3f4f6;
     }
     .category-gap-row td {
-      padding: 0.08in 0;
+      padding: <?= h(number_format($equipmentMetrics['category_gap'], 3, '.', '')) ?>in 0 0;
       border: 0;
       background: #fff;
     }
@@ -778,6 +805,21 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       font-size: 9pt;
       color: #374151;
       page-break-inside: avoid;
+    }
+    .cover-footer {
+      justify-content: center;
+      text-align: center;
+      flex-direction: column;
+      gap: 0.14in;
+    }
+    .cover-footer-logo img {
+      display: block;
+      max-width: 3.2in;
+      max-height: 1.05in;
+      width: auto;
+      height: auto;
+      margin: 0 auto;
+      object-fit: contain;
     }
     @media print {
       body { background: #fff; }
@@ -821,7 +863,10 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       </div>
       </div>
 
-      <div class="footer">
+      <div class="footer cover-footer">
+        <?php if ($coverFooterLogoUrl !== ''): ?>
+        <div class="cover-footer-logo"><img src="<?= h($coverFooterLogoUrl) ?>" alt="Cover footer logo"></div>
+        <?php endif; ?>
         <span><?= h($layout['layout.footer_text']) ?></span>
       </div>
     </section>
@@ -861,19 +906,19 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
           <div class="cover-detail-grid">
             <div>
               <div class="cover-entry-label">Load-In</div>
-              <div class="cover-panel-copy"><?= h(export_paperwork_date((string) ($show['pull_date'] ?? ''))) ?></div>
+              <div class="cover-panel-copy"><?= h(export_cover_date((string) ($show['pull_date'] ?? ''))) ?></div>
             </div>
             <div>
               <div class="cover-entry-label">Opening</div>
-              <div class="cover-panel-copy"><?= h(export_paperwork_date((string) ($show['opening_date'] ?? ''))) ?></div>
+              <div class="cover-panel-copy"><?= h(export_cover_date((string) ($show['opening_date'] ?? ''))) ?></div>
             </div>
             <div>
               <div class="cover-entry-label">Return</div>
-              <div class="cover-panel-copy"><?= h(export_paperwork_date((string) ($show['return_date'] ?? ''))) ?></div>
+              <div class="cover-panel-copy"><?= h(export_cover_date((string) ($show['return_date'] ?? ''))) ?></div>
             </div>
             <div>
               <div class="cover-entry-label">Strike</div>
-              <div class="cover-panel-copy"><?= h(export_paperwork_date((string) ($show['strike_date'] ?? ''))) ?></div>
+              <div class="cover-panel-copy"><?= h(export_cover_date((string) ($show['strike_date'] ?? ''))) ?></div>
             </div>
           </div>
         </div>
@@ -919,14 +964,14 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
       <p class="page-heading">REVISION SUMMARY</p>
       <p class="page-note">Only lines with changed counts or explicit revision actions are listed here.</p>
       <div class="equipment-table-wrap">
-      <table class="word-table equipment-table">
+      <table class="word-table equipment-table revision-summary-table">
         <tbody>
           <?php if ($summaryRows): ?>
           <?php $summaryCategory = null; ?>
           <?php foreach ($summaryRows as $index => $row): ?>
           <?php if ($summaryCategory !== $row['category']): ?>
           <?php if ($summaryCategory !== null): ?>
-          <tr class="category-gap-row"><td colspan="7"></td></tr>
+          <tr class="category-gap-row"><td colspan="6"></td></tr>
           <?php endif; ?>
           <tr class="category-header-row">
             <td colspan="6"><?= h($row['category']) ?></td>
@@ -935,7 +980,7 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
             <td class="col-line">LINE</td>
             <td class="col-item">ITEM</td>
             <td class="col-description">DESCRIPTION</td>
-            <td class="col-used">USED</td>
+            <td class="col-total">TOTAL</td>
             <td class="col-action">ACTION</td>
             <td class="col-notes">NOTES</td>
           </tr>
@@ -945,7 +990,11 @@ $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') =
             <td class="line-cell"><?= h((string) ($index + 1)) ?></td>
             <td class="item-cell"><?= h($row['item']['name']) ?></td>
             <td class="description-cell"><?= h($row['description']) ?></td>
-            <td><?= h((string) ($row['line']['rent_quantity'] ?? 0)) ?></td>
+            <td>
+              <?= h((string) ($row['line']['total_quantity'] ?? 0)) ?>
+              <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'total_quantity'); ?>
+              <?php if ($delta !== ''): ?><span class="delta <?= str_starts_with($delta, '-') ? 'delta-negative' : 'delta-positive' ?>"><?= h($delta) ?></span><?php endif; ?>
+            </td>
             <td><?= h(export_summary_action_label($row['line'])) ?></td>
             <td class="notes-cell">
               <?php
