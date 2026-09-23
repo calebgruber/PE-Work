@@ -156,8 +156,15 @@
       var link = e.target.closest('a[href]');
       if (!link) return;
       var href = link.getAttribute('href') || '';
-      if (link.target || e.ctrlKey || e.metaKey || e.shiftKey ||
-          href.charAt(0) === '#' || /^(javascript|data|vbscript):/i.test(href) || href === '') return;
+      if (link.target || link.hasAttribute('download') || e.ctrlKey || e.metaKey || e.shiftKey ||
+          href.charAt(0) === '#' || /^(javascript|data|vbscript|mailto|tel):/i.test(href) || href === '') return;
+      var targetUrl;
+      try {
+        targetUrl = new URL(href, window.location.href);
+      } catch (err) {
+        return;
+      }
+      if (!/^https?:$/i.test(targetUrl.protocol) || targetUrl.origin !== window.location.origin) return;
       startLoader();
     });
 

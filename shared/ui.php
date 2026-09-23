@@ -227,7 +227,7 @@ function ui_end(): void
     ?>
   </main>
 </div>
-<div id="note-modal" class="modal hidden" aria-hidden="true">
+<div id="note-modal" class="modal hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="note-modal-title">
   <div class="modal-panel">
     <div class="modal-header">
       <h3 id="note-modal-title">Item Note</h3>

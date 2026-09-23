@@ -331,6 +331,14 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
 
       <?php if ($migrationLogs): ?>
       <div class="section-label">Latest Run</div>
+      <div class="stack" style="margin-bottom:1rem;">
+        <?php foreach ($migrationLogs as $log): ?>
+        <div class="summary-block">
+          <strong><?= h($log['name']) ?> · <?= h(ucfirst($log['status'])) ?></strong>
+          <div class="muted"><?= h($log['message']) ?></div>
+        </div>
+        <?php endforeach; ?>
+      </div>
       <?php endif; ?>
 
       <div class="table-wrap" style="margin-top:1rem;">
@@ -349,13 +357,6 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
                 <td><?= h($name) ?></td>
                 <td><?= isset($applied[$name]) ? ui_badge('Applied', 'success') : ui_badge('Pending', 'warning') ?></td>
                 <td><?= h($applied[$name] ?? 'Waiting to run') ?></td>
-              </tr>
-            <?php endforeach; ?>
-            <?php foreach ($migrationLogs as $log): ?>
-              <tr>
-                <td><?= h($log['name']) ?></td>
-                <td><?= ui_badge(ucfirst($log['status']), $log['status'] === 'error' ? 'danger' : ($log['status'] === 'applied' ? 'success' : 'neutral')) ?></td>
-                <td><?= h($log['message']) ?></td>
               </tr>
             <?php endforeach; ?>
           </tbody>

@@ -47,24 +47,28 @@
         if (title) title.textContent = button.getAttribute('data-note-title') || 'Item Note';
         if (body) body.textContent = button.getAttribute('data-note-body') || '';
         modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
       });
     });
 
     modal.querySelectorAll('[data-close-modal]').forEach(function (button) {
       button.addEventListener('click', function () {
         modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
       });
     });
 
     modal.addEventListener('click', function (event) {
       if (event.target === modal) {
         modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
       }
     });
 
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') {
         modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
       }
     });
   }

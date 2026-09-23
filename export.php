@@ -95,7 +95,7 @@ $pageTitle = $titleMap[$type] ?? $titleMap['order'];
         </div>
       </div>
       <?php if ($showImage): ?>
-      <img src="<?= h($show['show_image_url']) ?>" alt="<?= h($show['show_name']) ?> image">
+      <img src="<?= h(asset_url($show['show_image_url'])) ?>" alt="<?= h($show['show_name']) ?> image">
       <?php endif; ?>
     </div>
 

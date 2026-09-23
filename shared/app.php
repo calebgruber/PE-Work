@@ -64,6 +64,25 @@ function normalize_date(?string $value): ?string
     return $timestamp ? date('Y-m-d', $timestamp) : null;
 }
 
+function sanitize_local_asset_path(?string $value): ?string
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        return null;
+    }
+
+    if (str_starts_with($value, '//') || str_contains($value, '..')) {
+        return null;
+    }
+
+    $parts = parse_url($value);
+    if ($parts === false || !empty($parts['scheme']) || !empty($parts['host'])) {
+        return null;
+    }
+
+    return ltrim($value, '/');
+}
+
 function blank_show(): array
 {
     return [
@@ -136,12 +155,16 @@ function save_show_record(array $input, ?int $showId = null): array
     foreach (['pull_date', 'return_date', 'strike_date', 'opening_date', 'closing_date'] as $dateField) {
         $show[$dateField] = normalize_date($show[$dateField]);
     }
+    $show['show_image_url'] = sanitize_local_asset_path($show['show_image_url']);
 
     $errors = [];
     foreach (show_required_labels() as $field => $label) {
         if ($show[$field] === '') {
             $errors[] = $label . ' is required.';
         }
+    }
+    if (!empty($input['show_image_url']) && $show['show_image_url'] === null) {
+        $errors[] = 'Show image must be an app-relative path, not an external URL.';
     }
 
     if ($errors) {
@@ -533,12 +556,14 @@ function rule_suggestions(int $revisionId): array
         $recommended = $multiplier * $requiredQty;
         $currentRequired = $totals[$requiredId] ?? 0;
 
-        $suggestions[] = [
-            'rule' => $rule,
-            'recommended_quantity' => $recommended,
-            'current_quantity' => $currentRequired,
-            'is_short' => $currentRequired < $recommended,
-        ];
+        if ($currentRequired < $recommended) {
+            $suggestions[] = [
+                'rule' => $rule,
+                'recommended_quantity' => $recommended,
+                'current_quantity' => $currentRequired,
+                'is_short' => true,
+            ];
+        }
     }
 
     return $suggestions;

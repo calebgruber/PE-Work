@@ -142,8 +142,9 @@ ui_page_header($showId ? ($show['show_name'] ?: 'Show Workspace') : 'Create Show
         <div class="section-label">Optional</div>
         <div class="card-grid">
           <div class="form-group">
-            <label for="show_image_url">Show Image URL</label>
-            <input class="form-control" id="show_image_url" name="show_image_url" value="<?= h($show['show_image_url'] ?? '') ?>">
+            <label for="show_image_url">Show Image Path</label>
+            <input class="form-control" id="show_image_url" name="show_image_url" placeholder="images/hamlet.jpg" value="<?= h($show['show_image_url'] ?? '') ?>">
+            <div class="helper-text">Use an app-relative path only. External image URLs are blocked.</div>
           </div>
           <div class="form-group">
             <label for="pull_date">Pull Date</label>
