@@ -252,6 +252,7 @@ function export_equipment_note(array $item, array $line): string
 function export_equipment_layout_metrics(array $layout): array
 {
     $tableWidth = max(70.0, min(100.0, (float) ($layout['layout.equipment_table_width'] ?? 100)));
+    $minRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_min_rows_per_page'] ?? 0)));
     $maxRowsPerPage = max(0, min(100, (int) ($layout['layout.equipment_max_rows_per_page'] ?? 0)));
     $rowPadding = max(0.008, min(0.04, (float) ($layout['layout.equipment_row_padding'] ?? 0.016)));
     $fontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
@@ -273,6 +274,7 @@ function export_equipment_layout_metrics(array $layout): array
 
     return [
         'table_width' => $tableWidth,
+        'min_rows_per_page' => $minRowsPerPage,
         'max_rows_per_page' => $maxRowsPerPage,
         'row_padding' => $rowPadding,
         'font_size' => $fontSize,
@@ -323,14 +325,21 @@ function export_equipment_pages(array $rows, array $layout): array
 
     $metrics = export_equipment_layout_metrics($layout);
     $availableHeight = 7.55;
+    $minimumRows = (int) ($metrics['min_rows_per_page'] ?? 0);
+    $maximumRows = (int) ($metrics['max_rows_per_page'] ?? 0);
+    if ($maximumRows > 0 && $minimumRows > $maximumRows) {
+        $minimumRows = $maximumRows;
+    }
     $pages = [];
     $currentPage = [];
     $currentHeight = 0.0;
 
     foreach ($rows as $row) {
         $rowHeight = export_equipment_page_row_height($row, $metrics);
-        $reachesRowCap = $metrics['max_rows_per_page'] > 0 && count($currentPage) >= $metrics['max_rows_per_page'];
-        if ($currentPage !== [] && ($reachesRowCap || ($currentHeight + $rowHeight) > $availableHeight)) {
+        $currentRowCount = count($currentPage);
+        $reachesRowCap = $maximumRows > 0 && $currentRowCount >= $maximumRows;
+        $meetsMinimumRows = $minimumRows === 0 || $currentRowCount >= $minimumRows;
+        if ($currentPage !== [] && ($reachesRowCap || ($meetsMinimumRows && ($currentHeight + $rowHeight) > $availableHeight))) {
             $pages[] = $currentPage;
             $currentPage = [];
             $currentHeight = 0.0;

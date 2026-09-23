@@ -330,6 +330,7 @@ assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cove
 assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
 assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export to include later line items instead of stopping early.');
 $syntheticLayout = export_layout_settings();
+$syntheticLayout['layout.equipment_min_rows_per_page'] = '4';
 $syntheticLayout['layout.equipment_max_rows_per_page'] = '2';
 $syntheticRows = [];
 for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
@@ -342,6 +343,12 @@ for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
 $syntheticPages = export_equipment_pages($syntheticRows, $syntheticLayout);
 assert_true(count($syntheticPages) === 3, 'Expected configured max rows per page to cap equipment pagination.');
 assert_true(count($syntheticPages[0]) === 2 && count($syntheticPages[1]) === 2 && count($syntheticPages[2]) === 1, 'Expected synthetic page chunking to preserve row limits.');
+$syntheticMinOnlyLayout = export_layout_settings();
+$syntheticMinOnlyLayout['layout.equipment_min_rows_per_page'] = '4';
+$syntheticMinOnlyLayout['layout.equipment_max_rows_per_page'] = '0';
+$syntheticMinPages = export_equipment_pages($syntheticRows, $syntheticMinOnlyLayout);
+assert_true(count($syntheticMinPages) === 2, 'Expected configured minimum rows per page to delay page breaks.');
+assert_true(count($syntheticMinPages[0]) === 4 && count($syntheticMinPages[1]) === 1, 'Expected configured minimum rows per page to keep at least the minimum rows together when possible.');
 
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);
@@ -473,6 +480,7 @@ $layoutDefaults = export_layout_settings();
 assert_true(array_key_exists('layout.organization_text', $layoutDefaults), 'Expected export layout defaults to include organization text.');
 assert_true(array_key_exists('layout.export_notes', $layoutDefaults), 'Expected export layout defaults to include export notes.');
 assert_true(array_key_exists('layout.equipment_table_width', $layoutDefaults), 'Expected export layout defaults to include equipment table sizing.');
+assert_true(array_key_exists('layout.equipment_min_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment min rows per page.');
 assert_true(array_key_exists('layout.equipment_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment max rows per page.');
 assert_true(array_key_exists('layout.equipment_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment line height.');
 save_export_layout([
@@ -483,6 +491,7 @@ save_export_layout([
     'show_page_numbers' => '1',
     'show_revision_summary' => '1',
     'equipment_table_width' => '96',
+    'equipment_min_rows_per_page' => '4',
     'equipment_max_rows_per_page' => '12',
     'equipment_row_padding' => '0.02',
     'equipment_font_size' => '7.8',
@@ -498,6 +507,7 @@ $savedLayout = export_layout_settings();
 assert_true(($savedLayout['layout.organization_text'] ?? '') === 'Top Right Copy', 'Expected organization text to persist in export layout settings.');
 assert_true(($savedLayout['layout.export_notes'] ?? '') === "One\nTwo", 'Expected export notes to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_table_width'] ?? '') === '96', 'Expected equipment table width to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_min_rows_per_page'] ?? '') === '4', 'Expected equipment min rows per page to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_max_rows_per_page'] ?? '') === '12', 'Expected equipment max rows per page to persist in export layout settings.');
 assert_true(($savedLayout['layout.equipment_line_height'] ?? '') === '1.3', 'Expected equipment line height to persist in export layout settings.');
 
