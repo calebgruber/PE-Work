@@ -69,7 +69,7 @@ function export_equipment_rows(array $catalog, string $type): array
             $include = match ($type) {
                 'spares' => (int) ($line['spare_quantity'] ?? 0) > 0,
                 'returns' => (int) ($line['total_quantity'] ?? 0) > 0 || !empty($line['action']),
-                default => true,
+                default => (int) ($line['total_quantity'] ?? 0) > 0,
             };
             if ($include) {
                 $visibleItems[] = $item;
@@ -281,6 +281,23 @@ foreach ($equipmentPages as $_equipmentPage) {
 $totalPages = $nextPageNumber - 1;
 $headerOrganization = export_value((string) ($layout['layout.organization_text'] ?? ''), (string) ($show['theatre_name'] ?? ''));
 $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
+$equipmentTableWidth = max(70.0, min(100.0, (float) ($layout['layout.equipment_table_width'] ?? 100)));
+$equipmentRowPadding = max(0.008, min(0.04, (float) ($layout['layout.equipment_row_padding'] ?? 0.016)));
+$equipmentFontSize = max(6.5, min(10.0, (float) ($layout['layout.equipment_font_size'] ?? 7.35)));
+$equipmentLineWidth = 4.0;
+$rawEquipmentColumnWidths = [
+    'item' => max(1.0, (float) ($layout['layout.equipment_col_item'] ?? 45)),
+    'description' => max(1.0, (float) ($layout['layout.equipment_col_description'] ?? 23)),
+    'used' => max(1.0, (float) ($layout['layout.equipment_col_used'] ?? 5)),
+    'spare' => max(1.0, (float) ($layout['layout.equipment_col_spare'] ?? 5)),
+    'total' => max(1.0, (float) ($layout['layout.equipment_col_total'] ?? 6)),
+    'notes' => max(1.0, (float) ($layout['layout.equipment_col_notes'] ?? 12)),
+];
+$equipmentWidthScale = 96.0 / (array_sum($rawEquipmentColumnWidths) ?: 96.0);
+$equipmentColumnWidths = [];
+foreach ($rawEquipmentColumnWidths as $key => $value) {
+    $equipmentColumnWidths[$key] = round($value * $equipmentWidthScale, 3);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -471,10 +488,10 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       font-size: 9pt;
     }
     table.word-table.equipment-table {
-      width: 100%;
+      width: <?= h(number_format($equipmentTableWidth, 1, '.', '')) ?>%;
       max-width: 100%;
       margin: 0 auto;
-      font-size: 7.35pt;
+      font-size: <?= h(number_format($equipmentFontSize, 2, '.', '')) ?>pt;
       line-height: 1.05;
     }
     .equipment-table-wrap {
@@ -485,7 +502,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table th,
     table.word-table td {
-      padding: 0.016in 0.03in;
+      padding: <?= h(number_format($equipmentRowPadding, 3, '.', '')) ?>in 0.03in;
       vertical-align: middle;
       text-align: left;
       white-space: nowrap;
@@ -499,15 +516,15 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       text-decoration: underline;
       font-weight: 700;
     }
-    .col-line { width: 4%; }
-    .col-item { width: 46%; }
-    .col-description { width: 24%; }
+    .col-line { width: <?= h(number_format($equipmentLineWidth, 3, '.', '')) ?>%; }
+    .col-item { width: <?= h(number_format($equipmentColumnWidths['item'], 3, '.', '')) ?>%; }
+    .col-description { width: <?= h(number_format($equipmentColumnWidths['description'], 3, '.', '')) ?>%; }
     .col-action { width: 7%; }
     .col-qty { width: 13%; }
-    .col-used,
-    .col-spare { width: 3.5%; }
-    .col-total { width: 4.5%; }
-    .col-notes { width: 11%; }
+    .col-used { width: <?= h(number_format($equipmentColumnWidths['used'], 3, '.', '')) ?>%; }
+    .col-spare { width: <?= h(number_format($equipmentColumnWidths['spare'], 3, '.', '')) ?>%; }
+    .col-total { width: <?= h(number_format($equipmentColumnWidths['total'], 3, '.', '')) ?>%; }
+    .col-notes { width: <?= h(number_format($equipmentColumnWidths['notes'], 3, '.', '')) ?>%; }
     .item-cell,
     .description-cell,
     .notes-cell {

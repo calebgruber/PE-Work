@@ -1989,6 +1989,15 @@ function export_layout_settings(): array
         'layout.show_image' => '1',
         'layout.show_page_numbers' => '1',
         'layout.show_revision_summary' => '1',
+        'layout.equipment_table_width' => '100',
+        'layout.equipment_row_padding' => '0.016',
+        'layout.equipment_font_size' => '7.35',
+        'layout.equipment_col_item' => '45',
+        'layout.equipment_col_description' => '23',
+        'layout.equipment_col_used' => '5',
+        'layout.equipment_col_spare' => '5',
+        'layout.equipment_col_total' => '6',
+        'layout.equipment_col_notes' => '12',
     ];
 
     $settings = [];
@@ -1997,6 +2006,18 @@ function export_layout_settings(): array
     }
 
     return $settings;
+}
+
+function export_layout_number(array $input, string $key, float $default, float $min, float $max, int $precision = 3): string
+{
+    $value = $input[$key] ?? $default;
+    if (!is_numeric($value)) {
+        $value = $default;
+    }
+    $number = max($min, min($max, (float) $value));
+    $formatted = number_format($number, $precision, '.', '');
+    $formatted = rtrim(rtrim($formatted, '0'), '.');
+    return $formatted === '' ? (string) $default : $formatted;
 }
 
 function save_export_layout(array $input): void
@@ -2008,6 +2029,15 @@ function save_export_layout(array $input): void
     save_setting('layout.show_image', !empty($input['show_image']) ? '1' : '0');
     save_setting('layout.show_page_numbers', !empty($input['show_page_numbers']) ? '1' : '0');
     save_setting('layout.show_revision_summary', !empty($input['show_revision_summary']) ? '1' : '0');
+    save_setting('layout.equipment_table_width', export_layout_number($input, 'equipment_table_width', 100, 70, 100, 1));
+    save_setting('layout.equipment_row_padding', export_layout_number($input, 'equipment_row_padding', 0.016, 0.008, 0.04, 3));
+    save_setting('layout.equipment_font_size', export_layout_number($input, 'equipment_font_size', 7.35, 6.5, 10, 2));
+    save_setting('layout.equipment_col_item', export_layout_number($input, 'equipment_col_item', 45, 20, 70, 1));
+    save_setting('layout.equipment_col_description', export_layout_number($input, 'equipment_col_description', 23, 8, 40, 1));
+    save_setting('layout.equipment_col_used', export_layout_number($input, 'equipment_col_used', 5, 2, 12, 1));
+    save_setting('layout.equipment_col_spare', export_layout_number($input, 'equipment_col_spare', 5, 2, 12, 1));
+    save_setting('layout.equipment_col_total', export_layout_number($input, 'equipment_col_total', 6, 2, 14, 1));
+    save_setting('layout.equipment_col_notes', export_layout_number($input, 'equipment_col_notes', 12, 4, 30, 1));
 }
 
 function action_badge(string $action): string

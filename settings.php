@@ -817,6 +817,45 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
           <label class="tab"><input type="checkbox" name="show_page_numbers" value="1" <?= $layout['layout.show_page_numbers'] === '1' ? 'checked' : '' ?>> Page X of X</label>
           <label class="tab"><input type="checkbox" name="show_revision_summary" value="1" <?= $layout['layout.show_revision_summary'] === '1' ? 'checked' : '' ?>> Revision summary block</label>
         </div>
+        <div class="section-label" style="margin-top:1rem;">Equipment Breakdown Layout</div>
+        <div class="card-grid">
+          <div class="form-group">
+            <label for="equipment_table_width">Table Width %</label>
+            <input class="form-control" id="equipment_table_width" type="number" min="70" max="100" step="0.1" name="equipment_table_width" value="<?= h($layout['layout.equipment_table_width'] ?? '100') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_row_padding">Row Padding (in)</label>
+            <input class="form-control" id="equipment_row_padding" type="number" min="0.008" max="0.04" step="0.001" name="equipment_row_padding" value="<?= h($layout['layout.equipment_row_padding'] ?? '0.016') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_font_size">Font Size (pt)</label>
+            <input class="form-control" id="equipment_font_size" type="number" min="6.5" max="10" step="0.01" name="equipment_font_size" value="<?= h($layout['layout.equipment_font_size'] ?? '7.35') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_col_item">Item Width</label>
+            <input class="form-control" id="equipment_col_item" type="number" min="20" max="70" step="0.1" name="equipment_col_item" value="<?= h($layout['layout.equipment_col_item'] ?? '45') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_col_description">Description Width</label>
+            <input class="form-control" id="equipment_col_description" type="number" min="8" max="40" step="0.1" name="equipment_col_description" value="<?= h($layout['layout.equipment_col_description'] ?? '23') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_col_used">Used Width</label>
+            <input class="form-control" id="equipment_col_used" type="number" min="2" max="12" step="0.1" name="equipment_col_used" value="<?= h($layout['layout.equipment_col_used'] ?? '5') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_col_spare">Spare Width</label>
+            <input class="form-control" id="equipment_col_spare" type="number" min="2" max="12" step="0.1" name="equipment_col_spare" value="<?= h($layout['layout.equipment_col_spare'] ?? '5') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_col_total">Total Width</label>
+            <input class="form-control" id="equipment_col_total" type="number" min="2" max="14" step="0.1" name="equipment_col_total" value="<?= h($layout['layout.equipment_col_total'] ?? '6') ?>">
+          </div>
+          <div class="form-group">
+            <label for="equipment_col_notes">Notes Width</label>
+            <input class="form-control" id="equipment_col_notes" type="number" min="4" max="30" step="0.1" name="equipment_col_notes" value="<?= h($layout['layout.equipment_col_notes'] ?? '12') ?>">
+          </div>
+        </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">
             <span class="material-symbols-outlined">save</span>

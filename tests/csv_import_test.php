@@ -434,6 +434,7 @@ assert_true($ruleStmt->fetch() === false, 'Expected deleted rule to be removed f
 $layoutDefaults = export_layout_settings();
 assert_true(array_key_exists('layout.organization_text', $layoutDefaults), 'Expected export layout defaults to include organization text.');
 assert_true(array_key_exists('layout.export_notes', $layoutDefaults), 'Expected export layout defaults to include export notes.');
+assert_true(array_key_exists('layout.equipment_table_width', $layoutDefaults), 'Expected export layout defaults to include equipment table sizing.');
 save_export_layout([
     'header_text' => 'Custom Header',
     'organization_text' => 'Top Right Copy',
@@ -441,10 +442,20 @@ save_export_layout([
     'export_notes' => "One\nTwo",
     'show_page_numbers' => '1',
     'show_revision_summary' => '1',
+    'equipment_table_width' => '96',
+    'equipment_row_padding' => '0.02',
+    'equipment_font_size' => '7.8',
+    'equipment_col_item' => '48',
+    'equipment_col_description' => '22',
+    'equipment_col_used' => '5',
+    'equipment_col_spare' => '5',
+    'equipment_col_total' => '6',
+    'equipment_col_notes' => '10',
 ]);
 $savedLayout = export_layout_settings();
 assert_true(($savedLayout['layout.organization_text'] ?? '') === 'Top Right Copy', 'Expected organization text to persist in export layout settings.');
 assert_true(($savedLayout['layout.export_notes'] ?? '') === "One\nTwo", 'Expected export notes to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_table_width'] ?? '') === '96', 'Expected equipment table width to persist in export layout settings.');
 
 $deleteItemResult = delete_inventory_item($adapterItemId);
 assert_true($deleteItemResult['ok'] === true, 'Expected inventory delete to hard-delete the row.');
