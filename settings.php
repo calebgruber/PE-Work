@@ -89,10 +89,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tmpPath = (string) ($upload['tmp_name'] ?? '');
             $uploadError = (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE);
             $pasteCsv = trim((string) ($_POST['inventory_csv_text'] ?? ''));
-            $isUploadedFile = is_trusted_uploaded_file($tmpPath);
             if ($pasteCsv !== '') {
                 $result = import_inventory_csv_text($pasteCsv);
-            } elseif ($uploadError !== UPLOAD_ERR_OK || !$isUploadedFile) {
+            } elseif ($uploadError !== UPLOAD_ERR_OK || $tmpPath === '' || !is_uploaded_file($tmpPath)) {
                 $result = ['ok' => false, 'message' => 'Choose a CSV file to import.'];
             } else {
                 $result = import_inventory_csv($tmpPath);

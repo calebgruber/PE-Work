@@ -346,6 +346,7 @@ $clearCatalogItemId = ensure_catalog_item('Accessories', 'Cable Crate', 8, 'ea')
 $clearInventoryResult = clear_inventory_items();
 assert_true($clearInventoryResult['ok'] === true, 'Expected clear inventory action to succeed.');
 assert_true((int) db()->query('SELECT COUNT(*) FROM inventory_items')->fetchColumn() === 0, 'Expected clear inventory action to remove all items.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM inventory_categories')->fetchColumn() === 0, 'Expected clear inventory action to remove all categories.');
 assert_true((int) db()->query('SELECT COUNT(*) FROM system_rules')->fetchColumn() === 0, 'Expected clear inventory action to cascade-delete related rules.');
 assert_true((int) db()->query('SELECT COUNT(*) FROM revision_items')->fetchColumn() === 0, 'Expected clear inventory action to remove related revision lines.');
 assert_true($clearCatalogItemId > 0, 'Expected clear-inventory test item creation to succeed before clearing.');
@@ -361,6 +362,10 @@ file_put_contents($emptyCsv, '');
 $emptyResult = import_inventory_csv($emptyCsv);
 assert_true($emptyResult['ok'] === false, 'Expected empty CSV import to fail.');
 assert_true(str_contains($emptyResult['message'], 'empty'), 'Expected empty CSV message.');
+
+$emptyPasteResult = import_inventory_csv_text('');
+assert_true($emptyPasteResult['ok'] === false, 'Expected empty pasted CSV import to fail.');
+assert_true(($emptyPasteResult['message'] ?? '') === 'Paste CSV rows to import.', 'Expected empty pasted CSV warning message.');
 
 $missingPathResult = import_inventory_csv('/tmp/does-not-exist-' . uniqid('', true) . '.csv');
 assert_true($missingPathResult['ok'] === false, 'Expected unreadable CSV import to fail.');

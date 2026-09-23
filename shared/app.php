@@ -1345,6 +1345,9 @@ function clear_inventory_items(): array
         db()->exec('DELETE FROM revision_items');
     }
     db()->exec('DELETE FROM inventory_items');
+    if (table_exists('inventory_categories')) {
+        db()->exec('DELETE FROM inventory_categories');
+    }
     return ['ok' => true, 'message' => 'All inventory items removed.'];
 }
 
