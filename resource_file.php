@@ -45,8 +45,16 @@ if (!is_file($path)) {
 }
 
 $mimeType = detected_upload_mime_type($path);
+$storedMimeType = (string) ($resource['mime_type'] ?? '');
+$effectiveMimeType = $mimeType;
+if (
+    $effectiveMimeType === ''
+    || (!is_allowed_pdf_mime_type($effectiveMimeType) && !is_allowed_image_mime_type($effectiveMimeType))
+) {
+    $effectiveMimeType = $storedMimeType;
+}
 $extension = strtolower(pathinfo((string) ($resource['original_name'] ?? $resource['stored_name'] ?? ''), PATHINFO_EXTENSION));
-if (!resource_file_is_valid($path, $mimeType, $extension)) {
+if (!resource_file_is_valid($path, $effectiveMimeType, $extension)) {
     http_response_code(404);
     exit('Not found');
 }
@@ -55,7 +63,7 @@ while (ob_get_level() > 0) {
     ob_end_clean();
 }
 
-header('Content-Type: ' . ($mimeType !== '' ? $mimeType : (string) ($resource['mime_type'] ?? 'application/octet-stream')));
+header('Content-Type: ' . ($effectiveMimeType !== '' ? $effectiveMimeType : 'application/octet-stream'));
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');

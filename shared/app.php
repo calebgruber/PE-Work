@@ -1596,16 +1596,25 @@ function detected_upload_mime_type(string $path): string
 function resource_file_is_valid(string $path, string $mimeType, string $extension): bool
 {
     $extension = strtolower($extension);
-    if ($extension === 'pdf') {
+    if ($extension === 'pdf' || is_allowed_pdf_mime_type($mimeType)) {
         return pdf_signature_is_valid($path) && ($mimeType === '' || is_allowed_pdf_mime_type($mimeType));
     }
 
-    if (!array_key_exists($extension, resource_extension_mime_map()) || !is_allowed_image_mime_type($mimeType)) {
+    if ($extension !== '' && !array_key_exists($extension, resource_extension_mime_map()) && !is_allowed_image_mime_type($mimeType)) {
         return false;
     }
 
     $imageInfo = @getimagesize($path);
-    return is_array($imageInfo) && !empty($imageInfo[0]) && !empty($imageInfo[1]);
+    if (!is_array($imageInfo) || empty($imageInfo[0]) || empty($imageInfo[1])) {
+        return false;
+    }
+
+    $imageMime = strtolower((string) ($imageInfo['mime'] ?? ''));
+    if ($imageMime !== '' && !is_allowed_image_mime_type($imageMime)) {
+        return false;
+    }
+
+    return $mimeType === '' || is_allowed_image_mime_type($mimeType) || $imageMime !== '';
 }
 
 function upload_root_dir(): string
@@ -1975,7 +1984,7 @@ function find_resource(int $resourceId): ?array
 function resource_path(array $resource): string
 {
     $storedName = (string) ($resource['stored_name'] ?? '');
-    if (!preg_match('/^[0-9]{14}-[a-f0-9]{12}\.pdf$/', $storedName)) {
+    if (!preg_match('/^[0-9]{14}-[a-f0-9]{12}\.(pdf|png|jpe?g|gif|webp)$/i', $storedName)) {
         throw new RuntimeException('Invalid resource path.');
     }
 

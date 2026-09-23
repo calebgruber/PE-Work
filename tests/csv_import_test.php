@@ -516,7 +516,7 @@ $uploadFailure = store_resource_upload([
     'name' => 'broken.pdf',
 ]);
 assert_true($uploadFailure['ok'] === false, 'Expected failed PHP upload errors to be rejected.');
-assert_true(($uploadFailure['message'] ?? '') === 'Choose a PDF file to upload.', 'Expected failed PHP upload errors to surface the missing upload warning.');
+assert_true(($uploadFailure['message'] ?? '') === 'Choose a PDF or image file to upload.', 'Expected failed PHP upload errors to surface the missing upload warning.');
 
 $createRuleResult = save_rule([
     'trigger_item_id' => $fixtureItemId,
