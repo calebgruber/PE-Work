@@ -1362,7 +1362,7 @@ function is_allowed_pdf_mime_type(string $mimeType): bool
 
 function upload_root_dir(): string
 {
-    $path = realpath(__DIR__ . '/../../pe-work-storage') ?: (__DIR__ . '/../../pe-work-storage');
+    $path = RESOURCE_STORAGE_PATH;
     if (!is_dir($path)) {
         mkdir($path, 0775, true);
     }

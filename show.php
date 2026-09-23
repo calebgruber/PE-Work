@@ -202,6 +202,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'validate_revision' && !empty($_POST['revision_id'])) {
+        $revisionId = (int) $_POST['revision_id'];
+        $revision = find_revision($revisionId);
+        if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
+            http_response_code(404);
+            header('Content-Type: application/json');
+            echo json_encode(['warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']]]);
+            exit;
+        }
+
+        header('Content-Type: application/json');
+        echo json_encode([
+            'warnings' => revision_validation_warnings(is_array($_POST['items'] ?? null) ? $_POST['items'] : []),
+        ]);
+        exit;
+    }
+
     if ($action === 'save_revision' && !empty($_POST['revision_id'])) {
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
@@ -259,7 +276,6 @@ if ($mode === 'edit' && !empty($_GET['revision_id'])) {
 
 $catalog = [];
 $totals = ['rent_total' => 0, 'spare_total' => 0, 'overall_total' => 0];
-$editorRules = [];
 if ($mode === 'edit' && $currentRevision) {
     $catalog = catalog_for_revision((int) $currentRevision['id'], $revisionOverrideItems);
     $totals = revision_totals((int) $currentRevision['id']);
@@ -270,17 +286,6 @@ if ($mode === 'edit' && $currentRevision) {
             $totals['spare_total'] += (int) ($line['spare_quantity'] ?? 0);
             $totals['overall_total'] += (int) ($line['total_quantity'] ?? 0);
         }
-    }
-    foreach (fetch_rules() as $rule) {
-        $editorRules[] = [
-            'trigger_item_id' => (int) $rule['trigger_item_id'],
-            'trigger_quantity' => (int) $rule['trigger_quantity'],
-            'required_item_id' => (int) $rule['required_item_id'],
-            'required_quantity' => (int) $rule['required_quantity'],
-            'trigger_item_name' => (string) $rule['trigger_item_name'],
-            'required_item_name' => (string) $rule['required_item_name'],
-            'note' => (string) ($rule['note'] ?? ''),
-        ];
     }
 }
 
@@ -329,7 +334,6 @@ if ($mode === 'edit' && $showId && $currentRevision) {
         <?= csrf_input() ?>
         <input type="hidden" name="action" value="save_revision">
         <input type="hidden" name="revision_id" value="<?= h((string) $currentRevision['id']) ?>">
-        <script id="revision-rules-data" type="application/json"><?= h(json_encode($editorRules, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '[]') ?></script>
 
         <div class="revision-editor-toolbar">
           <div class="form-group">

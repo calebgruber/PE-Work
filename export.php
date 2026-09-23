@@ -143,11 +143,11 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
             $quantity = match ($type) {
                 'spares' => max(0, abs($currentSpares - $previousSpares)),
                 default => match ($action) {
-                    'add' => max(0, $currentTotal - $previousTotal),
-                    'return' => max(0, $previousTotal - $currentTotal),
+                    'add' => max(0, $currentRent - $previousRent),
+                    'return' => max(0, $previousRent - $currentRent),
                     'exchange' => max(1, abs($currentRent - $previousRent) ?: abs($currentTotal - $previousTotal) ?: $currentTotal ?: $previousTotal),
-                    'note' => max(1, $currentTotal ?: $previousTotal),
-                    default => max(1, abs($currentTotal - $previousTotal)),
+                    'note' => max(1, $currentRent ?: $previousRent ?: $currentTotal ?: $previousTotal),
+                    default => max(1, abs($currentRent - $previousRent) ?: abs($currentTotal - $previousTotal)),
                 },
             };
 
@@ -210,7 +210,14 @@ $summaryRows = !empty($layout['layout.show_revision_summary']) ? export_summary_
 $notes = export_notes_list($layout, $show);
 $backTab = !empty($revision['is_initial']) ? 'orders' : 'revisions';
 $editorUrl = url_for('show?show_id=' . $showId . '&tab=' . $backTab . '&mode=edit&revision_id=' . (int) $revision['id']);
-$totalPages = 2 + (!empty($summaryRows) ? 1 : 0);
+$renderSummaryPage = !empty($summaryRows);
+$pageNumbers = ['cover' => 1];
+$nextPageNumber = 2;
+if ($renderSummaryPage) {
+    $pageNumbers['summary'] = $nextPageNumber++;
+}
+$pageNumbers['equipment'] = $nextPageNumber;
+$totalPages = count($pageNumbers);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -435,7 +442,7 @@ $totalPages = 2 + (!empty($summaryRows) ? 1 : 0);
       </div>
     </section>
 
-    <?php if ($summaryRows): ?>
+    <?php if ($renderSummaryPage): ?>
     <section class="page">
       <p class="page-heading">REVISION SUMMARY</p>
       <p class="page-note">NOTE: Not everything is included here; see full revision for complete accessories, etc.</p>
@@ -463,7 +470,7 @@ $totalPages = 2 + (!empty($summaryRows) ? 1 : 0);
       </table>
       <div class="footer">
         <span><?= h($layout['layout.footer_text']) ?></span>
-        <?php if ($layout['layout.show_page_numbers'] === '1'): ?><span>Page 2 of <?= h((string) $totalPages) ?></span><?php endif; ?>
+        <?php if ($layout['layout.show_page_numbers'] === '1'): ?><span>Page <?= h((string) $pageNumbers['summary']) ?> of <?= h((string) $totalPages) ?></span><?php endif; ?>
       </div>
     </section>
     <?php endif; ?>
@@ -504,7 +511,7 @@ $totalPages = 2 + (!empty($summaryRows) ? 1 : 0);
       </table>
       <div class="footer">
         <span><?= h($layout['layout.footer_text']) ?></span>
-        <?php if ($layout['layout.show_page_numbers'] === '1'): ?><span>Page <?= h((string) $totalPages) ?> of <?= h((string) $totalPages) ?></span><?php endif; ?>
+        <?php if ($layout['layout.show_page_numbers'] === '1'): ?><span>Page <?= h((string) $pageNumbers['equipment']) ?> of <?= h((string) $totalPages) ?></span><?php endif; ?>
       </div>
     </section>
   </div>
