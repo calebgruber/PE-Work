@@ -390,7 +390,6 @@
         }
       }
       if (form) {
-      if (form) {
         button.addEventListener('click', trackSubmitter);
         button.addEventListener('keydown', trackSubmitter);
         button.addEventListener('keyup', trackSubmitter);

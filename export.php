@@ -249,7 +249,7 @@ function export_equipment_note(array $item, array $line): string
     return implode(' · ', $parts);
 }
 
-function export_equipment_pages(array $rows, int $rowsPerPage = 30): array
+function export_equipment_pages(array $rows, int $rowsPerPage = 40): array
 {
     if (!$rows) {
         return [[]];
@@ -299,7 +299,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       color: #000;
       font-family: Aptos, Arial, Helvetica, sans-serif;
       font-size: 11pt;
-      line-height: 1.2;
+      line-height: 1.1;
     }
     .toolbar {
       max-width: 8.5in;
@@ -332,6 +332,8 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       margin: 0 auto 1rem;
       padding: 0.55in 0.7in 0.6in;
       box-sizing: border-box;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
       background: #fff;
       box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
       break-inside: avoid-page;
@@ -340,16 +342,17 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     .page:last-child { page-break-after: auto; }
     .page.equipment-page {
-      padding-left: 0.3in;
-      padding-right: 0.3in;
+      padding-left: 0.22in;
+      padding-right: 0.22in;
     }
     .page-content {
-      padding-bottom: 0.55in;
+      min-height: 0;
+      overflow: hidden;
     }
     .top-rule {
       border-bottom: 1px solid #000;
-      padding-bottom: 0.1in;
-      margin-bottom: 0.18in;
+      padding-bottom: 0.08in;
+      margin-bottom: 0.12in;
     }
     .top-rule p,
     .page p { margin: 0 0 0.08in; }
@@ -452,13 +455,13 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     .page-heading {
       text-align: center;
       font-weight: 700;
-      margin-top: 0.08in;
-      margin-bottom: 0.15in;
+      margin-top: 0.03in;
+      margin-bottom: 0.08in;
       letter-spacing: 0.01em;
     }
     .page-note {
       text-align: center;
-      margin-bottom: 0.22in;
+      margin-bottom: 0.14in;
     }
     table.word-table {
       width: 100%;
@@ -469,9 +472,10 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table.equipment-table {
       width: 100%;
-      max-width: 7.9in;
+      max-width: 8.0in;
       margin: 0 auto;
-      font-size: 7.8pt;
+      font-size: 7.05pt;
+      line-height: 1;
     }
     .equipment-table-wrap {
       display: flex;
@@ -481,7 +485,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     }
     table.word-table th,
     table.word-table td {
-      padding: 0.025in 0.04in;
+      padding: 0.015in 0.03in;
       vertical-align: middle;
       text-align: left;
       white-space: nowrap;
@@ -496,14 +500,14 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       font-weight: 700;
     }
     .col-line { width: 4%; }
-    .col-item { width: 44%; }
-    .col-description { width: 22%; }
-    .col-action { width: 11%; }
+    .col-item { width: 45%; }
+    .col-description { width: 23%; }
+    .col-action { width: 9%; }
     .col-qty { width: 13%; }
     .col-used,
-    .col-spare { width: 4.5%; }
-    .col-total { width: 5.5%; }
-    .col-notes { width: 15.5%; }
+    .col-spare { width: 4%; }
+    .col-total { width: 5%; }
+    .col-notes { width: 14%; }
     .item-cell,
     .description-cell,
     .notes-cell {
@@ -513,7 +517,7 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
     .line-cell {
       text-align: right;
       font-weight: 700;
-      font-size: 7.5pt;
+      font-size: 6.8pt;
       padding-right: 0.04in;
     }
     .delta {
@@ -538,12 +542,11 @@ $theatreAddress = trim((string) ($show['theatre_address'] ?? ''));
       }
     }
     .footer {
-      position: absolute;
-      left: 0.7in;
-      right: 0.7in;
-      bottom: 0.28in;
       display: flex;
       justify-content: flex-end;
+      align-items: flex-end;
+      min-height: 0.24in;
+      padding-top: 0.08in;
       font-size: 9pt;
       color: #374151;
       page-break-inside: avoid;
