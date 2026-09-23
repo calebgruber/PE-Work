@@ -301,7 +301,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
     $backTab = revision_return_tab($currentRevision);
     $actions = '<a class="btn btn-ghost" href="' . h(url_for('show?show_id=' . $showId . '&tab=' . $backTab)) . '"><span class="material-symbols-outlined">arrow_back</span>Back</a>';
     $actions .= '<a class="btn btn-primary" href="' . h(url_for('export?show_id=' . $showId . '&revision_id=' . (int) $currentRevision['id'])) . '"><span class="material-symbols-outlined">print</span>Exports</a>';
-    ui_page_header(($show['show_name'] ?: 'Show Workspace') . ' · ' . $currentRevision['revision_code'], 'Edit line items in a focused workspace. Search, review warnings, then click Done when you are finished.', $actions);
+    ui_page_header(($show['show_name'] ?: 'Show Workspace') . ' · ' . revision_display_code($currentRevision), 'Edit line items in a focused workspace. Search, review warnings, then click Done when you are finished.', $actions);
 } else {
     ui_page_header($showId ? ($show['show_name'] ?: 'Show Workspace') : 'Create Show', 'Required contacts are enforced; dates, addresses, and image are optional.', $actions);
 }
@@ -314,9 +314,9 @@ if ($mode === 'edit' && $showId && $currentRevision) {
       <?php render_show_form($show); ?>
     <?php ui_card_close(); ?>
   <?php elseif ($mode === 'edit' && $currentRevision): ?>
-    <?php ui_card_open($currentRevision['is_initial'] ? 'checklist' : 'history', $currentRevision['is_initial'] ? 'Edit Initial Order' : 'Edit ' . $currentRevision['revision_code']); ?>
+    <?php ui_card_open($currentRevision['is_initial'] ? 'checklist' : 'history', $currentRevision['is_initial'] ? 'Edit Initial Order' : 'Edit ' . revision_display_code($currentRevision)); ?>
       <div class="show-summary">
-        <div class="summary-block"><strong>Revision</strong><?= h($currentRevision['revision_code']) ?></div>
+        <div class="summary-block"><strong>Revision</strong><?= h(revision_display_code($currentRevision)) ?></div>
         <div class="summary-block"><strong>Date</strong><?= h($currentRevision['revision_date']) ?></div>
         <div class="summary-block"><strong>Rent Total</strong><?= h((string) $totals['rent_total']) ?></div>
         <div class="summary-block"><strong>Spare Total</strong><?= h((string) $totals['spare_total']) ?></div>
@@ -499,7 +499,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
         <?php else: ?>
           <?php $initialTotals = revision_totals((int) $initialRevision['id']); ?>
           <div class="show-summary">
-            <div class="summary-block"><strong>Order</strong><?= h($initialRevision['revision_code']) ?></div>
+            <div class="summary-block"><strong>Order</strong><?= h(revision_display_code($initialRevision)) ?></div>
             <div class="summary-block"><strong>Date</strong><?= h($initialRevision['revision_date']) ?></div>
             <div class="summary-block"><strong>Rent Total</strong><?= h((string) $initialTotals['rent_total']) ?></div>
             <div class="summary-block"><strong>Spare Total</strong><?= h((string) $initialTotals['spare_total']) ?></div>
@@ -545,7 +545,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
             <div class="summary-block revision-list-card">
               <div class="revision-list-header">
                 <div>
-                  <strong><?= h($revision['revision_code']) ?></strong>
+                  <strong><?= h(revision_display_code($revision)) ?></strong>
                   <div class="muted"><?= h($revision['revision_date']) ?></div>
                 </div>
                 <div class="pill-row">

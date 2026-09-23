@@ -209,6 +209,8 @@ $showId = (int) ($showResult['show']['id'] ?? 0);
 assert_true($showId > 0, 'Expected saved show to have an id.');
 
 $initialRevisionId = create_initial_revision($showId);
+$initialRevision = find_revision($initialRevisionId);
+assert_true(($initialRevision['revision_code'] ?? '') === '1.0', 'Expected initial revision code to be 1.0.');
 $fixtureItemId = ensure_catalog_item('Fixtures', 'SolaFrame 3000', 12, 'ea', 'Profile moving light', 'Manual test fixture row');
 $adapterItemId = ensure_catalog_item('Power', 'Stagepin to True1 Adapter', 20, 'ea', 'Adapter note', 'Manual rule pairing row');
 assert_true($fixtureItemId > 0, 'Expected test inventory item to exist for revision cloning.');
@@ -227,7 +229,7 @@ save_revision_lines($initialRevisionId, [
 
 $nextRevisionId = create_next_revision($showId);
 $nextRevision = find_revision($nextRevisionId);
-assert_true(($nextRevision['revision_code'] ?? '') === 'Rev A', 'Expected next revision code to increment to Rev A.');
+assert_true(($nextRevision['revision_code'] ?? '') === '1.1', 'Expected next revision code to increment to 1.1.');
 
 $lineStmt = db()->prepare('SELECT rent_quantity, spare_quantity, total_quantity, action, line_note, pickup_date, return_date FROM revision_items WHERE revision_id = ? AND inventory_item_id = ?');
 $lineStmt->execute([$nextRevisionId, $fixtureItemId]);
@@ -255,7 +257,7 @@ save_revision_lines($nextRevisionId, [
 ]);
 $thirdRevisionId = create_next_revision($showId);
 $thirdRevision = find_revision($thirdRevisionId);
-assert_true(($thirdRevision['revision_code'] ?? '') === 'Rev B', 'Expected second follow-up revision code to increment to Rev B.');
+assert_true(($thirdRevision['revision_code'] ?? '') === '1.2', 'Expected second follow-up revision code to increment to 1.2.');
 $lineStmt->execute([$thirdRevisionId, $fixtureItemId]);
 $thirdLine = $lineStmt->fetch() ?: [];
 assert_true((int) ($thirdLine['rent_quantity'] ?? 0) === 7, 'Expected later revisions to clone rent quantity from the most recent revision.');

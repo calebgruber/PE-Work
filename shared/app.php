@@ -618,17 +618,14 @@ function find_revision_by_identity(int $showId, string $revisionCode, int $revis
     return $revision ?: null;
 }
 
-function revision_alpha(int $index): string
+function revision_code_for_index(int $index): string
 {
-    $value = '';
-    $number = $index;
+    return '1.' . $index;
+}
 
-    while ($number >= 0) {
-        $value = chr(($number % 26) + 65) . $value;
-        $number = intdiv($number, 26) - 1;
-    }
-
-    return $value;
+function revision_display_code(array $revision): string
+{
+    return revision_code_for_index((int) ($revision['revision_index'] ?? 0));
 }
 
 function create_initial_revision(int $showId): int
@@ -641,7 +638,7 @@ function create_initial_revision(int $showId): int
             'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)
              VALUES (?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$showId, 'Initial', 0, date('Y-m-d'), 1, 'Initial shop order']);
+        $stmt->execute([$showId, revision_code_for_index(0), 0, date('Y-m-d'), 1, 'Initial shop order']);
         $revisionId = (int) $pdo->lastInsertId();
         seed_revision_items($revisionId);
         $pdo->commit();
@@ -674,7 +671,7 @@ function create_next_revision(int $showId): int
         }
 
         $nextIndex = (int) $latest['revision_index'] + 1;
-        $code = 'Rev ' . revision_alpha($nextIndex - 1);
+        $code = revision_code_for_index($nextIndex);
 
         $stmt = $pdo->prepare(
             'INSERT INTO show_revisions (show_id, revision_code, revision_index, revision_date, is_initial, summary_note)

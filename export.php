@@ -159,10 +159,6 @@ function export_summary_rows(array $catalog, array $revision, string $type): arr
             if (!empty($item['description'])) {
                 $descriptionBits[] = $item['description'];
             }
-            if (!empty($line['line_note'])) {
-                $descriptionBits[] = $line['line_note'];
-            }
-
             $rows[] = [
                 'category' => $category['name'],
                 'item' => $item,
@@ -195,6 +191,39 @@ function export_row_background(array $revision, array $item, array $line): strin
     };
 }
 
+function export_row_style(int $rowIndex, array $revision, array $item, array $line): string
+{
+    $actionBackground = export_row_background($revision, $item, $line);
+    if ($actionBackground !== '') {
+        return $actionBackground;
+    }
+
+    return $rowIndex % 2 === 0 ? 'background:#F3F4F6;' : 'background:#FFFFFF;';
+}
+
+function export_line_delta(array $revision, int $itemId, array $line, string $field): string
+{
+    if (!empty($revision['is_initial'])) {
+        return '';
+    }
+
+    $previous = export_previous_revision($revision);
+    if (!$previous) {
+        return '';
+    }
+
+    $previousMap = export_revision_line_map((int) $previous['id']);
+    $previousValue = (int) (($previousMap[$itemId][$field] ?? 0));
+    $currentValue = (int) ($line[$field] ?? 0);
+    $delta = $currentValue - $previousValue;
+
+    if ($delta === 0) {
+        return '';
+    }
+
+    return ($delta > 0 ? '+' : '') . (string) $delta;
+}
+
 function export_value(string $value, string $fallback = '—'): string
 {
     $value = trim($value);
@@ -205,6 +234,7 @@ $type = $_GET['type'] ?? 'order';
 $labels = export_type_labels($type);
 $layout = export_layout_settings();
 $catalog = catalog_for_revision((int) $revision['id']);
+$revisionCode = revision_display_code($revision);
 $equipmentRows = export_equipment_rows($catalog, $type);
 $summaryRows = (($layout['layout.show_revision_summary'] ?? '1') === '1') ? export_summary_rows($catalog, $revision, $type) : [];
 $notes = export_notes_list($layout, $show);
@@ -294,13 +324,16 @@ $totalPages = count($pageNumbers);
     }
     .detail-block {
       width: 3.25in;
-      margin-left: 3.2in;
-      margin-bottom: 0.12in;
+      margin-left: 2.55in;
+      margin-bottom: 0.1in;
     }
     .detail-gap { margin-bottom: 0.2in; }
     .detail-label {
       display: inline-block;
-      min-width: 1.62in;
+      min-width: 1.3in;
+    }
+    .detail-subline {
+      padding-left: 1.3in;
     }
     .notes-heading {
       margin-top: 0.45in;
@@ -328,13 +361,15 @@ $totalPages = count($pageNumbers);
       border-collapse: collapse;
       table-layout: fixed;
       margin-top: 0.12in;
+      font-size: 9pt;
     }
     table.word-table th,
     table.word-table td {
-      padding: 0.06in 0.08in;
-      vertical-align: top;
+      padding: 0.05in 0.06in;
+      vertical-align: middle;
       text-align: center;
-      word-wrap: break-word;
+      white-space: nowrap;
+      overflow: hidden;
     }
     table.word-table thead th {
       border-bottom: 1px solid #666;
@@ -351,6 +386,13 @@ $totalPages = count($pageNumbers);
     .col-total { width: 0.6in; }
     .col-notes { width: 2.1in; }
     .line-cell { text-align: right; font-weight: 700; }
+    .delta {
+      margin-left: 0.12rem;
+      font-size: 8pt;
+      font-weight: 700;
+    }
+    .delta-positive { color: #166534; }
+    .delta-negative { color: #991b1b; }
     .spacer-row td {
       text-align: left;
       font-weight: 700;
@@ -392,33 +434,33 @@ $totalPages = count($pageNumbers);
       <div class="center-title">
         <p class="show-name">&quot;<?= h($show['show_name']) ?>&quot;</p>
         <p class="subtitle"><?= h($labels['title']) ?></p>
-        <p class="revised"><?= !empty($revision['is_initial']) ? 'INITIAL ORDER ' . h($revision['revision_date']) : 'REVISED ' . h($revision['revision_date']) ?></p>
+        <p class="revised">REVISION <?= h($revisionCode) ?> · <?= !empty($revision['is_initial']) ? 'INITIAL ORDER' : 'REVISED' ?> <?= h($revision['revision_date']) ?></p>
       </div>
 
       <div class="detail-block">
         <p><span class="detail-label">Designer:</span><?= h(export_value((string) ($show['ld_name'] ?? ''))) ?></p>
-        <p><?= h(export_value((string) ($show['ld_email'] ?? ''))) ?></p>
-        <p><?= h(export_value((string) ($show['ld_phone'] ?? ''))) ?></p>
+        <p class="detail-subline"><?= h(export_value((string) ($show['ld_email'] ?? ''))) ?></p>
+        <p class="detail-subline"><?= h(export_value((string) ($show['ld_phone'] ?? ''))) ?></p>
       </div>
       <div class="detail-block detail-gap">
         <p><span class="detail-label">Assistant Designer:</span><?= h(export_value((string) ($show['assistant_ld_name'] ?? ''))) ?></p>
-        <p><?= h(export_value((string) ($show['assistant_ld_email'] ?? ''))) ?></p>
-        <p><?= h(export_value((string) ($show['assistant_ld_phone'] ?? ''))) ?></p>
+        <p class="detail-subline"><?= h(export_value((string) ($show['assistant_ld_email'] ?? ''))) ?></p>
+        <p class="detail-subline"><?= h(export_value((string) ($show['assistant_ld_phone'] ?? ''))) ?></p>
       </div>
       <div class="detail-block detail-gap">
         <p><span class="detail-label">Production Electrician:</span><?= h(export_value((string) ($show['production_electrician_name'] ?? ''))) ?></p>
-        <p><?= h(export_value((string) ($show['production_electrician_email'] ?? ''))) ?></p>
-        <p><?= h(export_value((string) ($show['production_electrician_phone'] ?? ''))) ?></p>
+        <p class="detail-subline"><?= h(export_value((string) ($show['production_electrician_email'] ?? ''))) ?></p>
+        <p class="detail-subline"><?= h(export_value((string) ($show['production_electrician_phone'] ?? ''))) ?></p>
       </div>
       <div class="detail-block detail-gap">
         <p><span class="detail-label">Shop Manager:</span><?= h(export_value((string) ($show['shop_manager_name'] ?? ''))) ?></p>
-        <p><?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?></p>
-        <p><?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></p>
+        <p class="detail-subline"><?= h(export_value((string) ($show['shop_manager_email'] ?? ''))) ?></p>
+        <p class="detail-subline"><?= h(export_value((string) ($show['shop_manager_phone'] ?? ''))) ?></p>
       </div>
       <div class="detail-block detail-gap">
         <p><span class="detail-label">Assistant Shop Manager:</span><?= h(export_value((string) ($show['assistant_shop_manager_name'] ?? ''))) ?></p>
-        <p><?= h(export_value((string) ($show['assistant_shop_manager_email'] ?? ''))) ?></p>
-        <p><?= h(export_value((string) ($show['assistant_shop_manager_phone'] ?? ''))) ?></p>
+        <p class="detail-subline"><?= h(export_value((string) ($show['assistant_shop_manager_email'] ?? ''))) ?></p>
+        <p class="detail-subline"><?= h(export_value((string) ($show['assistant_shop_manager_phone'] ?? ''))) ?></p>
       </div>
       <div class="detail-block detail-gap">
         <p><span class="detail-label">Load-In:</span><u><?= h(export_value((string) ($show['pull_date'] ?? ''))) ?></u></p>
@@ -444,7 +486,7 @@ $totalPages = count($pageNumbers);
 
     <?php if ($renderSummaryPage): ?>
     <section class="page">
-      <p class="page-heading">REVISION SUMMARY</p>
+      <p class="page-heading">REVISION SUMMARY · <?= h($revisionCode) ?></p>
       <p class="page-note">NOTE: Not everything is included here; see full revision for complete accessories, etc.</p>
       <table class="word-table">
         <thead>
@@ -458,7 +500,7 @@ $totalPages = count($pageNumbers);
         </thead>
         <tbody>
           <?php foreach ($summaryRows as $index => $row): ?>
-          <tr style="<?= h(export_row_background($revision, $row['item'], $row['line'])) ?>">
+          <tr style="<?= h(export_row_style($index, $revision, $row['item'], $row['line'])) ?>">
             <td class="line-cell"><?= h((string) ($index + 1)) ?></td>
             <td><?= h($row['item']['name']) ?></td>
             <td><?= h($row['description']) ?></td>
@@ -476,7 +518,7 @@ $totalPages = count($pageNumbers);
     <?php endif; ?>
 
     <section class="page">
-      <p class="page-heading"><?= h($labels['equipment_heading']) ?></p>
+      <p class="page-heading"><?= h($labels['equipment_heading']) ?> · <?= h($revisionCode) ?></p>
       <table class="word-table">
         <thead>
           <tr>
@@ -497,13 +539,17 @@ $totalPages = count($pageNumbers);
             <td colspan="7"><?= h($row['item']['name']) ?><?php if (!empty($row['item']['description'])): ?> · <?= h($row['item']['description']) ?><?php endif; ?></td>
           </tr>
           <?php continue; endif; ?>
-          <tr style="<?= h(export_row_background($revision, $row['item'], $row['line'])) ?>">
+          <?php $delta = export_line_delta($revision, (int) $row['item']['id'], $row['line'], 'rent_quantity'); ?>
+          <tr style="<?= h(export_row_style($lineNumber - 1, $revision, $row['item'], $row['line'])) ?>">
             <td class="line-cell"><?= h((string) $lineNumber++) ?></td>
             <td><?= h($row['item']['name']) ?></td>
             <td><?= h($row['category']) ?></td>
             <td><?= h((string) ($row['line']['rent_quantity'] ?? 0)) ?></td>
             <td><?= h((string) ($row['line']['spare_quantity'] ?? 0)) ?></td>
-            <td><?= $type === 'returns' ? '__________' : h((string) ($row['line']['total_quantity'] ?? 0)) ?></td>
+            <td>
+              <?= $type === 'returns' ? '__________' : h((string) ($row['line']['total_quantity'] ?? 0)) ?>
+              <?php if ($delta !== ''): ?><span class="delta <?= str_starts_with($delta, '-') ? 'delta-negative' : 'delta-positive' ?>"><?= h($delta) ?></span><?php endif; ?>
+            </td>
             <td><?= h((string) (($row['line']['line_note'] ?: ($row['item']['default_note'] ?? '')) ?: '')) ?></td>
           </tr>
           <?php endforeach; ?>
