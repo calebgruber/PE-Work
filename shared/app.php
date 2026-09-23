@@ -462,6 +462,11 @@ function catalog_for_revision(?int $revisionId): array
 
 function save_revision_lines(int $revisionId, array $items): void
 {
+    $allowedIds = [];
+    foreach (db()->query('SELECT id FROM inventory_items WHERE is_active = 1')->fetchAll() as $row) {
+        $allowedIds[(int) $row['id']] = true;
+    }
+
     $lookup = db()->prepare('SELECT id FROM revision_items WHERE revision_id = ? AND inventory_item_id = ?');
     $update = db()->prepare(
         'UPDATE revision_items
@@ -475,6 +480,11 @@ function save_revision_lines(int $revisionId, array $items): void
     );
 
     foreach ($items as $itemId => $row) {
+        $itemId = (int) $itemId;
+        if (!isset($allowedIds[$itemId])) {
+            continue;
+        }
+
         $rent = max(0, (int) ($row['rent_quantity'] ?? 0));
         $spares = max(0, (int) ($row['spare_quantity'] ?? 0));
         $total = $rent + $spares;

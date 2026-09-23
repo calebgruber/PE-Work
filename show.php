@@ -33,8 +33,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'create_initial_revision' && $showId) {
-        $revisionId = create_initial_revision($showId);
-        flash('success', 'Initial shop order created.');
+        $existing = find_latest_revision($showId);
+        if ($existing) {
+            $revisionId = (int) $existing['id'];
+            flash('info', 'Initial shop order already exists.');
+        } else {
+            $revisionId = create_initial_revision($showId);
+            flash('success', 'Initial shop order created.');
+        }
         header('Location: ' . url_for('show?show_id=' . $showId . '&revision_id=' . $revisionId));
         exit;
     }

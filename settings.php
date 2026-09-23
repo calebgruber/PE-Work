@@ -13,7 +13,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'run_migrations') {
         $migrationLogs = run_pending_migrations();
-        flash('success', 'Migration run completed. Review the results below.');
+        $hasError = false;
+        foreach ($migrationLogs as $log) {
+            if (($log['status'] ?? '') === 'error') {
+                $hasError = true;
+                break;
+            }
+        }
+        flash($hasError ? 'danger' : 'success', $hasError ? 'Migration run finished with errors. Review the results below.' : 'Migration run completed successfully.');
         $tab = 'migrations';
     } elseif (schema_ready()) {
         if ($action === 'save_inventory') {
