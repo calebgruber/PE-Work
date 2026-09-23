@@ -234,7 +234,7 @@ $resourceStmt->execute(['Shop Resource']);
 $resourceRow = $resourceStmt->fetch() ?: [];
 $storedName = (string) ($resourceRow['stored_name'] ?? '');
 if ($storedName !== '') {
-    $testPaths[] = $repoRoot . '/storage/uploads/resources/' . $storedName;
+    $testPaths[] = upload_dir('resources') . '/' . $storedName;
 }
 
 settings_assert($resourceStatus === 0, 'Expected resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
@@ -245,12 +245,16 @@ settings_assert(str_contains($resourceBody, 'Resource uploaded.'), 'Expected red
 
 $resourceFetchHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-fetch-headers-');
 $resourceFetchPath = tempnam(sys_get_temp_dir(), 'pew-resource-fetch-');
+$resourceDownloadHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-download-headers-');
+$resourceDownloadPath = tempnam(sys_get_temp_dir(), 'pew-resource-download-');
 $resourceForbiddenHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-forbidden-headers-');
 $resourceForbiddenPath = tempnam(sys_get_temp_dir(), 'pew-resource-forbidden-');
 $resourceInvalidHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-invalid-headers-');
 $resourceInvalidPath = tempnam(sys_get_temp_dir(), 'pew-resource-invalid-');
 $testPaths[] = $resourceFetchHeadersPath;
 $testPaths[] = $resourceFetchPath;
+$testPaths[] = $resourceDownloadHeadersPath;
+$testPaths[] = $resourceDownloadPath;
 $testPaths[] = $resourceForbiddenHeadersPath;
 $testPaths[] = $resourceForbiddenPath;
 $testPaths[] = $resourceInvalidHeadersPath;
@@ -262,6 +266,12 @@ exec(sprintf(
     escapeshellarg($resourceFetchHeadersPath),
     escapeshellarg($resourceUrl)
 ), $resourceFetchOutput, $resourceFetchStatus);
+exec(sprintf(
+    "curl -fsS -o %s -D %s %s",
+    escapeshellarg($resourceDownloadPath),
+    escapeshellarg($resourceDownloadHeadersPath),
+    escapeshellarg($resourceUrl . '&download=1')
+), $resourceDownloadOutput, $resourceDownloadStatus);
 exec(sprintf(
     "curl -sS -o %s -D %s %s",
     escapeshellarg($resourceForbiddenPath),
@@ -275,13 +285,18 @@ exec(sprintf(
     escapeshellarg($baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0) . '&token=invalid-token')
 ), $resourceInvalidOutput, $resourceInvalidStatus);
 $resourceFetchHeaders = is_file($resourceFetchHeadersPath) ? file_get_contents($resourceFetchHeadersPath) : '';
+$resourceDownloadHeaders = is_file($resourceDownloadHeadersPath) ? file_get_contents($resourceDownloadHeadersPath) : '';
 $resourceForbiddenHeaders = is_file($resourceForbiddenHeadersPath) ? file_get_contents($resourceForbiddenHeadersPath) : '';
 $resourceInvalidHeaders = is_file($resourceInvalidHeadersPath) ? file_get_contents($resourceInvalidHeadersPath) : '';
 $resourceFetchBody = is_file($resourceFetchPath) ? file_get_contents($resourceFetchPath) : '';
+$resourceDownloadBody = is_file($resourceDownloadPath) ? file_get_contents($resourceDownloadPath) : '';
 
 settings_assert($resourceFetchStatus === 0, 'Expected signed resource URL to be fetchable.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($resourceFetchHeaders, 'Content-Type: application/pdf'), 'Expected signed resource URL to return a PDF response.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_starts_with($resourceFetchBody, '%PDF-'), 'Expected signed resource URL to stream the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($resourceDownloadStatus === 0, 'Expected signed resource download URL to be fetchable.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceDownloadHeaders, 'Content-Disposition: attachment;'), 'Expected download mode to force attachment disposition.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_starts_with($resourceDownloadBody, '%PDF-'), 'Expected download mode to stream the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($resourceForbiddenStatus === 0, 'Expected unsigned resource request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($resourceForbiddenHeaders, '403 Forbidden'), 'Expected missing token resource request to be rejected.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($resourceInvalidStatus === 0, 'Expected invalid-token resource request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);

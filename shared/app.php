@@ -1326,8 +1326,33 @@ function clear_inventory_items(): array
 
 function pdf_signature_is_valid(string $path): bool
 {
-    $signature = @file_get_contents($path, false, null, 0, 5);
-    return $signature === '%PDF-';
+    if (!is_file($path)) {
+        return false;
+    }
+
+    $handle = @fopen($path, 'rb');
+    if (!$handle) {
+        return false;
+    }
+
+    $header = (string) fread($handle, 1024);
+    if (!preg_match('/^%PDF-\d\.\d/', $header)) {
+        fclose($handle);
+        return false;
+    }
+
+    $size = filesize($path);
+    if ($size === false || $size < 32) {
+        fclose($handle);
+        return false;
+    }
+
+    $tailLength = min(2048, $size);
+    fseek($handle, -$tailLength, SEEK_END);
+    $tail = (string) fread($handle, $tailLength);
+    fclose($handle);
+
+    return str_contains($tail, '%%EOF');
 }
 
 function is_allowed_pdf_mime_type(string $mimeType): bool
@@ -1335,9 +1360,18 @@ function is_allowed_pdf_mime_type(string $mimeType): bool
     return in_array($mimeType, ['application/pdf', 'application/x-pdf'], true);
 }
 
+function upload_root_dir(): string
+{
+    $path = realpath(__DIR__ . '/../../pe-work-storage') ?: (__DIR__ . '/../../pe-work-storage');
+    if (!is_dir($path)) {
+        mkdir($path, 0775, true);
+    }
+    return $path;
+}
+
 function upload_dir(string $subdir = ''): string
 {
-    $path = realpath(__DIR__ . '/../storage/uploads') ?: (__DIR__ . '/../storage/uploads');
+    $path = upload_root_dir() . '/uploads';
     if ($subdir !== '') {
         $safeSubdir = trim($subdir, '/');
         if (!preg_match('/^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/', $safeSubdir)) {
@@ -1469,7 +1503,17 @@ function resource_path(array $resource): string
         throw new RuntimeException('Invalid resource path.');
     }
 
-    return upload_dir('resources') . '/' . $storedName;
+    $currentPath = upload_dir('resources') . '/' . $storedName;
+    if (is_file($currentPath)) {
+        return $currentPath;
+    }
+
+    $legacyPath = (__DIR__ . '/../storage/uploads/resources/' . $storedName);
+    if (is_file($legacyPath)) {
+        return $legacyPath;
+    }
+
+    return $currentPath;
 }
 
 function resource_access_token(array $resource): string

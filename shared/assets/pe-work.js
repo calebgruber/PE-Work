@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  const revisionRowCache = new WeakMap();
+
   function actionClass(action) {
     return {
       add: 'action-row-add',
@@ -16,11 +18,25 @@
     panel.classList.toggle('hidden', !isOpen);
   }
 
+  function rowControls(row) {
+    if (!revisionRowCache.has(row)) {
+      revisionRowCache.set(row, {
+        select: row.querySelector('[data-action-select]'),
+        rent: row.querySelector('[data-rent-input]'),
+        spares: row.querySelector('[data-spare-input]'),
+        total: row.querySelector('[data-total-output]'),
+        stockWarning: row.querySelector('[data-stock-warning]')
+      });
+    }
+    return revisionRowCache.get(row);
+  }
+
   function updateRowState(row) {
-    const select = row.querySelector('[data-action-select]');
-    const rent = row.querySelector('[data-rent-input]');
-    const spares = row.querySelector('[data-spare-input]');
-    const total = row.querySelector('[data-total-output]');
+    const controls = rowControls(row);
+    const select = controls.select;
+    const rent = controls.rent;
+    const spares = controls.spares;
+    const total = controls.total;
     if (!select || !rent || !spares || !total) return;
 
     row.classList.remove('action-row-add', 'action-row-return', 'action-row-exchange', 'action-row-note');
@@ -30,7 +46,7 @@
     const totalValue = (parseInt(rent.value || '0', 10) || 0) + (parseInt(spares.value || '0', 10) || 0);
     total.textContent = String(totalValue);
 
-    const stockWarning = row.querySelector('[data-stock-warning]');
+    const stockWarning = controls.stockWarning;
     const shopQuantity = parseInt(row.getAttribute('data-shop-quantity') || '0', 10) || 0;
     if (stockWarning) {
       const overStock = totalValue > shopQuantity;
@@ -73,13 +89,14 @@
     }
 
     function itemRent(item) {
-      const input = item.querySelector('[data-rent-input]');
+      const input = rowControls(item).rent;
       return parseInt(input?.value || '0', 10) || 0;
     }
 
     function itemTotal(item) {
-      const rent = item.querySelector('[data-rent-input]');
-      const spares = item.querySelector('[data-spare-input]');
+      const controls = rowControls(item);
+      const rent = controls.rent;
+      const spares = controls.spares;
       return (parseInt(rent?.value || '0', 10) || 0) + (parseInt(spares?.value || '0', 10) || 0);
     }
 

@@ -52,7 +52,7 @@ if (function_exists('finfo_open')) {
         finfo_close($finfo);
     }
 }
-if (!pdf_signature_is_valid($path) || ($mimeType !== '' && $mimeType !== 'application/pdf')) {
+if (!pdf_signature_is_valid($path) || ($mimeType !== '' && !is_allowed_pdf_mime_type($mimeType))) {
     http_response_code(404);
     exit('Not found');
 }
