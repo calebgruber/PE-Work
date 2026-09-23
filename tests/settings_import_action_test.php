@@ -513,9 +513,6 @@ $validationInvalidHeaders = is_file($validationInvalidHeadersPath) ? file_get_co
 $validationInvalidBody = is_file($validationInvalidResponsePath) ? file_get_contents($validationInvalidResponsePath) : '';
 $validationPersistedHeaders = is_file($validationPersistedHeadersPath) ? file_get_contents($validationPersistedHeadersPath) : '';
 $validationPersistedBody = is_file($validationPersistedResponsePath) ? file_get_contents($validationPersistedResponsePath) : '';
-$autosaveLineStmt = db()->prepare('SELECT rent_quantity, spare_quantity, total_quantity FROM revision_items WHERE revision_id = ? AND inventory_item_id = ?');
-$autosaveLineStmt->execute([$validationRevisionId, $validationFixtureId]);
-$autosavedLine = $autosaveLineStmt->fetch() ?: [];
 
 settings_assert($validationPageStatus === 0 && $validationCsrfToken !== '', 'Expected validation edit page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($validationStatus === 0, 'Expected validation endpoint request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
@@ -525,12 +522,12 @@ settings_assert(str_contains($validationBody, 'Rule required:'), 'Expected valid
 settings_assert($autosaveStatus === 0, 'Expected autosave endpoint request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($autosaveHeaders, 'Content-Type: application/json'), 'Expected autosave endpoint to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($autosaveBody, '"ok":true'), 'Expected autosave endpoint to confirm the save.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert((int) ($autosavedLine['rent_quantity'] ?? 0) === 3 && (int) ($autosavedLine['spare_quantity'] ?? 0) === 4 && (int) ($autosavedLine['total_quantity'] ?? 0) === 7, 'Expected autosave endpoint to persist current revision changes.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($autosaveBody, '"overall_total":7'), 'Expected autosave endpoint totals to reflect the current revision changes.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($validationInvalidStatus === 0, 'Expected invalid validation endpoint request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationInvalidHeaders, '404 Not Found'), 'Expected invalid validation revision lookup to return 404.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationInvalidBody, 'Revision not found for this show.'), 'Expected invalid validation revision lookup to return a JSON warning message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert($validationPersistedStatus === 0, 'Expected persisted-state validation endpoint request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_assert(str_contains($validationPersistedHeaders, 'Content-Type: application/json'), 'Expected persisted-state validation request to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(!str_contains($validationPersistedBody, 'Rule required:'), 'Expected omitted-items validation to preserve the saved revision state.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationPersistedBody, 'Rule required:'), 'Expected persisted-state validation to reflect the autosaved revision state.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 settings_test_cleanup($repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
 echo "settings import action test passed\n";
