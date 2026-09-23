@@ -679,7 +679,7 @@ function create_next_revision(int $showId): int
         );
         $stmt->execute([$showId, $code, $nextIndex, date('Y-m-d'), 0, 'Revision created from ' . $latest['revision_code']]);
         $revisionId = (int) $pdo->lastInsertId();
-        seed_revision_items($revisionId, (int) $latest['id']);
+        seed_revision_items($revisionId, (int) $latest['id'], true);
         $pdo->commit();
         return $revisionId;
     } catch (Throwable $e) {
@@ -696,7 +696,7 @@ function create_next_revision(int $showId): int
     }
 }
 
-function seed_revision_items(int $revisionId, ?int $sourceRevisionId = null): void
+function seed_revision_items(int $revisionId, ?int $sourceRevisionId = null, bool $resetRevisionMarkers = false): void
 {
     if ($sourceRevisionId) {
         $rows = db()->prepare(
@@ -722,7 +722,7 @@ function seed_revision_items(int $revisionId, ?int $sourceRevisionId = null): vo
             (int) ($item['rent_quantity'] ?? 0),
             (int) ($item['spare_quantity'] ?? 0),
             (int) ($item['total_quantity'] ?? 0),
-            (string) ($item['action'] ?? ''),
+            $resetRevisionMarkers ? '' : (string) ($item['action'] ?? ''),
             (string) ($item['line_note'] ?? ''),
             $item['pickup_date'] ?: null,
             $item['return_date'] ?: null,

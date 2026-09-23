@@ -30,6 +30,11 @@ if ($path !== '/' && file_exists($fullPath) && !is_dir($fullPath)) {
         }
     }
 
+    if (str_ends_with($path, '.php')) {
+        require $fullPath;
+        return true;
+    }
+
     http_response_code(404);
     echo 'Not Found';
     return true;

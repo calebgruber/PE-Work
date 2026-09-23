@@ -237,11 +237,11 @@ $clonedLine = $lineStmt->fetch() ?: [];
 assert_true((int) ($clonedLine['rent_quantity'] ?? 0) === 6, 'Expected next revision to clone rent quantity.');
 assert_true((int) ($clonedLine['spare_quantity'] ?? 0) === 2, 'Expected next revision to clone spare quantity.');
 assert_true((int) ($clonedLine['total_quantity'] ?? 0) === 8, 'Expected next revision to clone total quantity.');
-assert_true(($clonedLine['action'] ?? '') === 'add', 'Expected next revision to clone action.');
+assert_true(($clonedLine['action'] ?? '') === '', 'Expected next revision to reset action markers back to blank.');
 assert_true(($clonedLine['line_note'] ?? '') === 'Clone this into the next revision.', 'Expected next revision to clone notes.');
 assert_true(($clonedLine['pickup_date'] ?? '') === '2026-10-01', 'Expected next revision to clone pickup date.');
 assert_true(($clonedLine['return_date'] ?? '') === '2026-10-15', 'Expected next revision to clone return date.');
-assert_true(export_row_action_class($nextRevision, ['is_spacer' => 0], $clonedLine) === 'export-row-add', 'Expected revised add lines to get the pale green export class.');
+assert_true(export_row_action_class($nextRevision, ['is_spacer' => 0], $clonedLine) === '', 'Expected carried-forward lines in a new revision to reset to blank export styling.');
 assert_true(export_row_action_class(find_revision($initialRevisionId) ?: [], ['is_spacer' => 0], ['action' => 'add']) === '', 'Expected initial revision lines to avoid revised export coloring.');
 assert_true(export_row_action_class($nextRevision, ['is_spacer' => 1], ['action' => 'add']) === '', 'Expected spacer rows to avoid revised export coloring.');
 
@@ -262,7 +262,7 @@ $lineStmt->execute([$thirdRevisionId, $fixtureItemId]);
 $thirdLine = $lineStmt->fetch() ?: [];
 assert_true((int) ($thirdLine['rent_quantity'] ?? 0) === 7, 'Expected later revisions to clone rent quantity from the most recent revision.');
 assert_true((int) ($thirdLine['spare_quantity'] ?? 0) === 1, 'Expected later revisions to clone spare quantity from the most recent revision.');
-assert_true(($thirdLine['action'] ?? '') === 'exchange', 'Expected later revisions to clone the latest action.');
+assert_true(($thirdLine['action'] ?? '') === '', 'Expected later revisions to reset the latest action marker back to blank.');
 assert_true(($thirdLine['line_note'] ?? '') === 'Latest revision should clone from here.', 'Expected later revisions to clone the latest note.');
 
 $createRuleResult = save_rule([

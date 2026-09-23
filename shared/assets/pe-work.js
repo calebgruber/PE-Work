@@ -105,7 +105,7 @@
       formData.set('action', 'validate_revision');
       const validationRun = ++latestValidationRun;
 
-      fetch(window.location.href, {
+      fetch(editor.getAttribute('action') || window.location.href, {
         method: 'POST',
         headers: {
           'X-Requested-With': 'XMLHttpRequest'

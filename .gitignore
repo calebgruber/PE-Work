@@ -4,3 +4,5 @@ storage/*.sqlite
 storage/.app_secret
 storage/uploads/*
 !storage/uploads/.gitignore
+storage/private/uploads/*
+!storage/private/uploads/.gitignore
