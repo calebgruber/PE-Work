@@ -639,9 +639,17 @@ ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and
             <input class="form-control" id="header_text" name="header_text" value="<?= h($layout['layout.header_text']) ?>">
           </div>
           <div class="form-group">
+            <label for="organization_text">Top Right Header Text</label>
+            <input class="form-control" id="organization_text" name="organization_text" value="<?= h($layout['layout.organization_text'] ?? '') ?>">
+          </div>
+          <div class="form-group">
             <label for="footer_text">Footer Text</label>
             <input class="form-control" id="footer_text" name="footer_text" value="<?= h($layout['layout.footer_text']) ?>">
           </div>
+        </div>
+        <div class="form-group" style="margin-top:1rem;">
+          <label for="export_notes">Default Important Notes</label>
+          <textarea class="form-control" id="export_notes" name="export_notes" rows="8"><?= h($layout['layout.export_notes'] ?? '') ?></textarea>
         </div>
         <div class="pill-row" style="margin-top:1rem;">
           <label class="tab"><input type="checkbox" name="show_image" value="1" <?= $layout['layout.show_image'] === '1' ? 'checked' : '' ?>> Show image on exports</label>

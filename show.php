@@ -143,6 +143,7 @@ if (!in_array($tab, ['info', 'orders', 'revisions'], true)) {
     $tab = 'info';
 }
 $mode = ($_GET['mode'] ?? '') === 'edit' ? 'edit' : 'view';
+$revisionOverrideItems = [];
 $show = $showId ? find_show($showId) : blank_show();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -209,16 +210,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit('Revision not found for this show.');
         }
 
-        save_revision_lines($revisionId, $_POST['items'] ?? []);
-        flash('success', 'Order changes saved.');
-
-        $returnTab = revision_return_tab($revision);
-        if (isset($_POST['finish_revision'])) {
-            header('Location: ' . url_for('show?show_id=' . $showId . '&tab=' . $returnTab));
+        $revisionOverrideItems = is_array($_POST['items'] ?? null) ? $_POST['items'] : [];
+        $validationWarnings = revision_validation_warnings($revisionOverrideItems);
+        if ($validationWarnings) {
+            foreach ($validationWarnings as $warning) {
+                flash('danger', $warning['message']);
+            }
         } else {
-            header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=' . $returnTab . '&revision_id=' . $revisionId));
+            save_revision_lines($revisionId, $revisionOverrideItems);
+            flash('success', 'Order changes saved.');
+
+            $returnTab = revision_return_tab($revision);
+            if (isset($_POST['finish_revision'])) {
+                header('Location: ' . url_for('show?show_id=' . $showId . '&tab=' . $returnTab));
+            } else {
+                header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=' . $returnTab . '&revision_id=' . $revisionId));
+            }
+            exit;
         }
-        exit;
     }
 }
 
@@ -252,8 +261,16 @@ $catalog = [];
 $totals = ['rent_total' => 0, 'spare_total' => 0, 'overall_total' => 0];
 $editorRules = [];
 if ($mode === 'edit' && $currentRevision) {
-    $catalog = catalog_for_revision((int) $currentRevision['id']);
+    $catalog = catalog_for_revision((int) $currentRevision['id'], $revisionOverrideItems);
     $totals = revision_totals((int) $currentRevision['id']);
+    if ($revisionOverrideItems) {
+        $totals = ['rent_total' => 0, 'spare_total' => 0, 'overall_total' => 0];
+        foreach (normalize_revision_lines_input($revisionOverrideItems) as $line) {
+            $totals['rent_total'] += (int) ($line['rent_quantity'] ?? 0);
+            $totals['spare_total'] += (int) ($line['spare_quantity'] ?? 0);
+            $totals['overall_total'] += (int) ($line['total_quantity'] ?? 0);
+        }
+    }
     foreach (fetch_rules() as $rule) {
         $editorRules[] = [
             'trigger_item_id' => (int) $rule['trigger_item_id'],
@@ -321,12 +338,13 @@ if ($mode === 'edit' && $showId && $currentRevision) {
           </div>
           <div class="revision-editor-helper">
             <span class="material-symbols-outlined">info</span>
-            <span>Warnings update live as you edit. Orders and revisions stay editable after you click Done.</span>
+            <span>Blocking warnings update live as you edit. You cannot save until stock and rule requirements are corrected.</span>
           </div>
         </div>
 
         <div class="revision-alerts hidden" data-revision-warnings-wrap>
-          <strong>Warnings</strong>
+          <strong>Blocking warnings</strong>
+          <div class="muted">Every required rule and every stock overage must be fixed before you can save or finish this order.</div>
           <div class="revision-alert-list" data-revision-warnings></div>
         </div>
 
@@ -424,11 +442,11 @@ if ($mode === 'edit' && $showId && $currentRevision) {
         </div>
 
         <div class="form-actions">
-          <button type="submit" class="btn btn-ghost" name="save_continue" value="1">
+          <button type="submit" class="btn btn-ghost" name="save_continue" value="1" data-revision-submit>
             <span class="material-symbols-outlined">save</span>
             Save &amp; Keep Editing
           </button>
-          <button type="submit" class="btn btn-primary" name="finish_revision" value="1">
+          <button type="submit" class="btn btn-primary" name="finish_revision" value="1" data-revision-submit>
             <span class="material-symbols-outlined">done</span>
             Done
           </button>

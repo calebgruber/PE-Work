@@ -35,6 +35,7 @@
     if (stockWarning) {
       const overStock = totalValue > shopQuantity;
       stockWarning.classList.toggle('hidden', !overStock);
+      row.classList.toggle('has-stock-warning', overStock);
       if (overStock) {
         stockWarning.textContent = 'This line currently exceeds shop stock.';
       }
@@ -58,6 +59,7 @@
     const search = editor.querySelector('[data-revision-search]');
     const warningsWrap = editor.querySelector('[data-revision-warnings-wrap]');
     const warningsList = editor.querySelector('[data-revision-warnings]');
+    const submitButtons = Array.prototype.slice.call(editor.querySelectorAll('[data-revision-submit]'));
     const items = Array.prototype.slice.call(editor.querySelectorAll('[data-revision-item]'));
     const rulesNode = document.getElementById('revision-rules-data');
     let rules = [];
@@ -96,7 +98,10 @@
 
         rentByItem[itemId] = itemRent(item);
         if (total > stock) {
-          warnings.push(label + ' exceeds shop stock (' + total + ' requested, ' + stock + ' available).');
+          warnings.push({
+            type: 'stock',
+            message: label + ' exceeds shop stock (' + total + ' requested, ' + stock + ' available).'
+          });
         }
       });
 
@@ -112,20 +117,26 @@
 
         const recommended = Math.ceil(triggerCurrent / triggerQty) * requiredQty;
         if (requiredCurrent < recommended) {
-          let warning = 'Rule warning: ' + rule.trigger_item_name + ' may need ' + rule.required_item_name + ' (' + recommended + ' suggested, ' + requiredCurrent + ' currently on the order).';
+          let warning = 'Rule required: ' + triggerCurrent + ' ' + rule.trigger_item_name + ' rented means at least ' + recommended + ' ' + rule.required_item_name + '.';
           if (rule.note) {
             warning += ' ' + rule.note;
           }
-          warnings.push(warning);
+          warnings.push({
+            type: 'rule',
+            message: warning
+          });
         }
       });
 
       warningsList.innerHTML = '';
       warningsWrap.classList.toggle('hidden', warnings.length === 0);
+      submitButtons.forEach(function (button) {
+        button.disabled = warnings.length > 0;
+      });
       warnings.forEach(function (warning) {
         const item = document.createElement('div');
-        item.className = 'revision-alert';
-        item.textContent = warning;
+        item.className = 'revision-alert revision-alert-' + warning.type;
+        item.textContent = warning.message;
         warningsList.appendChild(item);
       });
     }
@@ -168,6 +179,14 @@
     if (search) {
       search.addEventListener('input', applySearch);
     }
+
+    editor.addEventListener('submit', function (event) {
+      renderWarnings();
+      if (warningsWrap && !warningsWrap.classList.contains('hidden')) {
+        event.preventDefault();
+        warningsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
 
     applySearch();
     renderWarnings();

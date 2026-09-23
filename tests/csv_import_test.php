@@ -254,6 +254,22 @@ assert_true($createRuleResult['ok'] === true, 'Expected rule creation to succeed
 $ruleId = (int) db()->query('SELECT id FROM system_rules ORDER BY id DESC LIMIT 1')->fetchColumn();
 assert_true($ruleId > 0, 'Expected created rule id.');
 
+$blockingWarnings = revision_validation_warnings([
+    $fixtureItemId => [
+        'rent_quantity' => 6,
+        'spare_quantity' => 7,
+        'action' => 'add',
+    ],
+    $adapterItemId => [
+        'rent_quantity' => 3,
+        'spare_quantity' => 0,
+        'action' => 'add',
+    ],
+]);
+assert_true(count($blockingWarnings) === 2, 'Expected stock and rule warnings to block invalid revision saves.');
+assert_true($blockingWarnings[0]['type'] === 'stock', 'Expected stock warning to be reported first.');
+assert_true($blockingWarnings[1]['type'] === 'rule', 'Expected missing required rule item warning to be reported.');
+
 $updateRuleResult = save_rule([
     'rule_id' => $ruleId,
     'trigger_item_id' => $fixtureItemId,
@@ -274,6 +290,21 @@ $deleteRuleResult = delete_rule($ruleId);
 assert_true($deleteRuleResult['ok'] === true, 'Expected rule delete to succeed.');
 $ruleStmt->execute([$ruleId]);
 assert_true($ruleStmt->fetch() === false, 'Expected deleted rule to be removed from storage.');
+
+$layoutDefaults = export_layout_settings();
+assert_true(array_key_exists('layout.organization_text', $layoutDefaults), 'Expected export layout defaults to include organization text.');
+assert_true(array_key_exists('layout.export_notes', $layoutDefaults), 'Expected export layout defaults to include export notes.');
+save_export_layout([
+    'header_text' => 'Custom Header',
+    'organization_text' => 'Top Right Copy',
+    'footer_text' => 'Custom Footer',
+    'export_notes' => "One\nTwo",
+    'show_page_numbers' => '1',
+    'show_revision_summary' => '1',
+]);
+$savedLayout = export_layout_settings();
+assert_true(($savedLayout['layout.organization_text'] ?? '') === 'Top Right Copy', 'Expected organization text to persist in export layout settings.');
+assert_true(($savedLayout['layout.export_notes'] ?? '') === \"One\\nTwo\", 'Expected export notes to persist in export layout settings.');
 
 $deleteItemResult = delete_inventory_item($adapterItemId);
 assert_true($deleteItemResult['ok'] === true, 'Expected inventory delete to hard-delete the row.');

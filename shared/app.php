@@ -733,10 +733,101 @@ function seed_revision_items(int $revisionId, ?int $sourceRevisionId = null): vo
     }
 }
 
-function catalog_for_revision(?int $revisionId): array
+function normalize_revision_line_input(array $row): array
+{
+    $rent = max(0, (int) ($row['rent_quantity'] ?? 0));
+    $spares = max(0, (int) ($row['spare_quantity'] ?? 0));
+    $action = (string) ($row['action'] ?? '');
+    if (!in_array($action, ['', 'add', 'return', 'exchange', 'note'], true)) {
+        $action = '';
+    }
+
+    return [
+        'rent_quantity' => $rent,
+        'spare_quantity' => $spares,
+        'total_quantity' => $rent + $spares,
+        'action' => $action,
+        'line_note' => trim((string) ($row['line_note'] ?? '')),
+        'pickup_date' => normalize_date($row['pickup_date'] ?? ''),
+        'return_date' => normalize_date($row['return_date'] ?? ''),
+    ];
+}
+
+function normalize_revision_lines_input(array $items): array
+{
+    $normalized = [];
+    foreach ($items as $itemId => $row) {
+        $normalized[(int) $itemId] = normalize_revision_line_input(is_array($row) ? $row : []);
+    }
+    return $normalized;
+}
+
+function revision_validation_warnings(array $items): array
+{
+    $warnings = [];
+    $normalized = normalize_revision_lines_input($items);
+    $supportsSpacer = table_column_exists('inventory_items', 'is_spacer');
+    $inventory = db()->query(
+        'SELECT id, name, shop_quantity' . ($supportsSpacer ? ', is_spacer' : ', 0 AS is_spacer') . '
+         FROM inventory_items
+         WHERE is_active = 1'
+    )->fetchAll();
+
+    $rentByItem = [];
+    foreach ($inventory as $item) {
+        $itemId = (int) $item['id'];
+        $line = $normalized[$itemId] ?? normalize_revision_line_input([]);
+        $rentByItem[$itemId] = (int) $line['rent_quantity'];
+
+        if (!empty($item['is_spacer'])) {
+            continue;
+        }
+
+        $total = (int) $line['total_quantity'];
+        $shopQuantity = (int) ($item['shop_quantity'] ?? 0);
+        if ($total > $shopQuantity) {
+            $warnings[] = [
+                'type' => 'stock',
+                'item_id' => $itemId,
+                'message' => $item['name'] . ' exceeds shop stock (' . $total . ' requested, ' . $shopQuantity . ' available).',
+            ];
+        }
+    }
+
+    foreach (fetch_rules() as $rule) {
+        $triggerQty = max(1, (int) ($rule['trigger_quantity'] ?? 0));
+        $requiredQty = max(1, (int) ($rule['required_quantity'] ?? 0));
+        $triggerCurrent = $rentByItem[(int) ($rule['trigger_item_id'] ?? 0)] ?? 0;
+        $requiredCurrent = $rentByItem[(int) ($rule['required_item_id'] ?? 0)] ?? 0;
+        if ($triggerCurrent < $triggerQty) {
+            continue;
+        }
+
+        $recommended = (int) ceil($triggerCurrent / $triggerQty) * $requiredQty;
+        if ($requiredCurrent >= $recommended) {
+            continue;
+        }
+
+        $message = 'Rule required: ' . $triggerCurrent . ' ' . $rule['trigger_item_name'] . ' rented means at least ' . $recommended . ' ' . $rule['required_item_name'] . '.';
+        if (!empty($rule['note'])) {
+            $message .= ' ' . trim((string) $rule['note']);
+        }
+
+        $warnings[] = [
+            'type' => 'rule',
+            'item_id' => (int) ($rule['required_item_id'] ?? 0),
+            'message' => $message,
+        ];
+    }
+
+    return $warnings;
+}
+
+function catalog_for_revision(?int $revisionId, array $overrides = []): array
 {
     $catalog = fetch_inventory_catalog();
     $lineItems = [];
+    $overrideLines = normalize_revision_lines_input($overrides);
 
     if ($revisionId) {
         $stmt = db()->prepare('SELECT * FROM revision_items WHERE revision_id = ?');
@@ -757,6 +848,9 @@ function catalog_for_revision(?int $revisionId): array
                 'pickup_date' => null,
                 'return_date' => null,
             ];
+            if (isset($overrideLines[(int) $item['id']])) {
+                $line = array_merge($line, $overrideLines[(int) $item['id']]);
+            }
             $item['line'] = $line;
         }
         unset($item);
@@ -791,17 +885,14 @@ function save_revision_lines(int $revisionId, array $items): void
             continue;
         }
 
-        $rent = max(0, (int) ($row['rent_quantity'] ?? 0));
-        $spares = max(0, (int) ($row['spare_quantity'] ?? 0));
-        $total = $rent + $spares;
-        $action = (string) ($row['action'] ?? '');
-        if (!in_array($action, ['', 'add', 'return', 'exchange', 'note'], true)) {
-            $action = '';
-        }
-
-        $lineNote = trim((string) ($row['line_note'] ?? ''));
-        $pickupDate = normalize_date($row['pickup_date'] ?? '');
-        $returnDate = normalize_date($row['return_date'] ?? '');
+        $line = normalize_revision_line_input(is_array($row) ? $row : []);
+        $rent = (int) $line['rent_quantity'];
+        $spares = (int) $line['spare_quantity'];
+        $total = (int) $line['total_quantity'];
+        $action = (string) $line['action'];
+        $lineNote = (string) $line['line_note'];
+        $pickupDate = $line['pickup_date'];
+        $returnDate = $line['return_date'];
 
         $lookup->execute([$revisionId, $itemId]);
         if ($lookup->fetchColumn()) {
@@ -1438,7 +1529,9 @@ function export_layout_settings(): array
 {
     $defaults = [
         'layout.header_text' => 'Production Electrician Shop Order',
+        'layout.organization_text' => '',
         'layout.footer_text' => 'Prepared in PE Work',
+        'layout.export_notes' => "Unless otherwise noted, all units to come with lamp, c-clamp, safety cable and black color frame.\nAll hardware, perishables, cable lengths and power distribution requirements as per electrician.\nAbsolutely no substitutions without written permission of Designer.\nAny revisions or substitutions must be fully disclosed.\nShop assumes responsibility for any additional materials that are required on site due to rental shop oversight or error.\nAll PAR cans to have interior protective screening.\nColor scrolls to be made and loaded by shop. A list of required colors will be provided.",
         'layout.show_image' => '1',
         'layout.show_page_numbers' => '1',
         'layout.show_revision_summary' => '1',
@@ -1455,7 +1548,9 @@ function export_layout_settings(): array
 function save_export_layout(array $input): void
 {
     save_setting('layout.header_text', trim((string) ($input['header_text'] ?? 'Production Electrician Shop Order')));
+    save_setting('layout.organization_text', trim((string) ($input['organization_text'] ?? '')));
     save_setting('layout.footer_text', trim((string) ($input['footer_text'] ?? 'Prepared in PE Work')));
+    save_setting('layout.export_notes', trim((string) ($input['export_notes'] ?? '')));
     save_setting('layout.show_image', !empty($input['show_image']) ? '1' : '0');
     save_setting('layout.show_page_numbers', !empty($input['show_page_numbers']) ? '1' : '0');
     save_setting('layout.show_revision_summary', !empty($input['show_revision_summary']) ? '1' : '0');
