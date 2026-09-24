@@ -78,6 +78,7 @@
     let latestAutosaveRun = 0;
     let autosaveAbortController = null;
     let hasPendingAutosave = false;
+    let hasDirtyRevisionChanges = false;
     let manualSaveInFlight = false;
     let allowNativeSubmit = false;
 
@@ -235,6 +236,7 @@
             return;
           }
           hasPendingAutosave = false;
+          hasDirtyRevisionChanges = false;
           renderWarnings(Array.isArray(payload?.warnings) ? payload.warnings : []);
           renderTotals(payload?.totals || null);
           renderAutosaveStatus('All changes saved.', 'saved');
@@ -247,12 +249,14 @@
             return;
           }
           hasPendingAutosave = false;
+          hasDirtyRevisionChanges = true;
           renderAutosaveStatus(error?.message || 'Autosave failed. Use Save Changes.', 'error');
         });
     }
 
     function scheduleAutosave() {
       hasPendingAutosave = true;
+      hasDirtyRevisionChanges = true;
       renderAutosaveStatus('Unsaved changes…', 'saving');
       if (autosaveTimer) {
         window.clearTimeout(autosaveTimer);
@@ -290,6 +294,7 @@
     items.forEach(function (item) {
       item.querySelectorAll('input[name^="items["], select[name^="items["], textarea[name^="items["]').forEach(function (input) {
         input.addEventListener('change', function () {
+          if (!input.name || input.name.indexOf('items[') !== 0) return;
           if (input.matches('[data-action-select],[data-rent-input],[data-spare-input]')) {
             updateRowState(item);
           }
@@ -297,6 +302,7 @@
           scheduleAutosave();
         });
         input.addEventListener('input', function () {
+          if (!input.name || input.name.indexOf('items[') !== 0) return;
           if (input.matches('[data-action-select],[data-rent-input],[data-spare-input]')) {
             updateRowState(item);
           }
@@ -358,6 +364,7 @@
         .then(function (payload) {
           manualSaveInFlight = false;
           hasPendingAutosave = false;
+          hasDirtyRevisionChanges = false;
           renderWarnings(Array.isArray(payload?.warnings) ? payload.warnings : []);
           renderTotals(payload?.totals || null);
           renderAutosaveStatus(payload?.message || 'All changes saved.', 'saved');
@@ -377,7 +384,7 @@
     });
 
     window.addEventListener('beforeunload', function (event) {
-      if (!hasPendingAutosave) return;
+      if (!hasPendingAutosave && !hasDirtyRevisionChanges) return;
       event.preventDefault();
       event.returnValue = '';
     });
