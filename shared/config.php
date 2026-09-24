@@ -1,7 +1,8 @@
 <?php
 
 $localConfig = __DIR__ . '/../config.local.php';
-if (file_exists($localConfig)) {
+$skipLocalConfig = getenv('PE_WORK_SKIP_LOCAL_CONFIG');
+if (($skipLocalConfig === false || $skipLocalConfig === '') && file_exists($localConfig)) {
     require_once $localConfig;
 }
 
@@ -42,6 +43,9 @@ defined('APP_NAME') || define('APP_NAME', getenv('APP_NAME') ?: 'PE Work');
 defined('APP_VERSION') || define('APP_VERSION', '0.1.0');
 defined('APP_TIMEZONE') || define('APP_TIMEZONE', getenv('APP_TIMEZONE') ?: 'America/New_York');
 defined('APP_BASE_URL') || define('APP_BASE_URL', rtrim((string) (getenv('APP_BASE_URL') ?: ''), '/'));
+defined('APP_SITE_URL') || define('APP_SITE_URL', rtrim((string) (getenv('APP_SITE_URL') ?: ''), '/'));
+defined('APP_EMAIL_FROM_ADDRESS') || define('APP_EMAIL_FROM_ADDRESS', trim((string) (getenv('APP_EMAIL_FROM_ADDRESS') ?: '')));
+defined('APP_EMAIL_FROM_NAME') || define('APP_EMAIL_FROM_NAME', trim((string) (getenv('APP_EMAIL_FROM_NAME') ?: APP_NAME)));
 
 defined('DB_DRIVER') || define('DB_DRIVER', strtolower((string) (getenv('DB_DRIVER') ?: 'mysql')));
 defined('DB_HOST') || define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
@@ -55,7 +59,8 @@ defined('RESOURCE_STORAGE_PATH') || define('RESOURCE_STORAGE_PATH', rtrim((strin
 
 defined('SESSION_NAME') || define('SESSION_NAME', 'pe_work_session');
 defined('APP_SECRET') || define('APP_SECRET', app_secret_value());
-defined('ALLOW_SQLITE_FOR_TESTS') || define('ALLOW_SQLITE_FOR_TESTS', false);
+defined('ALLOW_SQLITE_FOR_TESTS') || define('ALLOW_SQLITE_FOR_TESTS', filter_var(getenv('ALLOW_SQLITE_FOR_TESTS') ?: false, FILTER_VALIDATE_BOOL));
+defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS') || define('ALLOW_LOCAL_UPLOADS_FOR_TESTS', filter_var(getenv('ALLOW_LOCAL_UPLOADS_FOR_TESTS') ?: false, FILTER_VALIDATE_BOOL));
 
 date_default_timezone_set(APP_TIMEZONE);
 

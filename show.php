@@ -5,6 +5,8 @@ require_once __DIR__ . '/shared/db.php';
 require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
+require_login();
+
 function render_show_form(array $show): void
 {
     $people = [

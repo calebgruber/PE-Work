@@ -6,16 +6,40 @@ require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
 $logs = [];
+$bootstrapErrors = [];
+$bootstrapInput = [
+    'display_name' => '',
+    'email' => '',
+    'concentration' => 'lighting',
+];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
         http_response_code(403);
         exit('Invalid CSRF token.');
     }
-    $logs = run_pending_migrations();
+
+    $action = (string) ($_POST['action'] ?? 'run_migrations');
+    if ($action === 'bootstrap_admin') {
+        $bootstrapInput['display_name'] = trim((string) ($_POST['display_name'] ?? ''));
+        $bootstrapInput['email'] = trim((string) ($_POST['email'] ?? ''));
+        $bootstrapInput['concentration'] = (string) ($_POST['concentration'] ?? 'lighting');
+        $result = bootstrap_admin_user($_POST);
+        if (!($result['ok'] ?? false)) {
+            $bootstrapErrors[] = (string) ($result['message'] ?? 'Unable to create the admin account.');
+        } else {
+            flash('success', 'Admin account created.');
+            header('Location: ' . url_for(''));
+            exit;
+        }
+    } else {
+        $logs = run_pending_migrations();
+    }
 }
 
 $dbReady = schema_ready();
+$needsBootstrap = $dbReady && auth_tables_ready() && user_bootstrap_required();
+$usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -39,31 +63,92 @@ $dbReady = schema_ready();
     <div class="login-header">
       <span class="material-symbols-outlined logo-icon">construction</span>
       <h1><?= h(APP_NAME) ?> Setup</h1>
-      <p>Apply the starter database migration and prepare the pure PHP shop-order workspace.</p>
+      <p>Apply migrations, keep local config intact, and bootstrap the first admin account.</p>
     </div>
     <div class="login-body">
+      <?php ui_flash(); ?>
+      <?php foreach ($bootstrapErrors as $error): ?>
+      <div class="alerts">
+        <div class="alert alert-danger" style="--alert-accent:#ef4444;--alert-accent-rgb:239,68,68;--alert-text-on-solid:#ffffff">
+          <span class="material-symbols-outlined">error</span>
+          <span class="alert-text"><?= h($error) ?></span>
+        </div>
+      </div>
+      <?php endforeach; ?>
       <div class="alerts">
         <div class="alert alert-info" style="--alert-accent:#3b82f6;--alert-accent-rgb:59,130,246;--alert-text-on-solid:#ffffff">
           <span class="material-symbols-outlined">info</span>
-          <span class="alert-text">Normal runtime expects MySQL. Configure <code>config.local.php</code> with your MySQL connection details before running setup. SQLite is reserved for the automated test harness.</span>
+          <span class="alert-text">Runtime still reads <code>config.local.php</code> when present. You can also use environment variables like <code>APP_SITE_URL</code> and <code>APP_EMAIL_FROM_ADDRESS</code> for invite emails.</span>
         </div>
       </div>
 
-      <form method="post">
+      <form method="post" class="stack">
         <?= csrf_input() ?>
+        <input type="hidden" name="action" value="run_migrations">
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">
             <span class="material-symbols-outlined">rocket_launch</span>
             Apply Pending Migrations
           </button>
-          <?php if ($dbReady): ?>
+          <?php if ($usersReady): ?>
           <a class="btn btn-ghost" href="<?= h(url_for('')) ?>">
             <span class="material-symbols-outlined">arrow_forward</span>
             Open Dashboard
           </a>
+          <?php elseif ($needsBootstrap): ?>
+          <a class="btn btn-ghost" href="#bootstrap-admin">
+            <span class="material-symbols-outlined">admin_panel_settings</span>
+            Create First Admin
+          </a>
           <?php endif; ?>
         </div>
       </form>
+
+      <?php if ($needsBootstrap): ?>
+      <div class="settings-layout-section" id="bootstrap-admin">
+        <div class="section-label">Create the First Admin</div>
+        <p class="settings-layout-section-copy muted">This only appears when the users table exists but no accounts have been created yet.</p>
+        <form method="post" class="stack">
+          <?= csrf_input() ?>
+          <input type="hidden" name="action" value="bootstrap_admin">
+          <div class="card-grid">
+            <div class="form-group">
+              <label for="display_name">Full Name</label>
+              <input class="form-control" id="display_name" name="display_name" required value="<?= h($bootstrapInput['display_name']) ?>">
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input class="form-control" id="email" type="email" name="email" required value="<?= h($bootstrapInput['email']) ?>">
+            </div>
+            <div class="form-group">
+              <label for="concentration">Concentration</label>
+              <select class="form-control" id="concentration" name="concentration">
+                <?php foreach (user_concentrations() as $value => $label): ?>
+                <option value="<?= h($value) ?>"<?= $bootstrapInput['concentration'] === $value ? ' selected' : '' ?>><?= h($label) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+          </div>
+          <div class="card-grid">
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input class="form-control" id="password" type="password" name="password" required>
+              <div class="helper-text">Use at least 10 characters.</div>
+            </div>
+            <div class="form-group">
+              <label for="password_confirmation">Confirm Password</label>
+              <input class="form-control" id="password_confirmation" type="password" name="password_confirmation" required>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+              <span class="material-symbols-outlined">person_add</span>
+              Create Admin Account
+            </button>
+          </div>
+        </form>
+      </div>
+      <?php endif; ?>
 
       <?php if ($logs): ?>
       <div class="section-label">Migration Results</div>

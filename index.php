@@ -5,14 +5,19 @@ require_once __DIR__ . '/shared/db.php';
 require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
+require_login();
+
+$user = current_user();
 $stats = dashboard_stats();
 $shows = list_shows();
 
 ui_head('Dashboard', '', APP_NAME, 'theater_comedy');
 ui_sidebar(APP_NAME, 'theater_comedy', nav_items('dashboard'));
 
-$actions = '<a class="btn btn-primary" href="' . h(url_for('show')) . '"><span class="material-symbols-outlined">add</span>New Show</a>'
-    . '<a class="btn btn-ghost" href="' . h(url_for('settings')) . '"><span class="material-symbols-outlined">settings</span>System Settings</a>';
+$actions = '<a class="btn btn-primary" href="' . h(url_for('show')) . '"><span class="material-symbols-outlined">add</span>New Show</a>';
+if (is_admin($user)) {
+    $actions .= '<a class="btn btn-ghost" href="' . h(url_for('settings')) . '"><span class="material-symbols-outlined">settings</span>System Settings</a>';
+}
 
 ui_page_header('Shop Order Dashboard', 'Manage shows, inventory, revisions, exports, and migrations from one place.', $actions);
 ?>

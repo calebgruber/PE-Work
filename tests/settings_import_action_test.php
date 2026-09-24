@@ -1,33 +1,19 @@
 <?php
 
 $repoRoot = dirname(__DIR__);
-$localConfig = $repoRoot . '/config.local.php';
-$localBackup = $repoRoot . '/config.local.php.test-backup-' . uniqid('', true);
-$movedLocalConfig = false;
-if (file_exists($localConfig)) {
-    $movedLocalConfig = rename($localConfig, $localBackup);
-    if (!$movedLocalConfig) {
-        fwrite(STDERR, "Unable to isolate config.local.php for settings_import_action_test.\n");
-        exit(1);
-    }
-}
-
 $testDbPath = '/tmp/pe-work-settings-test-' . uniqid('', true) . '.sqlite';
-file_put_contents(
-    $localConfig,
-    "<?php\n"
-    . "define('DB_DRIVER', 'sqlite');\n"
-    . "define('DB_SQLITE_PATH', '" . addslashes($testDbPath) . "');\n"
-    . "define('APP_BASE_URL', '/');\n"
-    . "define('ALLOW_SQLITE_FOR_TESTS', true);\n"
-    . "define('ALLOW_LOCAL_UPLOADS_FOR_TESTS', true);\n"
-);
+putenv('PE_WORK_SKIP_LOCAL_CONFIG=1');
+putenv('DB_DRIVER=sqlite');
+putenv('DB_SQLITE_PATH=' . $testDbPath);
+putenv('APP_BASE_URL=/');
+putenv('ALLOW_SQLITE_FOR_TESTS=1');
+putenv('ALLOW_LOCAL_UPLOADS_FOR_TESTS=1');
 
 require_once $repoRoot . '/shared/config.php';
 require_once $repoRoot . '/shared/db.php';
 require_once $repoRoot . '/shared/app.php';
 
-function settings_test_cleanup(string $repoRoot, string $localConfig, string $localBackup, bool $movedLocalConfig, $process, array $pipes, array $paths): void
+function settings_test_cleanup(string $repoRoot, $process, array $pipes, array $paths): void
 {
     foreach ($pipes as $pipe) {
         if (is_resource($pipe)) {
@@ -52,21 +38,15 @@ function settings_test_cleanup(string $repoRoot, string $localConfig, string $lo
             @unlink($path);
         }
     }
-    if (!$movedLocalConfig && file_exists($localConfig)) {
-        unlink($localConfig);
-    }
     @unlink(DB_SQLITE_PATH);
     @unlink(DB_SQLITE_PATH . '-wal');
     @unlink(DB_SQLITE_PATH . '-shm');
-    if ($movedLocalConfig && file_exists($localBackup)) {
-        rename($localBackup, $localConfig);
-    }
 }
 
-function settings_assert(bool $condition, string $message, string $repoRoot, string $localConfig, string $localBackup, bool $movedLocalConfig, $process, array $pipes, array $paths): void
+function settings_assert(bool $condition, string $message, string $repoRoot, $process, array $pipes, array $paths): void
 {
     if (!$condition) {
-        settings_test_cleanup($repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $paths);
+        settings_test_cleanup($repoRoot, $process, $pipes, $paths);
         fwrite(STDERR, $message . PHP_EOL);
         exit(1);
     }
@@ -90,7 +70,14 @@ function settings_start_server(string $repoRoot): array
         fclose($socket);
         $port = (int) substr(strrchr($serverAddress, ':'), 1);
         $baseUrl = 'http://127.0.0.1:' . $port;
-        $process = proc_open('php -S 127.0.0.1:' . $port . ' router.php', $descriptors, $pipes, $repoRoot);
+        $env = array_merge($_ENV, [
+            'PE_WORK_SKIP_LOCAL_CONFIG' => '1',
+            'DB_DRIVER' => 'sqlite',
+            'DB_SQLITE_PATH' => $GLOBALS['testDbPath'],
+            'APP_BASE_URL' => '/',
+            'ALLOW_LOCAL_UPLOADS_FOR_TESTS' => '1',
+        ]);
+        $process = proc_open('php -S 127.0.0.1:' . $port . ' router.php', $descriptors, $pipes, $repoRoot, $env);
         if (!is_resource($process)) {
             continue;
         }
@@ -103,7 +90,7 @@ function settings_start_server(string $repoRoot): array
             usleep(250000);
         }
 
-        settings_test_cleanup($repoRoot, $GLOBALS['localConfig'], $GLOBALS['localBackup'], $GLOBALS['movedLocalConfig'], $process, $pipes, []);
+        settings_test_cleanup($repoRoot, $process, $pipes, []);
     }
 
     return [null, [], null];
@@ -162,7 +149,7 @@ $csvPath = tempnam(sys_get_temp_dir(), 'pew-settings-import-');
 file_put_contents($csvPath, "category,name,shop_quantity,unit,default_note,description\nFixtures,Import Action Item,7,ea,Imported via settings action,Action path\n");
 
 [$process, $pipes, $baseUrl] = settings_start_server($repoRoot);
-settings_assert(is_resource($process) && is_string($baseUrl) && $baseUrl !== '', 'Expected local PHP server to start before running import requests.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, [$csvPath]);
+settings_assert(is_resource($process) && is_string($baseUrl) && $baseUrl !== '', 'Expected local PHP server to start before running import requests.', $repoRoot, $process, $pipes, [$csvPath]);
 
 $cookieJar = tempnam(sys_get_temp_dir(), 'pew-cookie-');
 $inventoryPagePath = tempnam(sys_get_temp_dir(), 'pew-inventory-page-');
@@ -200,7 +187,7 @@ $stmt = db()->prepare('SELECT shop_quantity FROM inventory_items WHERE name = ?'
 $stmt->execute(['Import Action Item']);
 $quantity = (int) $stmt->fetchColumn();
 
-settings_assert($inventoryPageStatus === 0 && $csrfToken !== '', 'Expected inventory page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($inventoryPageStatus === 0 && $csrfToken !== '', 'Expected inventory page request to provide a CSRF token.', $repoRoot, $process, $pipes, $testPaths);
 exec(sprintf(
     "curl -fsS -o %s -c %s -b %s %s",
     escapeshellarg($layoutPagePath),
@@ -209,16 +196,16 @@ exec(sprintf(
     escapeshellarg($baseUrl . '/settings?tab=layout')
 ), $layoutPageOutput, $layoutPageStatus);
 $layoutPageHtml = is_file($layoutPagePath) ? file_get_contents($layoutPagePath) : '';
-settings_assert($curlStatus === 0, 'Expected curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($layoutPageStatus === 0, 'Expected layout settings page request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($layoutPageHtml, 'Revision Summary Layout'), 'Expected layout settings page to group revision summary controls together.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($layoutPageHtml, 'Equipment Breakdown Layout'), 'Expected layout settings page to group equipment controls together.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($layoutPageHtml, 'revision_summary_col_action'), 'Expected layout settings page to include revision summary action width controls.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($layoutPageHtml, 'revision_summary_col_previous_total'), 'Expected layout settings page to include revision summary previous-total width controls.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($layoutPageHtml, 'This minimum takes priority'), 'Expected layout settings page to explain that the configured minimum rows take priority.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($headers, 'Location: /settings?tab=inventory'), 'Expected settings import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($quantity === 7, 'Expected settings import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($responseBody, 'Import complete'), 'Expected redirected settings page to show the import success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($curlStatus === 0, 'Expected curl request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($layoutPageStatus === 0, 'Expected layout settings page request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($layoutPageHtml, 'Revision Summary Layout'), 'Expected layout settings page to group revision summary controls together.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($layoutPageHtml, 'Equipment Breakdown Layout'), 'Expected layout settings page to group equipment controls together.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($layoutPageHtml, 'revision_summary_col_action'), 'Expected layout settings page to include revision summary action width controls.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($layoutPageHtml, 'revision_summary_col_previous_total'), 'Expected layout settings page to include revision summary previous-total width controls.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($layoutPageHtml, 'This minimum takes priority'), 'Expected layout settings page to explain that the configured minimum rows take priority.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($headers, 'Location: /settings?tab=inventory'), 'Expected settings import action to redirect back to the inventory tab.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($quantity === 7, 'Expected settings import action to create the inventory item.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($responseBody, 'Import complete'), 'Expected redirected settings page to show the import success message.', $repoRoot, $process, $pipes, $testPaths);
 
 $warningHeadersPath = tempnam(sys_get_temp_dir(), 'pew-warning-headers-');
 $warningResponsePath = tempnam(sys_get_temp_dir(), 'pew-warning-response-');
@@ -237,9 +224,9 @@ exec($warningCommand, $warningOutput, $warningStatus);
 $warningHeaders = is_file($warningHeadersPath) ? file_get_contents($warningHeadersPath) : '';
 $warningBody = is_file($warningResponsePath) ? file_get_contents($warningResponsePath) : '';
 
-settings_assert($warningStatus === 0, 'Expected warning-path curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($warningHeaders, 'Location: /settings?tab=inventory'), 'Expected warning-path import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($warningBody, 'Choose a CSV file to import.'), 'Expected redirected settings page to show the missing-file warning.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($warningStatus === 0, 'Expected warning-path curl request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($warningHeaders, 'Location: /settings?tab=inventory'), 'Expected warning-path import action to redirect back to the inventory tab.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($warningBody, 'Choose a CSV file to import.'), 'Expected redirected settings page to show the missing-file warning.', $repoRoot, $process, $pipes, $testPaths);
 
 $pasteHeadersPath = tempnam(sys_get_temp_dir(), 'pew-paste-headers-');
 $pasteResponsePath = tempnam(sys_get_temp_dir(), 'pew-paste-response-');
@@ -263,10 +250,10 @@ $pasteBody = is_file($pasteResponsePath) ? file_get_contents($pasteResponsePath)
 $stmt->execute(['Pasted Item']);
 $pastedQuantity = (int) $stmt->fetchColumn();
 
-settings_assert($pasteStatus === 0, 'Expected pasted import curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($pasteHeaders, 'Location: /settings?tab=inventory'), 'Expected pasted import action to redirect back to the inventory tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($pastedQuantity === 9, 'Expected pasted import action to create the inventory item.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($pasteBody, 'Import complete'), 'Expected redirected settings page to show the pasted import success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($pasteStatus === 0, 'Expected pasted import curl request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($pasteHeaders, 'Location: /settings?tab=inventory'), 'Expected pasted import action to redirect back to the inventory tab.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($pastedQuantity === 9, 'Expected pasted import action to create the inventory item.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($pasteBody, 'Import complete'), 'Expected redirected settings page to show the pasted import success message.', $repoRoot, $process, $pipes, $testPaths);
 
 $pdfPath = tempnam(sys_get_temp_dir(), 'pew-resource-pdf-');
 file_put_contents($pdfPath, "%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF");
@@ -347,16 +334,16 @@ if ($storedName !== '') {
     $testPaths[] = upload_dir('resources') . '/' . $storedName;
 }
 
-settings_assert($createFolderStatus === 0, 'Expected resource folder creation request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($createSubfolderStatus === 0, 'Expected resource subfolder creation request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($resourceStatus === 0, 'Expected resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($resourcePageStatus === 0 && $resourceCsrfToken !== '', 'Expected resources page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($resourceFolderId > 0, 'Expected resource folder creation to persist a folder row.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($resourceSubfolderId > 0, 'Expected resource subfolder creation to persist a folder row.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($resourceHeaders, 'Location: /settings?tab=resources'), 'Expected resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($storedName !== '', 'Expected resource upload action to persist the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert((int) ($resourceRow['folder_id'] ?? 0) === $resourceSubfolderId, 'Expected uploaded resource to be saved into the selected subfolder.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($resourceBody, 'Resource uploaded.'), 'Expected redirected resources page to show the upload success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($createFolderStatus === 0, 'Expected resource folder creation request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($createSubfolderStatus === 0, 'Expected resource subfolder creation request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($resourceStatus === 0, 'Expected resource upload curl request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($resourcePageStatus === 0 && $resourceCsrfToken !== '', 'Expected resources page request to provide a CSRF token.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($resourceFolderId > 0, 'Expected resource folder creation to persist a folder row.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($resourceSubfolderId > 0, 'Expected resource subfolder creation to persist a folder row.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceHeaders, 'Location: /settings?tab=resources'), 'Expected resource upload action to redirect back to the resources tab.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($storedName !== '', 'Expected resource upload action to persist the uploaded PDF.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert((int) ($resourceRow['folder_id'] ?? 0) === $resourceSubfolderId, 'Expected uploaded resource to be saved into the selected subfolder.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceBody, 'Resource uploaded.'), 'Expected redirected resources page to show the upload success message.', $repoRoot, $process, $pipes, $testPaths);
 
 $resourceFetchHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-fetch-headers-');
 $resourceFetchPath = tempnam(sys_get_temp_dir(), 'pew-resource-fetch-');
@@ -406,16 +393,16 @@ $resourceInvalidHeaders = is_file($resourceInvalidHeadersPath) ? file_get_conten
 $resourceFetchBody = is_file($resourceFetchPath) ? file_get_contents($resourceFetchPath) : '';
 $resourceDownloadBody = is_file($resourceDownloadPath) ? file_get_contents($resourceDownloadPath) : '';
 
-settings_assert($resourceFetchStatus === 0, 'Expected signed resource URL to be fetchable.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($resourceFetchHeaders, 'Content-Type: application/pdf'), 'Expected signed resource URL to return a PDF response.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_starts_with($resourceFetchBody, '%PDF-'), 'Expected signed resource URL to stream the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($resourceDownloadStatus === 0, 'Expected signed resource download URL to be fetchable.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($resourceDownloadHeaders, 'Content-Disposition: attachment;'), 'Expected download mode to force attachment disposition.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_starts_with($resourceDownloadBody, '%PDF-'), 'Expected download mode to stream the uploaded PDF.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($resourceForbiddenStatus === 0, 'Expected unsigned resource request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($resourceForbiddenHeaders, '403 Forbidden'), 'Expected missing token resource request to be rejected.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($resourceInvalidStatus === 0, 'Expected invalid-token resource request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($resourceInvalidHeaders, '403 Forbidden'), 'Expected invalid token resource request to be rejected.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($resourceFetchStatus === 0, 'Expected signed resource URL to be fetchable.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceFetchHeaders, 'Content-Type: application/pdf'), 'Expected signed resource URL to return a PDF response.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_starts_with($resourceFetchBody, '%PDF-'), 'Expected signed resource URL to stream the uploaded PDF.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($resourceDownloadStatus === 0, 'Expected signed resource download URL to be fetchable.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceDownloadHeaders, 'Content-Disposition: attachment;'), 'Expected download mode to force attachment disposition.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_starts_with($resourceDownloadBody, '%PDF-'), 'Expected download mode to stream the uploaded PDF.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($resourceForbiddenStatus === 0, 'Expected unsigned resource request to complete.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceForbiddenHeaders, '403 Forbidden'), 'Expected missing token resource request to be rejected.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($resourceInvalidStatus === 0, 'Expected invalid-token resource request to complete.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($resourceInvalidHeaders, '403 Forbidden'), 'Expected invalid token resource request to be rejected.', $repoRoot, $process, $pipes, $testPaths);
 
 $imagePath = tempnam(sys_get_temp_dir(), 'pew-resource-image-');
 file_put_contents($imagePath, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0mQAAAAASUVORK5CYII='));
@@ -458,14 +445,14 @@ exec(sprintf(
 $imageFetchHeaders = is_file($imageFetchHeadersPath) ? file_get_contents($imageFetchHeadersPath) : '';
 $imageFetchBody = is_file($imageFetchPath) ? file_get_contents($imageFetchPath) : '';
 
-settings_assert($imageUploadStatus === 0, 'Expected image resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($imageHeaders, 'Location: /settings?tab=resources'), 'Expected image resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($imageStoredName !== '', 'Expected image resource upload action to persist the uploaded image.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($imageBody, 'Resource uploaded.'), 'Expected redirected resources page to show the image upload success message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($imageBody, 'resource-image-preview'), 'Expected redirected resources page to render an image preview card.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($imageFetchStatus === 0, 'Expected signed image resource URL to be fetchable.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($imageFetchHeaders, 'Content-Type: image/png'), 'Expected signed image resource URL to return an image response.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(substr($imageFetchBody, 0, 8) === "\x89PNG\x0D\x0A\x1A\x0A", 'Expected signed image resource URL to stream the uploaded image.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($imageUploadStatus === 0, 'Expected image resource upload curl request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($imageHeaders, 'Location: /settings?tab=resources'), 'Expected image resource upload action to redirect back to the resources tab.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($imageStoredName !== '', 'Expected image resource upload action to persist the uploaded image.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($imageBody, 'Resource uploaded.'), 'Expected redirected resources page to show the image upload success message.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($imageBody, 'resource-image-preview'), 'Expected redirected resources page to render an image preview card.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($imageFetchStatus === 0, 'Expected signed image resource URL to be fetchable.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($imageFetchHeaders, 'Content-Type: image/png'), 'Expected signed image resource URL to return an image response.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(substr($imageFetchBody, 0, 8) === "\x89PNG\x0D\x0A\x1A\x0A", 'Expected signed image resource URL to stream the uploaded image.', $repoRoot, $process, $pipes, $testPaths);
 
 $textPath = tempnam(sys_get_temp_dir(), 'pew-resource-text-');
 file_put_contents($textPath, "not a pdf");
@@ -490,10 +477,10 @@ $badResourceBody = is_file($badResourceResponsePath) ? file_get_contents($badRes
 $resourceStmt->execute(['Bad Resource']);
 $badStoredName = $resourceStmt->fetchColumn();
 
-settings_assert($badResourceStatus === 0, 'Expected invalid resource upload curl request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($badResourceHeaders, 'Location: /settings?tab=resources'), 'Expected invalid resource upload action to redirect back to the resources tab.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($badStoredName === false, 'Expected invalid resource upload to avoid persisting a resource row.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($badResourceBody, 'Only PDF and image resources are supported.'), 'Expected redirected resources page to show the unsupported-file warning.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($badResourceStatus === 0, 'Expected invalid resource upload curl request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($badResourceHeaders, 'Location: /settings?tab=resources'), 'Expected invalid resource upload action to redirect back to the resources tab.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($badStoredName === false, 'Expected invalid resource upload to avoid persisting a resource row.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($badResourceBody, 'Only PDF and image resources are supported.'), 'Expected redirected resources page to show the unsupported-file warning.', $repoRoot, $process, $pipes, $testPaths);
 
 $validationPagePath = tempnam(sys_get_temp_dir(), 'pew-validation-page-');
 $validationHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-headers-');
@@ -621,29 +608,29 @@ $validationPersistedBody = is_file($validationPersistedResponsePath) ? file_get_
 $revisionListPageHtml = is_file($revisionListPagePath) ? file_get_contents($revisionListPagePath) : '';
 $revisionEditPageHtml = is_file($revisionEditPagePath) ? file_get_contents($revisionEditPagePath) : '';
 
-settings_assert($validationPageStatus === 0 && $validationCsrfToken !== '', 'Expected validation edit page request to provide a CSRF token.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($validationStatus === 0, 'Expected validation endpoint request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($validationHeaders, 'Content-Type: application/json'), 'Expected validation endpoint to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($validationBody, 'exceeds shop stock'), 'Expected validation endpoint to report stock warnings.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($validationBody, 'Rule required:'), 'Expected validation endpoint to report rule warnings.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($autosaveStatus === 0, 'Expected autosave endpoint request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($autosaveHeaders, 'Content-Type: application/json'), 'Expected autosave endpoint to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($autosaveBody, '"ok":true'), 'Expected autosave endpoint to confirm the save.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($autosaveBody, '"overall_total":7'), 'Expected autosave endpoint totals to reflect the current revision changes.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($saveStatus === 0, 'Expected AJAX save request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($saveHeaders, 'Content-Type: application/json'), 'Expected AJAX save request to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($saveBody, '"message":"Order changes saved."'), 'Expected AJAX save request to confirm the save.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($validationInvalidStatus === 0, 'Expected invalid validation endpoint request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($validationInvalidHeaders, '404 Not Found'), 'Expected invalid validation revision lookup to return 404.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($validationInvalidBody, 'Revision not found for this show.'), 'Expected invalid validation revision lookup to return a JSON warning message.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($validationPersistedStatus === 0, 'Expected persisted-state validation endpoint request to complete.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($validationPersistedHeaders, 'Content-Type: application/json'), 'Expected persisted-state validation request to return JSON.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($validationPersistedBody, 'Rule required:'), 'Expected persisted-state validation to reflect the autosaved revision state.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($revisionListPageStatus === 0, 'Expected revisions page request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($revisionListPageHtml, 'revision-history-table'), 'Expected revisions page to render the table-based revision history.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($revisionListPageHtml, '1.0') && str_contains($revisionListPageHtml, '1.1'), 'Expected revisions page to show the initial order and later revisions together.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert($revisionEditPageStatus === 0, 'Expected revision edit page request to succeed.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($revisionEditPageHtml, 'Revision History'), 'Expected revision edit page to include a revision history section.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_assert(str_contains($revisionEditPageHtml, 'Every revision for this show stays visible here'), 'Expected revision edit page to explain the full revision trail while editing.', $repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
-settings_test_cleanup($repoRoot, $localConfig, $localBackup, $movedLocalConfig, $process, $pipes, $testPaths);
+settings_assert($validationPageStatus === 0 && $validationCsrfToken !== '', 'Expected validation edit page request to provide a CSRF token.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($validationStatus === 0, 'Expected validation endpoint request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationHeaders, 'Content-Type: application/json'), 'Expected validation endpoint to return JSON.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationBody, 'exceeds shop stock'), 'Expected validation endpoint to report stock warnings.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationBody, 'Rule required:'), 'Expected validation endpoint to report rule warnings.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($autosaveStatus === 0, 'Expected autosave endpoint request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($autosaveHeaders, 'Content-Type: application/json'), 'Expected autosave endpoint to return JSON.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($autosaveBody, '"ok":true'), 'Expected autosave endpoint to confirm the save.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($autosaveBody, '"overall_total":7'), 'Expected autosave endpoint totals to reflect the current revision changes.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($saveStatus === 0, 'Expected AJAX save request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($saveHeaders, 'Content-Type: application/json'), 'Expected AJAX save request to return JSON.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($saveBody, '"message":"Order changes saved."'), 'Expected AJAX save request to confirm the save.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($validationInvalidStatus === 0, 'Expected invalid validation endpoint request to complete.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationInvalidHeaders, '404 Not Found'), 'Expected invalid validation revision lookup to return 404.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationInvalidBody, 'Revision not found for this show.'), 'Expected invalid validation revision lookup to return a JSON warning message.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($validationPersistedStatus === 0, 'Expected persisted-state validation endpoint request to complete.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationPersistedHeaders, 'Content-Type: application/json'), 'Expected persisted-state validation request to return JSON.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($validationPersistedBody, 'Rule required:'), 'Expected persisted-state validation to reflect the autosaved revision state.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($revisionListPageStatus === 0, 'Expected revisions page request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($revisionListPageHtml, 'revision-history-table'), 'Expected revisions page to render the table-based revision history.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($revisionListPageHtml, '1.0') && str_contains($revisionListPageHtml, '1.1'), 'Expected revisions page to show the initial order and later revisions together.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($revisionEditPageStatus === 0, 'Expected revision edit page request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($revisionEditPageHtml, 'Revision History'), 'Expected revision edit page to include a revision history section.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($revisionEditPageHtml, 'Every revision for this show stays visible here'), 'Expected revision edit page to explain the full revision trail while editing.', $repoRoot, $process, $pipes, $testPaths);
+settings_test_cleanup($repoRoot, $process, $pipes, $testPaths);
 echo "settings import action test passed\n";

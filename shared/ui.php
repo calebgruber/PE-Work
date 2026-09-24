@@ -85,6 +85,9 @@ function ui_head(string $pageTitle, string $appSlug = '', string $appHeading = '
 function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, string $userLogoutUrl = ''): void
 {
     _ui_context($appHeading, $headerIcon);
+    $user = current_user();
+    $profileUrl = url_for('profile');
+    $logoutUrl = $userLogoutUrl !== '' ? $userLogoutUrl : url_for('logout');
     ?>
   <div class="topbar">
     <a href="<?= h(url_for('')) ?>" class="topbar-app topbar-app-link">
@@ -103,6 +106,23 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
     </nav>
 
     <div class="topbar-right">
+      <?php if ($user): ?>
+      <a href="<?= h($profileUrl) ?>" class="topbar-user" style="text-decoration:none;">
+        <span class="topbar-avatar">
+          <img src="<?= h((string) ($user['avatar_url'] ?? user_avatar_url($user))) ?>" alt="" class="topbar-avatar-image">
+        </span>
+        <span>
+          <strong style="display:block;color:#f8fafc;"><?= h((string) ($user['display_name'] ?? 'User')) ?></strong>
+          <?= h(role_label((string) ($user['role'] ?? 'user'))) ?>
+        </span>
+      </a>
+      <a href="<?= h($profileUrl) ?>" class="topbar-btn" title="Profile" aria-label="Profile">
+        <span class="material-symbols-outlined">person</span>
+      </a>
+      <a href="<?= h($logoutUrl) ?>" class="topbar-btn" title="Logout" aria-label="Logout">
+        <span class="material-symbols-outlined">logout</span>
+      </a>
+      <?php endif; ?>
       <button id="theme-toggle" class="topbar-btn" title="Toggle theme" aria-label="Toggle theme">
         <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
       </button>

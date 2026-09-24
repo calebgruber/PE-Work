@@ -64,23 +64,532 @@ function asset_url(string $path): string
     return $url;
 }
 
-function current_user(): array
+function test_auth_bypass_enabled(): bool
+{
+    $disabled = getenv('PE_WORK_DISABLE_TEST_AUTH_BYPASS');
+    return ALLOW_SQLITE_FOR_TESTS && in_array(PHP_SAPI, ['cli', 'cli-server', 'phpdbg'], true) && $disabled !== '1';
+}
+
+function auth_tables_ready(): bool
+{
+    return schema_ready() && table_exists('users');
+}
+
+function user_roles(): array
 {
     return [
-        'display_name' => 'Shop Order Admin',
-        'username' => 'shop-admin',
-        'role' => 'admin',
+        'admin' => 'Admin',
+        'user' => 'User',
     ];
+}
+
+function user_concentrations(): array
+{
+    return [
+        'lighting' => 'Lighting',
+        'sound' => 'Sound',
+    ];
+}
+
+function normalize_user_email(?string $value): string
+{
+    return strtolower(trim((string) $value));
+}
+
+function user_avatar_url(array $user): string
+{
+    $seed = trim((string) ($user['avatar_seed'] ?? ''));
+    if ($seed === '') {
+        $seed = trim((string) ($user['email'] ?? ''));
+    }
+    if ($seed === '') {
+        $seed = trim((string) ($user['display_name'] ?? 'user'));
+    }
+
+    return 'https://api.dicebear.com/9.x/thumbs/svg?seed=' . rawurlencode($seed);
+}
+
+function user_initials(array $user): string
+{
+    $name = trim((string) ($user['display_name'] ?? ''));
+    if ($name === '') {
+        $name = trim((string) ($user['email'] ?? 'U'));
+    }
+
+    $parts = preg_split('/\s+/', $name) ?: [];
+    $initials = '';
+    foreach ($parts as $part) {
+        if ($part === '') {
+            continue;
+        }
+        $initials .= strtoupper(substr($part, 0, 1));
+        if (strlen($initials) >= 2) {
+            break;
+        }
+    }
+
+    return $initials !== '' ? $initials : 'U';
+}
+
+function role_label(?string $role): string
+{
+    $roles = user_roles();
+    return $roles[$role ?? ''] ?? 'User';
+}
+
+function concentration_label(?string $concentration): string
+{
+    $concentrations = user_concentrations();
+    return $concentrations[$concentration ?? ''] ?? 'Lighting';
+}
+
+function user_count(): int
+{
+    if (!auth_tables_ready()) {
+        return 0;
+    }
+
+    return (int) db()->query('SELECT COUNT(*) FROM users')->fetchColumn();
+}
+
+function user_bootstrap_required(): bool
+{
+    return auth_tables_ready() && user_count() === 0;
+}
+
+function find_user_by_id(int $userId): ?array
+{
+    if (!auth_tables_ready() || $userId <= 0) {
+        return null;
+    }
+
+    $stmt = db()->prepare('SELECT * FROM users WHERE id = ? AND is_active = 1 LIMIT 1');
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch();
+    return $user ?: null;
+}
+
+function find_user_by_email(string $email): ?array
+{
+    if (!auth_tables_ready()) {
+        return null;
+    }
+
+    $normalized = normalize_user_email($email);
+    if ($normalized === '') {
+        return null;
+    }
+
+    $stmt = db()->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
+    $stmt->execute([$normalized]);
+    $user = $stmt->fetch();
+    return $user ?: null;
+}
+
+function current_user(): array
+{
+    $sessionUserId = (int) ($_SESSION['user_id'] ?? 0);
+    if ($sessionUserId > 0) {
+        $sessionUser = find_user_by_id($sessionUserId);
+        if ($sessionUser) {
+            $sessionUser['avatar_url'] = user_avatar_url($sessionUser);
+            return $sessionUser;
+        }
+
+        unset($_SESSION['user_id']);
+    }
+
+    if (test_auth_bypass_enabled()) {
+        return [
+            'id' => 0,
+            'display_name' => 'Test Admin',
+            'email' => 'test-admin@example.com',
+            'role' => 'admin',
+            'concentration' => 'lighting',
+            'must_change_password' => 0,
+            'avatar_seed' => 'test-admin',
+            'avatar_url' => user_avatar_url(['avatar_seed' => 'test-admin']),
+            'is_test_user' => 1,
+        ];
+    }
+
+    return [];
+}
+
+function is_logged_in(): bool
+{
+    return !empty(current_user());
+}
+
+function is_admin(?array $user = null): bool
+{
+    $user = $user ?? current_user();
+    return ($user['role'] ?? '') === 'admin';
+}
+
+function auth_password_change_required(?array $user = null): bool
+{
+    $user = $user ?? current_user();
+    return (int) ($user['must_change_password'] ?? 0) === 1;
+}
+
+function current_request_path_with_query(): string
+{
+    $uri = (string) ($_SERVER['REQUEST_URI'] ?? url_for(''));
+    if ($uri === '') {
+        return url_for('');
+    }
+
+    return $uri;
+}
+
+function app_site_url(): string
+{
+    if (APP_SITE_URL !== '') {
+        return APP_SITE_URL;
+    }
+
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string) $_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+        ? 'https'
+        : 'http';
+    $host = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '') {
+        return '';
+    }
+
+    return $scheme . '://' . $host . app_base_url();
+}
+
+function redirect(string $path): void
+{
+    header('Location: ' . $path);
+    exit;
+}
+
+function require_login(array $options = []): void
+{
+    if (!schema_ready()) {
+        redirect(url_for('setup'));
+    }
+
+    if (user_bootstrap_required()) {
+        redirect(url_for('setup'));
+    }
+
+    if (!is_logged_in()) {
+        $loginUrl = url_for('login');
+        $returnTo = current_request_path_with_query();
+        if ($returnTo !== '') {
+            $loginUrl .= '?return_to=' . rawurlencode($returnTo);
+        }
+        redirect($loginUrl);
+    }
+
+    if (auth_password_change_required() && empty($options['allow_password_change'])) {
+        if (function_exists('flash')) {
+            flash('warning', 'Change your temporary password before using the rest of the system.');
+        }
+        redirect(url_for('profile?force_password=1'));
+    }
+}
+
+function require_admin(): void
+{
+    require_login();
+
+    if (!is_admin()) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
+}
+
+function login_user(array $user): void
+{
+    $_SESSION['user_id'] = (int) ($user['id'] ?? 0);
+    session_regenerate_id(true);
+}
+
+function logout_user(): void
+{
+    unset($_SESSION['user_id']);
+    session_regenerate_id(true);
+}
+
+function authenticate_user(string $email, string $password): array
+{
+    if (!auth_tables_ready()) {
+        return ['ok' => false, 'message' => 'Run setup before signing in.'];
+    }
+
+    if (user_bootstrap_required()) {
+        return ['ok' => false, 'message' => 'Create the first admin account in setup before signing in.'];
+    }
+
+    $user = find_user_by_email($email);
+    if (!$user || !(int) ($user['is_active'] ?? 0)) {
+        return ['ok' => false, 'message' => 'Invalid email or password.'];
+    }
+
+    if (!password_verify($password, (string) ($user['password_hash'] ?? ''))) {
+        return ['ok' => false, 'message' => 'Invalid email or password.'];
+    }
+
+    $stmt = db()->prepare('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?');
+    $stmt->execute([(int) $user['id']]);
+    $user = find_user_by_id((int) $user['id']) ?? $user;
+    login_user($user);
+
+    return ['ok' => true, 'user' => $user];
+}
+
+function random_password(int $length = 14): string
+{
+    $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*';
+    $maxIndex = strlen($alphabet) - 1;
+    $password = '';
+    for ($index = 0; $index < $length; $index++) {
+        $password .= $alphabet[random_int(0, $maxIndex)];
+    }
+
+    return $password;
+}
+
+function valid_user_role(string $role): string
+{
+    $roles = user_roles();
+    return array_key_exists($role, $roles) ? $role : 'user';
+}
+
+function valid_user_concentration(string $concentration): string
+{
+    $concentrations = user_concentrations();
+    return array_key_exists($concentration, $concentrations) ? $concentration : 'lighting';
+}
+
+function validate_password_rules(string $password): ?string
+{
+    return strlen($password) < 10 ? 'Password must be at least 10 characters.' : null;
+}
+
+function send_invite_email(array $user, string $temporaryPassword): array
+{
+    $siteUrl = app_site_url();
+    $loginUrl = $siteUrl !== '' ? rtrim($siteUrl, '/') . url_for('login') : url_for('login');
+    $subject = APP_NAME . ' account invite';
+    $bodyLines = [
+        'You have been invited to ' . APP_NAME . '.',
+        '',
+        'Sign in here: ' . $loginUrl,
+        'Email: ' . (string) ($user['email'] ?? ''),
+        'Temporary password: ' . $temporaryPassword,
+        '',
+        'You must change your password the first time you sign in.',
+    ];
+    $headers = ['Content-Type: text/plain; charset=UTF-8'];
+    if (APP_EMAIL_FROM_ADDRESS !== '') {
+        $fromName = APP_EMAIL_FROM_NAME !== '' ? APP_EMAIL_FROM_NAME : APP_NAME;
+        $headers[] = 'From: ' . sprintf('%s <%s>', str_replace(["\r", "\n"], '', $fromName), str_replace(["\r", "\n"], '', APP_EMAIL_FROM_ADDRESS));
+    }
+
+    $sent = @mail((string) ($user['email'] ?? ''), $subject, implode("\n", $bodyLines), implode("\r\n", $headers));
+    if (!$sent) {
+        return ['ok' => false, 'message' => 'User saved, but the invite email could not be sent. Configure mail delivery first.'];
+    }
+
+    return ['ok' => true, 'message' => 'Invite email sent.'];
+}
+
+function bootstrap_admin_user(array $input): array
+{
+    if (!auth_tables_ready()) {
+        return ['ok' => false, 'message' => 'Run migrations before creating the first admin.'];
+    }
+    if (user_count() > 0) {
+        return ['ok' => false, 'message' => 'An admin account already exists.'];
+    }
+
+    $displayName = trim((string) ($input['display_name'] ?? ''));
+    $email = normalize_user_email($input['email'] ?? '');
+    $password = (string) ($input['password'] ?? '');
+    $passwordConfirmation = (string) ($input['password_confirmation'] ?? '');
+    $concentration = valid_user_concentration((string) ($input['concentration'] ?? 'lighting'));
+
+    if ($displayName === '' || $email === '') {
+        return ['ok' => false, 'message' => 'Name and email are required.'];
+    }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['ok' => false, 'message' => 'Enter a valid email address.'];
+    }
+    if ($password !== $passwordConfirmation) {
+        return ['ok' => false, 'message' => 'Password confirmation does not match.'];
+    }
+    $passwordError = validate_password_rules($password);
+    if ($passwordError !== null) {
+        return ['ok' => false, 'message' => $passwordError];
+    }
+
+    $stmt = db()->prepare('
+        INSERT INTO users (display_name, email, password_hash, role, concentration, must_change_password, avatar_seed, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 0, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ');
+    $stmt->execute([
+        $displayName,
+        $email,
+        password_hash($password, PASSWORD_DEFAULT),
+        'admin',
+        $concentration,
+        bin2hex(random_bytes(8)),
+    ]);
+
+    $user = find_user_by_id((int) db()->lastInsertId());
+    if (!$user) {
+        return ['ok' => false, 'message' => 'The admin account was created, but could not be loaded.'];
+    }
+
+    login_user($user);
+    return ['ok' => true, 'user' => $user];
+}
+
+function create_user_invite(array $input, array $actor): array
+{
+    if (!is_admin($actor)) {
+        return ['ok' => false, 'message' => 'Only admins can create users.'];
+    }
+
+    $displayName = trim((string) ($input['display_name'] ?? ''));
+    $email = normalize_user_email($input['email'] ?? '');
+    $role = valid_user_role((string) ($input['role'] ?? 'user'));
+    $concentration = valid_user_concentration((string) ($input['concentration'] ?? 'lighting'));
+
+    if ($displayName === '' || $email === '') {
+        return ['ok' => false, 'message' => 'Name and email are required.'];
+    }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return ['ok' => false, 'message' => 'Enter a valid email address.'];
+    }
+    if (find_user_by_email($email)) {
+        return ['ok' => false, 'message' => 'That email already has an account.'];
+    }
+
+    $temporaryPassword = random_password();
+
+    db()->beginTransaction();
+    try {
+        $stmt = db()->prepare('
+            INSERT INTO users (display_name, email, password_hash, role, concentration, must_change_password, avatar_seed, is_active, created_by_user_id, invited_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, 1, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ');
+        $stmt->execute([
+            $displayName,
+            $email,
+            password_hash($temporaryPassword, PASSWORD_DEFAULT),
+            $role,
+            $concentration,
+            bin2hex(random_bytes(8)),
+            (int) ($actor['id'] ?? 0) ?: null,
+        ]);
+
+        $user = find_user_by_id((int) db()->lastInsertId());
+        if (!$user) {
+            throw new RuntimeException('Unable to load the new user.');
+        }
+
+        $mailResult = send_invite_email($user, $temporaryPassword);
+        if (!$mailResult['ok']) {
+            throw new RuntimeException($mailResult['message']);
+        }
+
+        db()->commit();
+        return ['ok' => true, 'message' => 'User created and invite email sent.', 'user' => $user];
+    } catch (Throwable $e) {
+        if (db()->inTransaction()) {
+            db()->rollBack();
+        }
+
+        return ['ok' => false, 'message' => $e->getMessage()];
+    }
+}
+
+function update_user_profile(array $user, array $input): array
+{
+    $displayName = trim((string) ($input['display_name'] ?? ''));
+    $concentration = valid_user_concentration((string) ($input['concentration'] ?? ($user['concentration'] ?? 'lighting')));
+    $currentPassword = (string) ($input['current_password'] ?? '');
+    $newPassword = (string) ($input['new_password'] ?? '');
+    $confirmPassword = (string) ($input['confirm_password'] ?? '');
+
+    if ($displayName === '') {
+        return ['ok' => false, 'message' => 'Name is required.'];
+    }
+
+    $passwordHash = (string) ($user['password_hash'] ?? '');
+    $mustChangePassword = auth_password_change_required($user);
+    $passwordChanged = false;
+
+    if ($newPassword !== '' || $confirmPassword !== '' || $mustChangePassword) {
+        if (!$mustChangePassword && !password_verify($currentPassword, $passwordHash)) {
+            return ['ok' => false, 'message' => 'Current password is incorrect.'];
+        }
+        if ($newPassword !== $confirmPassword) {
+            return ['ok' => false, 'message' => 'New password confirmation does not match.'];
+        }
+        $passwordError = validate_password_rules($newPassword);
+        if ($passwordError !== null) {
+            return ['ok' => false, 'message' => $passwordError];
+        }
+        $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+        $mustChangePassword = false;
+        $passwordChanged = true;
+    }
+
+    $stmt = db()->prepare('
+        UPDATE users
+           SET display_name = ?, concentration = ?, password_hash = ?, must_change_password = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?
+    ');
+    $stmt->execute([
+        $displayName,
+        $concentration,
+        $passwordHash,
+        $mustChangePassword ? 1 : 0,
+        (int) $user['id'],
+    ]);
+
+    $updated = find_user_by_id((int) $user['id']) ?? $user;
+    login_user($updated);
+
+    return [
+        'ok' => true,
+        'message' => $passwordChanged ? 'Profile updated and password changed.' : 'Profile updated.',
+        'user' => $updated,
+    ];
+}
+
+function list_users(): array
+{
+    if (!auth_tables_ready()) {
+        return [];
+    }
+
+    return db()->query('SELECT * FROM users ORDER BY created_at DESC, display_name ASC')->fetchAll();
 }
 
 function nav_items(string $active = 'dashboard'): array
 {
-    return [
+    $user = current_user();
+    $items = [
         ['icon' => 'home', 'label' => 'Dashboard', 'href' => url_for(''), 'active' => $active === 'dashboard'],
         ['icon' => 'theater_comedy', 'label' => 'Shows', 'href' => url_for('show'), 'active' => $active === 'shows'],
         ['icon' => 'folder', 'label' => 'Resources', 'href' => url_for('settings?tab=resources'), 'active' => $active === 'resources'],
-        ['icon' => 'settings', 'label' => 'Settings', 'href' => url_for('settings'), 'active' => $active === 'settings'],
     ];
+
+    if (is_admin($user)) {
+        $items[] = ['icon' => 'group', 'label' => 'Users', 'href' => url_for('users'), 'active' => $active === 'users'];
+        $items[] = ['icon' => 'settings', 'label' => 'Settings', 'href' => url_for('settings'), 'active' => $active === 'settings'];
+    }
+
+    return $items;
 }
 
 function normalize_date(?string $value): ?string

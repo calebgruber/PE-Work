@@ -1,17 +1,7 @@
 <?php
 
 $repoRoot = dirname(__DIR__);
-$localConfig = $repoRoot . '/config.local.php';
-$localBackup = $repoRoot . '/config.local.php.test-backup-' . uniqid('', true);
-$movedLocalConfig = false;
-if (file_exists($localConfig)) {
-    $movedLocalConfig = rename($localConfig, $localBackup);
-    if (!$movedLocalConfig) {
-        fwrite(STDERR, "Unable to isolate config.local.php for csv_import_test.\n");
-        exit(1);
-    }
-}
-
+putenv('PE_WORK_SKIP_LOCAL_CONFIG=1');
 define('DB_DRIVER', 'sqlite');
 define('DB_SQLITE_PATH', '/tmp/pe-work-test-' . uniqid('', true) . '.sqlite');
 define('ALLOW_SQLITE_FOR_TESTS', true);
@@ -28,14 +18,9 @@ function csv_test_cleanup(): void
     }
     $done = true;
 
-    global $localConfig, $localBackup, $movedLocalConfig;
-
     @unlink(DB_SQLITE_PATH);
     @unlink(DB_SQLITE_PATH . '-wal');
     @unlink(DB_SQLITE_PATH . '-shm');
-    if ($movedLocalConfig && file_exists($localBackup)) {
-        rename($localBackup, $localConfig);
-    }
 }
 
 register_shutdown_function('csv_test_cleanup');

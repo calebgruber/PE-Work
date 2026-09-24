@@ -5,9 +5,18 @@ require_once __DIR__ . '/shared/db.php';
 require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
+require_login();
+
+$user = current_user();
+$isAdmin = is_admin($user);
 $tab = $_GET['tab'] ?? 'inventory';
 if (!in_array($tab, ['inventory', 'resources', 'rules', 'layout', 'migrations'], true)) {
-    $tab = 'inventory';
+    $tab = $isAdmin ? 'inventory' : 'resources';
+}
+if (!$isAdmin && $tab !== 'resources') {
+    flash('warning', 'Only admins can access system settings.');
+    header('Location: ' . url_for('settings?tab=resources'));
+    exit;
 }
 $resourceFolderParam = $_GET['folder'] ?? null;
 $selectedResourceFolderId = null;
@@ -25,6 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $action = $_POST['action'] ?? '';
+
+    if (!$isAdmin) {
+        http_response_code(403);
+        exit('Forbidden');
+    }
 
     if ($action === 'run_migrations') {
         $migrationLogs = run_pending_migrations();
@@ -207,17 +221,19 @@ foreach ($catalog as $category) {
 
 ui_head('Settings', '', APP_NAME, 'settings');
 ui_sidebar(APP_NAME, 'settings', nav_items($tab === 'resources' ? 'resources' : 'settings'));
-ui_page_header('System Settings', 'Manage inventory, rules, layout defaults, and database migrations.', '');
+ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage inventory, rules, layout defaults, and database migrations.' : 'Browse shared shop resources.', '');
 ?>
 <div class="page-body">
   <?php ui_flash(); ?>
 
   <nav class="tabs" aria-label="Settings sections">
+    <?php if ($isAdmin): ?>
     <a class="tab<?= $tab === 'inventory' ? ' active' : '' ?>"<?= $tab === 'inventory' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=inventory')) ?>"><span class="material-symbols-outlined">inventory_2</span>Inventory</a>
-    <a class="tab<?= $tab === 'resources' ? ' active' : '' ?>"<?= $tab === 'resources' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=resources')) ?>"><span class="material-symbols-outlined">folder</span>Resources</a>
     <a class="tab<?= $tab === 'rules' ? ' active' : '' ?>"<?= $tab === 'rules' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=rules')) ?>"><span class="material-symbols-outlined">rule</span>Rules</a>
     <a class="tab<?= $tab === 'layout' ? ' active' : '' ?>"<?= $tab === 'layout' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=layout')) ?>"><span class="material-symbols-outlined">dashboard_customize</span>Layout</a>
     <a class="tab<?= $tab === 'migrations' ? ' active' : '' ?>"<?= $tab === 'migrations' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=migrations')) ?>"><span class="material-symbols-outlined">database</span>Migrations</a>
+    <?php endif; ?>
+    <a class="tab<?= $tab === 'resources' ? ' active' : '' ?>"<?= $tab === 'resources' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=resources')) ?>"><span class="material-symbols-outlined">folder</span>Resources</a>
   </nav>
 
   <?php if ($tab === 'inventory'): ?>
