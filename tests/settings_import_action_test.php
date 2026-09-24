@@ -630,5 +630,45 @@ settings_assert(str_contains($revisionListPageHtml, '1.0') && str_contains($revi
 settings_assert($revisionEditPageStatus === 0, 'Expected revision edit page request to succeed.', $repoRoot, $process, $pipes, $testPaths);
 settings_assert(str_contains($revisionEditPageHtml, 'Revision History'), 'Expected revision edit page to include a revision history section.', $repoRoot, $process, $pipes, $testPaths);
 settings_assert(str_contains($revisionEditPageHtml, 'Every revision for this show stays visible here'), 'Expected revision edit page to explain the full revision trail while editing.', $repoRoot, $process, $pipes, $testPaths);
+$paperworkPagePath = tempnam(sys_get_temp_dir(), 'pew-paperwork-page-');
+$paperworkHeadersPath = tempnam(sys_get_temp_dir(), 'pew-paperwork-headers-');
+$paperworkResponsePath = tempnam(sys_get_temp_dir(), 'pew-paperwork-response-');
+$testPaths[] = $paperworkPagePath;
+$testPaths[] = $paperworkHeadersPath;
+$testPaths[] = $paperworkResponsePath;
+exec(sprintf(
+    "curl -fsS -o %s -c %s -b %s %s",
+    escapeshellarg($paperworkPagePath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&tab=paperwork')
+), $paperworkPageOutput, $paperworkPageStatus);
+$paperworkPageHtml = is_file($paperworkPagePath) ? file_get_contents($paperworkPagePath) : '';
+preg_match('/name=\"csrf_token\" value=\"([^\"]+)\"/', $paperworkPageHtml, $paperworkTokenMatch);
+$paperworkToken = html_entity_decode($paperworkTokenMatch[1] ?? '', ENT_QUOTES, 'UTF-8');
+exec(sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F 'action=save_show_layout' -F 'footer_text=Show Footer Override' -F 'cover_prepared_by_name=Show Prep Person' %s",
+    escapeshellarg($paperworkResponsePath),
+    escapeshellarg($paperworkHeadersPath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg('csrf_token=' . $paperworkToken),
+    escapeshellarg($baseUrl . '/show?show_id=' . $validationShowId . '&tab=paperwork')
+), $paperworkOutput, $paperworkStatus);
+$paperworkHeaders = is_file($paperworkHeadersPath) ? file_get_contents($paperworkHeadersPath) : '';
+$paperworkResponseHtml = is_file($paperworkResponsePath) ? file_get_contents($paperworkResponsePath) : '';
+$showFooterStmt = db()->prepare('SELECT value FROM show_settings WHERE show_id = ? AND `key` = ?');
+$showFooterStmt->execute([$validationShowId, 'layout.footer_text']);
+$showFooterValue = (string) $showFooterStmt->fetchColumn();
+$showPreparedByStmt = db()->prepare('SELECT value FROM show_settings WHERE show_id = ? AND `key` = ?');
+$showPreparedByStmt->execute([$validationShowId, 'layout.cover_prepared_by_name']);
+$showPreparedByValue = (string) $showPreparedByStmt->fetchColumn();
+settings_assert($paperworkPageStatus === 0 && $paperworkToken !== '', 'Expected paperwork tab request to provide a CSRF token.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($paperworkStatus === 0, 'Expected show paperwork settings save request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($paperworkHeaders, 'Location: /show?show_id=' . $validationShowId . '&tab=paperwork'), 'Expected show paperwork settings save to redirect back to the paperwork tab.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($showFooterValue === 'Show Footer Override', 'Expected show paperwork settings to persist footer overrides per show.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($showPreparedByValue === 'Show Prep Person', 'Expected show paperwork settings to persist prepared-by overrides per show.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($paperworkResponseHtml, 'Show paperwork settings saved.'), 'Expected show paperwork save flow to show a success flash.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($paperworkResponseHtml, 'Show Paperwork Settings'), 'Expected show paperwork tab to render its dedicated settings card.', $repoRoot, $process, $pipes, $testPaths);
 settings_test_cleanup($repoRoot, $process, $pipes, $testPaths);
 echo "settings import action test passed\n";

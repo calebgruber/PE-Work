@@ -344,6 +344,12 @@ save_export_layout([
     'equipment_font_action' => '8.6',
     'equipment_font_notes' => '6.4',
 ]);
+save_show_export_layout($showId, [
+    'export_notes' => "Show note override one\nShow note override two",
+    'cover_notes_spacing' => '0.456',
+    'cover_footer_logo_url' => 'images/show-footer-logo.png',
+    'cover_prepared_by_name' => 'Show Override Person',
+]);
 
 $lineStmt = db()->prepare('SELECT rent_quantity, spare_quantity, total_quantity, action, line_note, pickup_date, return_date FROM revision_items WHERE revision_id = ? AND inventory_item_id = ?');
 $lineStmt->execute([$nextRevisionId, $fixtureItemId]);
@@ -414,7 +420,8 @@ assert_true(!str_contains($exportHtml, 'col-summary-notes'), 'Expected revision 
 assert_true(str_contains($exportHtml, 'Pull 10/02/26'), 'Expected equipment breakdown notes to include item-specific pull dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Return 10/16/26'), 'Expected equipment breakdown notes to include item-specific return dates in mm/dd/yy format.');
 assert_true(str_contains($exportHtml, 'Latest revision should clone from here.'), 'Expected order or revision line notes to print on the breakdown paperwork.');
-assert_true((bool) preg_match('/<li>Default note one<\/li>.*?<li>Default note two<\/li>/s', $notesSectionHtml), 'Expected the notes page to show only the settings notes.');
+assert_true((bool) preg_match('/<li>Show note override one<\/li>.*?<li>Show note override two<\/li>/s', $notesSectionHtml), 'Expected the notes page to use show-level notes when present.');
+assert_true(!str_contains($notesSectionHtml, 'Default note one'), 'Expected show-level notes to override the global default notes.');
 assert_true(!str_contains($notesSectionHtml, 'Latest revision should clone from here.'), 'Expected line-item notes to stay off the notes page.');
 assert_true(!str_contains($notesSectionHtml, 'Changed without an explicit action.'), 'Expected changed line-item notes to stay off the notes page.');
 assert_true(!str_contains($notesSectionHtml, 'Blue clip light line note should print on notes page.'), 'Expected note-only line-item notes to stay off the notes page.');
@@ -430,11 +437,13 @@ assert_true(str_contains($exportHtml, 'INITIAL ORDER - 09/01/2026'), 'Expected t
 assert_true(str_contains($exportHtml, '<p class="details-page-heading">CREW &amp; NOTES</p>'), 'Expected the second paperwork page to contain the crew and notes section.');
 assert_true(str_contains($exportHtml, '09/20/2026'), 'Expected show schedule dates to use mm/dd/yyyy formatting.');
 assert_true(str_contains($exportHtml, 'margin-bottom: 0.730in;'), 'Expected the cover title-to-revision spacing to use the saved layout setting.');
-assert_true(str_contains($exportHtml, '.notes-section {') && str_contains($exportHtml, 'margin-top: 1.234in;'), 'Expected notes spacing to use the saved layout setting.');
+assert_true(str_contains($exportHtml, '.notes-section {') && str_contains($exportHtml, 'margin-top: 0.456in;'), 'Expected notes spacing to use the show-level layout setting.');
 assert_true(str_contains($exportHtml, 'line-height: 1.55;'), 'Expected the cover page to add more vertical space between lines.');
 assert_true(str_contains($exportHtml, 'cover-footer-logo') && str_contains($exportHtml, 'footer-logo.png'), 'Expected the cover page footer to support a centered personal logo.');
-assert_true(str_contains($exportHtml, 'Prepared by: Caleb Tester'), 'Expected the cover page footer to show the prepared-by name.');
+assert_true(str_contains($exportHtml, 'Prepared by: Show Override Person'), 'Expected the cover page footer to use the show-level prepared-by name.');
+assert_true(!str_contains($exportHtml, 'Prepared by: Caleb Tester'), 'Expected the global prepared-by default to be overridden per show.');
 assert_true(str_contains($exportHtml, '.cover-footer-logo {') && str_contains($exportHtml, 'justify-content: center;'), 'Expected the cover footer logo wrapper to center the logo.');
+assert_true(str_contains($exportHtml, 'show-footer-logo.png'), 'Expected the cover page footer to use the show-level logo override.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
 assert_true(substr_count($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>') >= 2, 'Expected long revision summaries to spill onto as many additional pages as needed.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');

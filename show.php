@@ -114,6 +114,76 @@ function render_show_form(array $show): void
     <?php
 }
 
+function render_show_paperwork_form(int $showId, array $layout): void
+{
+    ?>
+      <form method="post" class="stack">
+        <?= csrf_input() ?>
+        <input type="hidden" name="action" value="save_show_layout">
+
+        <section class="settings-layout-section">
+          <div class="section-label">General Paperwork Settings</div>
+          <div class="helper-text settings-layout-section-copy">These values apply only to this show and override the admin defaults for exports.</div>
+          <div class="card-grid">
+            <div class="form-group">
+              <label for="header_text">Header Text</label>
+              <input class="form-control" id="header_text" name="header_text" value="<?= h($layout['layout.header_text'] ?? '') ?>">
+            </div>
+            <div class="form-group">
+              <label for="organization_text">Top Right Header Text</label>
+              <input class="form-control" id="organization_text" name="organization_text" value="<?= h($layout['layout.organization_text'] ?? '') ?>">
+            </div>
+            <div class="form-group">
+              <label for="footer_text">Footer Text</label>
+              <input class="form-control" id="footer_text" name="footer_text" value="<?= h($layout['layout.footer_text'] ?? '') ?>">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:1rem;">
+            <label for="export_notes">Important Notes</label>
+            <textarea class="form-control" id="export_notes" name="export_notes" rows="8"><?= h($layout['layout.export_notes'] ?? '') ?></textarea>
+          </div>
+          <div class="pill-row" style="margin-top:1rem;">
+            <label class="tab"><input type="checkbox" name="show_image" value="1" <?= ($layout['layout.show_image'] ?? '1') === '1' ? 'checked' : '' ?>> Show image on exports</label>
+            <label class="tab"><input type="checkbox" name="cover_show_title" value="1" <?= ($layout['layout.cover_show_title'] ?? '1') === '1' ? 'checked' : '' ?>> Show title above cover image</label>
+            <label class="tab"><input type="checkbox" name="show_page_numbers" value="1" <?= ($layout['layout.show_page_numbers'] ?? '1') === '1' ? 'checked' : '' ?>> Page X of X</label>
+            <label class="tab"><input type="checkbox" name="show_revision_summary" value="1" <?= ($layout['layout.show_revision_summary'] ?? '1') === '1' ? 'checked' : '' ?>> Revision summary block</label>
+          </div>
+        </section>
+
+        <section class="settings-layout-section">
+          <div class="section-label">Cover Page Settings</div>
+          <div class="helper-text settings-layout-section-copy">Cover page controls here are saved per show.</div>
+          <div class="card-grid">
+            <div class="form-group">
+              <label for="cover_title_revision_spacing">Cover Title To Revision Spacing (in)</label>
+              <input class="form-control" id="cover_title_revision_spacing" type="text" inputmode="decimal" name="cover_title_revision_spacing" value="<?= h($layout['layout.cover_title_revision_spacing'] ?? '0.52') ?>">
+            </div>
+            <div class="form-group">
+              <label for="cover_notes_spacing">Cards To Notes Spacing (in)</label>
+              <input class="form-control" id="cover_notes_spacing" type="text" inputmode="decimal" name="cover_notes_spacing" value="<?= h($layout['layout.cover_notes_spacing'] ?? '0.9') ?>">
+            </div>
+            <div class="form-group">
+              <label for="cover_footer_logo_url">Cover Footer Logo Path</label>
+              <input class="form-control" id="cover_footer_logo_url" name="cover_footer_logo_url" placeholder="images/my-logo.png" value="<?= h($layout['layout.cover_footer_logo_url'] ?? '') ?>">
+              <div class="helper-text">Optional local path for a centered logo at the bottom of the cover page.</div>
+            </div>
+            <div class="form-group">
+              <label for="cover_prepared_by_name">Prepared By Name</label>
+              <input class="form-control" id="cover_prepared_by_name" name="cover_prepared_by_name" placeholder="Your Name" value="<?= h($layout['layout.cover_prepared_by_name'] ?? '') ?>">
+            </div>
+          </div>
+        </section>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <span class="material-symbols-outlined">save</span>
+            Save Paperwork Settings
+          </button>
+        </div>
+      </form>
+    <?php
+}
+
 function revision_return_tab(?array $revision): string
 {
     return !empty($revision['is_initial']) ? 'orders' : 'revisions';
@@ -227,7 +297,7 @@ if ($showIdParam !== null && ($showIdParam === '' || !ctype_digit($showIdParam) 
 }
 $showId = $showIdParam !== null ? (int) $showIdParam : null;
 $tab = $_GET['tab'] ?? 'info';
-if (!in_array($tab, ['info', 'orders', 'revisions'], true)) {
+if (!in_array($tab, ['info', 'paperwork', 'orders', 'revisions'], true)) {
     $tab = 'info';
 }
 $mode = ($_GET['mode'] ?? '') === 'edit' ? 'edit' : 'view';
@@ -257,6 +327,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . url_for('show?show_id=' . $showId . '&tab=info'));
             exit;
         }
+    }
+
+    if ($action === 'save_show_layout' && $showId) {
+        save_show_export_layout($showId, $_POST);
+        flash('success', 'Show paperwork settings saved.');
+        header('Location: ' . url_for('show?show_id=' . $showId . '&tab=paperwork'));
+        exit;
     }
 
     if ($action === 'create_initial_revision' && $showId) {
@@ -401,6 +478,7 @@ if ($mode === 'edit' && !empty($_GET['revision_id'])) {
 
 $catalog = [];
 $totals = ['rent_total' => 0, 'spare_total' => 0, 'overall_total' => 0];
+$showLayout = $showId ? export_layout_settings($showId) : export_layout_settings();
 if ($mode === 'edit' && $currentRevision) {
     $normalizedRevisionOverrideItems = $revisionOverrideItems ? normalize_revision_lines_input($revisionOverrideItems) : [];
     $catalog = catalog_for_revision((int) $currentRevision['id'], $normalizedRevisionOverrideItems);
@@ -592,6 +670,10 @@ if ($mode === 'edit' && $showId && $currentRevision) {
         <span class="material-symbols-outlined">badge</span>
         Show Information
       </a>
+      <a class="tab<?= $tab === 'paperwork' ? ' active' : '' ?>"<?= $tab === 'paperwork' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=paperwork')) ?>">
+        <span class="material-symbols-outlined">description</span>
+        Paperwork
+      </a>
       <a class="tab<?= $tab === 'orders' ? ' active' : '' ?>"<?= $tab === 'orders' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=orders')) ?>">
         <span class="material-symbols-outlined">assignment</span>
         Orders
@@ -605,6 +687,10 @@ if ($mode === 'edit' && $showId && $currentRevision) {
     <?php if ($tab === 'info'): ?>
       <?php ui_card_open('theater_comedy', 'Show Information'); ?>
         <?php render_show_form($show); ?>
+      <?php ui_card_close(); ?>
+    <?php elseif ($tab === 'paperwork'): ?>
+      <?php ui_card_open('description', 'Show Paperwork Settings'); ?>
+        <?php render_show_paperwork_form((int) $showId, $showLayout); ?>
       <?php ui_card_close(); ?>
     <?php elseif ($tab === 'orders'): ?>
       <?php ui_card_open('assignment', 'Initial Order'); ?>

@@ -817,8 +817,8 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
       <?php endif; ?>
     <?php ui_card_close(); ?>
   <?php elseif ($tab === 'layout'): ?>
-    <?php ui_card_open('dashboard_customize', 'Paperwork Layout Starter'); ?>
-      <p class="helper-text">This tab stores the first export layout controls in the database so later drag-and-drop editor work has a migration-backed home.</p>
+    <?php ui_card_open('dashboard_customize', 'Paperwork Layout Defaults'); ?>
+      <p class="helper-text">Admins set global export defaults here. Show-level General and Cover paperwork settings now live inside each show workspace and override these defaults per show.</p>
       <form method="post">
         <?= csrf_input() ?>
         <input type="hidden" name="action" value="save_layout">
@@ -830,8 +830,8 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
         </div>
 
         <section class="settings-layout-section" id="layout-general">
-          <div class="section-label">General Paperwork Settings</div>
-          <div class="helper-text settings-layout-section-copy">Main paperwork text, notes, and export-wide toggles live here.</div>
+          <div class="section-label">Default General Paperwork Settings</div>
+          <div class="helper-text settings-layout-section-copy">These are the admin-managed fallback defaults for show paperwork exports.</div>
           <div class="card-grid">
             <div class="form-group">
               <label for="header_text">Header Text</label>
@@ -859,8 +859,8 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
         </section>
 
         <section class="settings-layout-section" id="layout-cover">
-          <div class="section-label">Cover Page Settings</div>
-          <div class="helper-text settings-layout-section-copy">Everything specific to the cover page is grouped here.</div>
+          <div class="section-label">Default Cover Page Settings</div>
+          <div class="helper-text settings-layout-section-copy">These cover page values are the admin-managed fallback defaults for each show.</div>
           <div class="card-grid">
             <div class="form-group">
               <label for="cover_title_revision_spacing">Cover Title To Revision Spacing (in)</label>

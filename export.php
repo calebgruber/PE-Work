@@ -540,7 +540,7 @@ function export_equipment_pages(array $rows, array $layout): array
 
 $type = $_GET['type'] ?? 'order';
 $labels = export_type_labels($type);
-$layout = export_layout_settings();
+$layout = export_layout_settings($showId);
 $equipmentMetrics = export_equipment_layout_metrics($layout);
 $summaryMetrics = export_summary_layout_metrics($layout);
 $catalog = catalog_for_revision((int) $revision['id']);
