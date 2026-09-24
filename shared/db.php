@@ -259,9 +259,25 @@ function run_pending_migrations(): array
     return $logs;
 }
 
+function schema_has_tables(array $tables): bool
+{
+    foreach ($tables as $table) {
+        if (!table_exists($table)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function schema_ready(): bool
 {
-    return table_exists('schema_migrations') && table_exists('shows');
+    return schema_has_tables(['schema_migrations', 'shows']);
+}
+
+function resource_schema_ready(): bool
+{
+    return schema_has_tables(['schema_migrations', 'resources']);
 }
 
 function fetch_setting(string $key, ?string $default = null): ?string
