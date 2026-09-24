@@ -13,13 +13,13 @@
   --sidebar-accent:  #3b82f6;
   --sidebar-width:   240px;
 
-  --bg:              #f1f5f9;
+  --bg:              #f6f8fb;
   --surface:         #ffffff;
-  --surface-raised:  #ffffff;
-  --border:          #e2e8f0;
-  --text:            #0f172a;
-  --text-muted:      #64748b;
-  --text-link:       #3b82f6;
+  --surface-raised:  #f8fafc;
+  --border:          #dbe3ee;
+  --text:            #182433;
+  --text-muted:      #66758c;
+  --text-link:       #206bc4;
 
   --primary:         #3b82f6;
   --primary-hover:   #2563eb;
@@ -41,10 +41,10 @@
   --info-bg:         #eff6ff;
   --info-border:     #93c5fd;
 
-  --radius:          1px;
-  --radius-lg:       3px;
-  --shadow:          0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-md:       0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --radius:          8px;
+  --radius-lg:       14px;
+  --shadow:          0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px rgb(15 23 42 / 0.06);
+  --shadow-md:       0 4px 10px rgb(15 23 42 / 0.06), 0 16px 40px rgb(15 23 42 / 0.08);
 
   --font:            'Inter', system-ui, -apple-system, sans-serif;
   --transition:      150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -53,11 +53,11 @@
 /* ── Dark theme ──────────────────────────────────── */
 [data-theme="dark"] {
   --bg:              #0f172a;
-  --surface:         #1e293b;
-  --surface-raised:  #293548;
-  --border:          #334155;
-  --text:            #f1f5f9;
-  --text-muted:      #94a3b8;
+  --surface:         #162033;
+  --surface-raised:  #1d2a3f;
+  --border:          #2a3953;
+  --text:            #f3f6fb;
+  --text-muted:      #95a3ba;
 
   --danger-bg:       #450a0a;
   --danger-border:   #991b1b;
@@ -76,12 +76,14 @@ html { height: 100%; }
 
 body {
   font-family: var(--font);
-  background: var(--bg);
+  background:
+    radial-gradient(circle at top, rgba(32,107,196,0.08), transparent 30%),
+    var(--bg);
   color: var(--text);
   height: 100%;
-  display: flex;
   min-height: 100vh;
   transition: background var(--transition), color var(--transition);
+  line-height: 1.5;
 }
 
 a { color: var(--text-link); text-decoration: none; }
@@ -401,26 +403,26 @@ nav { padding: 0.5rem 0.5rem; flex: 1; }
 
 .page-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  padding: 1.5rem 0 1.25rem;
   gap: 1rem;
   flex-wrap: wrap;
 }
 
 .page-header h1 {
-  font-size: 1.375rem;
+  font-size: 2rem;
   font-weight: 700;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.04em;
   color: var(--text);
+  line-height: 1.15;
 }
 
 .page-header .breadcrumb {
-  font-size: 0.8125rem;
+  font-size: 0.95rem;
   color: var(--text-muted);
-  margin-top: 0.125rem;
+  margin-top: 0.35rem;
+  max-width: 62rem;
 }
 
 /* App context badge shown above the page title */
@@ -447,10 +449,11 @@ nav { padding: 0.5rem 0.5rem; flex: 1; }
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .page-body {
-  padding: 1.5rem;
+  padding: 0 0 2rem;
   flex: 1;
 }
 
@@ -694,32 +697,41 @@ nav { padding: 0.5rem 0.5rem; flex: 1; }
 label {
   display: block;
   font-size: 0.8125rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text);
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.45rem;
+  letter-spacing: 0.01em;
 }
 
 .form-control {
   width: 100%;
-  padding: 0.5625rem 0.75rem;
+  min-height: 2.6rem;
+  padding: 0.625rem 0.875rem;
   font-size: 0.875rem;
   font-family: var(--font);
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 10px;
   outline: none;
-  transition: border-color var(--transition), box-shadow var(--transition);
+  box-shadow: inset 0 1px 2px rgb(15 23 42 / 0.03);
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
 }
 
 .form-control:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+  box-shadow: 0 0 0 0.2rem rgba(32, 107, 196, 0.16);
 }
 
 textarea.form-control { resize: vertical; min-height: 5rem; }
 
 select.form-control { appearance: auto; }
+
+.form-control[readonly],
+.form-control:disabled {
+  background: var(--surface-raised);
+  color: var(--text-muted);
+}
 
 .form-hint {
   font-size: 0.75rem;
@@ -756,36 +768,43 @@ select.form-control { appearance: auto; }
 }
 
 /* ── Tables ──────────────────────────────────────── */
-.table-wrap { overflow-x: auto; }
+.table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
 
 table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
+  background: transparent;
 }
 
 th {
   text-align: left;
-  padding: 0.625rem 0.875rem;
+  padding: 0.85rem 1rem;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
-  background: var(--surface-raised);
+  background: color-mix(in srgb, var(--surface-raised) 88%, #eef3f9 12%);
   white-space: nowrap;
 }
 
 td {
-  padding: 0.75rem 0.875rem;
+  padding: 0.95rem 1rem;
   border-bottom: 1px solid var(--border);
   color: var(--text);
   vertical-align: middle;
 }
 
 tr:last-child td { border-bottom: none; }
-tr:hover td { background: var(--bg); }
+tbody tr:hover td { background: color-mix(in srgb, var(--bg) 78%, white 22%); }
 
 /* ── Badges ──────────────────────────────────────── */
 .badge {
@@ -826,40 +845,157 @@ tr:hover td { background: var(--bg); }
 /* ── Tabs ────────────────────────────────────────── */
 .tabs {
   display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border);
+  gap: 0.5rem;
+  border-bottom: 0;
   margin-bottom: 1.5rem;
   overflow-x: auto;
+  padding: 0.375rem;
+  background: color-mix(in srgb, var(--surface) 92%, #eef3f9 8%);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.5);
 }
 
 .tab {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.625rem 1rem;
+  padding: 0.7rem 1rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-muted);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color var(--transition), border-color var(--transition);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition: color var(--transition), border-color var(--transition), background var(--transition), box-shadow var(--transition);
   white-space: nowrap;
   text-decoration: none;
 }
 
-.tab:hover { color: var(--text); text-decoration: none; }
-.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab:hover {
+  color: var(--text);
+  text-decoration: none;
+  background: rgba(255,255,255,0.78);
+}
+.tab.active {
+  color: var(--text);
+  background: var(--surface);
+  border-color: rgba(32,107,196,0.14);
+  box-shadow: var(--shadow);
+}
 .tab .material-symbols-outlined { font-size: 1rem; }
 
 /* ── Login page – modern split layout ───────────── */
 .login-page {
   min-height: 100vh;
   display: flex;
-  flex-direction: row;
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
+}
+
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(340px, 440px);
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.auth-shell-wide {
+  grid-template-columns: minmax(0, 1fr) minmax(440px, 720px);
+}
+
+.auth-intro {
+  padding: 2.25rem;
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(32,107,196,0.92), rgba(15,23,42,0.94)),
+    var(--surface);
+  color: #f8fafc;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 640px;
+}
+
+.auth-intro-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.16);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.auth-intro h1 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1.05;
+  letter-spacing: -0.05em;
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.auth-intro p {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: rgba(248, 250, 252, 0.82);
+  max-width: 42rem;
+}
+
+.auth-intro-points {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.auth-intro-point {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.875rem;
+  align-items: start;
+  padding: 1rem 1.05rem;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.auth-intro-point .material-symbols-outlined {
+  font-size: 1.35rem;
+  color: #fff;
+}
+
+.auth-intro-point strong,
+.auth-intro-point span {
+  display: block;
+}
+
+.auth-intro-point strong {
+  font-size: 0.95rem;
+  color: #fff;
+  margin-bottom: 0.25rem;
+}
+
+.auth-intro-point span {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: rgba(248,250,252,0.78);
+}
+
+.auth-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-panel-wide {
+  align-items: stretch;
 }
 
 /* Left banner panel (3/4 width) */
@@ -987,18 +1123,25 @@ tr:hover td { background: var(--bg); }
   overflow: hidden;
 }
 
+.login-card-wide {
+  max-width: none;
+}
+
 .login-card .card-body { padding: 0; }
 
 .login-header {
-  background: var(--sidebar-bg);
+  background:
+    linear-gradient(135deg, rgba(32,107,196,0.12), rgba(32,107,196,0.03)),
+    var(--surface-raised);
   padding: 1.75rem 1.5rem;
-  text-align: center;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
 }
 
 .login-header h1 {
   font-size: 1.375rem;
   font-weight: 700;
-  color: #f8fafc;
+  color: var(--text);
   letter-spacing: -0.02em;
 }
 
@@ -1011,16 +1154,16 @@ tr:hover td { background: var(--bg); }
 
 .login-header p {
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--text-muted);
   margin-top: 0.25rem;
 }
 
-.login-body { padding: 1.5rem; }
+.login-body { padding: 1.5rem; background: var(--surface); }
 
 @media (max-width: 768px) {
-  .login-page { flex-direction: column; }
-  .login-banner { flex: none; min-height: 220px; }
-  .login-form-panel { max-width: 100%; min-height: auto; }
+  .auth-shell,
+  .auth-shell-wide { grid-template-columns: 1fr; }
+  .auth-intro { min-height: auto; padding: 1.5rem; }
 }
 
 /* ── App launcher grid (ID admin) ─────────────────── */

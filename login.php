@@ -70,15 +70,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body class="tabler-shell">
 <div class="login-page">
-  <div class="container container-tight py-4">
-    <div class="card login-card">
-      <div class="card-body">
-        <div class="login-header">
-          <span class="material-symbols-outlined logo-icon">login</span>
-          <h1>Sign in to <?= h(APP_NAME) ?></h1>
-          <p>Use the invite email address and password issued by an admin.</p>
+  <div class="container-xl auth-shell">
+    <section class="auth-intro">
+      <div class="auth-intro-badge">Powered by Tabler</div>
+      <h1>Modern shop orders for every production.</h1>
+      <p>Track shows, revisions, exports, and paperwork from one clean workspace built for theatre crews.</p>
+      <div class="auth-intro-points">
+        <div class="auth-intro-point">
+          <span class="material-symbols-outlined">theater_comedy</span>
+          <div>
+            <strong>Show-based workflow</strong>
+            <span>Create and revise orders per production.</span>
+          </div>
         </div>
-        <div class="login-body">
+        <div class="auth-intro-point">
+          <span class="material-symbols-outlined">inventory_2</span>
+          <div>
+            <strong>Inventory-aware</strong>
+            <span>Keep pulls, returns, and spares organized.</span>
+          </div>
+        </div>
+        <div class="auth-intro-point">
+          <span class="material-symbols-outlined">picture_as_pdf</span>
+          <div>
+            <strong>Export ready</strong>
+            <span>Generate polished paperwork for the shop.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="auth-panel">
+      <div class="card login-card">
+        <div class="card-body">
+          <div class="login-header">
+            <span class="material-symbols-outlined logo-icon">login</span>
+            <h1>Sign in to <?= h(APP_NAME) ?></h1>
+            <p>Use the invite email address and password issued by an admin.</p>
+          </div>
+          <div class="login-body">
       <?php ui_flash(); ?>
       <?php if ($error !== ''): ?>
       <div class="alerts">
@@ -110,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </a>
         </div>
       </form>
+          </div>
         </div>
       </div>
     </div>

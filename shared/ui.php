@@ -90,12 +90,14 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
     $profileUrl = url_for('profile');
     $logoutUrl = $userLogoutUrl !== '' ? $userLogoutUrl : url_for('logout');
     ?>
-  <div class="topbar navbar navbar-expand-md">
+  <header class="topbar navbar navbar-expand-md">
     <div class="container-xl topbar-shell">
-      <a href="<?= h(url_for('')) ?>" class="navbar-brand navbar-brand-autodark topbar-app topbar-app-link">
-        <span class="material-symbols-outlined"><?= h($headerIcon) ?></span>
-        <?= h($appHeading) ?>
-      </a>
+      <div class="topbar-branding">
+        <a href="<?= h(url_for('')) ?>" class="navbar-brand navbar-brand-autodark topbar-app topbar-app-link">
+          <span class="material-symbols-outlined"><?= h($headerIcon) ?></span>
+          <?= h($appHeading) ?>
+        </a>
+      </div>
       <nav class="navbar-nav top-nav" aria-label="Primary">
 <?php foreach ($navItems as $item): ?>
 <?php if (!isset($item['section'])): ?>
@@ -113,9 +115,9 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
           <span class="topbar-avatar">
             <img src="<?= h((string) ($user['avatar_url'] ?? user_avatar_url($user))) ?>" alt="" class="topbar-avatar-image">
           </span>
-          <span>
-            <strong style="display:block;color:#f8fafc;"><?= h((string) ($user['display_name'] ?? 'User')) ?></strong>
-            <?= h(role_label((string) ($user['role'] ?? 'user'))) ?>
+          <span class="topbar-user-copy">
+            <strong class="topbar-user-name"><?= h((string) ($user['display_name'] ?? 'User')) ?></strong>
+            <span class="topbar-user-role"><?= h(role_label((string) ($user['role'] ?? 'user'))) ?></span>
           </span>
         </a>
         <a href="<?= h($profileUrl) ?>" class="topbar-btn" title="Profile" aria-label="Profile">
@@ -133,9 +135,10 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
         </button>
       </div>
     </div>
-  </div>
+  </header>
 
   <main class="content page-wrapper">
+    <div class="site-shell container-xl">
 <?php
 }
 
@@ -217,6 +220,7 @@ function ui_card_close(string $footerHtml = ''): void
 function ui_end(): void
 {
     ?>
+    </div>
   </main>
 </div>
 <div id="note-modal" class="modal hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="note-modal-title" tabindex="-1">

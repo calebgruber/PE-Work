@@ -60,15 +60,44 @@ $usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
 </head>
 <body class="tabler-shell">
 <div class="login-page">
-  <div class="container container-tight py-4">
-    <div class="card login-card" style="max-width:720px;margin:0 auto;">
-      <div class="card-body">
-        <div class="login-header">
-          <span class="material-symbols-outlined logo-icon">construction</span>
-          <h1><?= h(APP_NAME) ?> Setup</h1>
-          <p>Apply migrations, keep local config intact, and bootstrap the first admin account.</p>
+  <div class="container-xl auth-shell auth-shell-wide">
+    <section class="auth-intro">
+      <div class="auth-intro-badge">Setup &amp; migrations</div>
+      <h1>Get the system ready without leaving the browser.</h1>
+      <p>Apply database changes, preserve your local config, and bootstrap the first admin account from one clean setup flow.</p>
+      <div class="auth-intro-points">
+        <div class="auth-intro-point">
+          <span class="material-symbols-outlined">upgrade</span>
+          <div>
+            <strong>Run migrations safely</strong>
+            <span>See exactly what applied and what still needs attention.</span>
+          </div>
         </div>
-        <div class="login-body">
+        <div class="auth-intro-point">
+          <span class="material-symbols-outlined">admin_panel_settings</span>
+          <div>
+            <strong>Bootstrap access</strong>
+            <span>Create the first admin once auth tables are ready.</span>
+          </div>
+        </div>
+        <div class="auth-intro-point">
+          <span class="material-symbols-outlined">settings</span>
+          <div>
+            <strong>cPanel friendly</strong>
+            <span>Keep the app deployable with minimal server setup.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="auth-panel auth-panel-wide">
+      <div class="card login-card login-card-wide">
+        <div class="card-body">
+          <div class="login-header">
+            <span class="material-symbols-outlined logo-icon">construction</span>
+            <h1><?= h(APP_NAME) ?> Setup</h1>
+            <p>Apply migrations, keep local config intact, and bootstrap the first admin account.</p>
+          </div>
+          <div class="login-body">
       <?php ui_flash(); ?>
       <?php foreach ($bootstrapErrors as $error): ?>
       <div class="alerts">
@@ -177,9 +206,10 @@ $usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
         </table>
       </div>
       <?php endif; ?>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 </div>
 <script src="<?= h(asset_url('shared/assets/app.js')) ?>"></script>
