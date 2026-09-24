@@ -70,14 +70,12 @@ function settings_start_server(string $repoRoot): array
         fclose($socket);
         $port = (int) substr(strrchr($serverAddress, ':'), 1);
         $baseUrl = 'http://127.0.0.1:' . $port;
-        $env = array_merge($_ENV, [
-            'PE_WORK_SKIP_LOCAL_CONFIG' => '1',
-            'DB_DRIVER' => 'sqlite',
-            'DB_SQLITE_PATH' => $GLOBALS['testDbPath'],
-            'APP_BASE_URL' => '/',
-            'ALLOW_LOCAL_UPLOADS_FOR_TESTS' => '1',
-        ]);
-        $process = proc_open('php -S 127.0.0.1:' . $port . ' router.php', $descriptors, $pipes, $repoRoot, $env);
+        $command = sprintf(
+            'PE_WORK_SKIP_LOCAL_CONFIG=1 DB_DRIVER=sqlite DB_SQLITE_PATH=%s APP_BASE_URL=/ ALLOW_SQLITE_FOR_TESTS=1 ALLOW_LOCAL_UPLOADS_FOR_TESTS=1 php -S 127.0.0.1:%d router.php',
+            escapeshellarg($GLOBALS['testDbPath']),
+            $port
+        );
+        $process = proc_open($command, $descriptors, $pipes, $repoRoot);
         if (!is_resource($process)) {
             continue;
         }

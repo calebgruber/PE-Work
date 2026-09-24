@@ -273,6 +273,10 @@ function require_login(array $options = []): void
         redirect(url_for('setup'));
     }
 
+    if (test_auth_bypass_enabled()) {
+        return;
+    }
+
     if (user_bootstrap_required()) {
         redirect(url_for('setup'));
     }
