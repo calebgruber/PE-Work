@@ -65,6 +65,7 @@ while (ob_get_level() > 0) {
 
 header('Content-Type: ' . ($effectiveMimeType !== '' ? $effectiveMimeType : 'application/octet-stream'));
 header('X-Content-Type-Options: nosniff');
+header("Content-Security-Policy: default-src 'none'; sandbox");
 header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');

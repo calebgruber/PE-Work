@@ -437,14 +437,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $revisionOverrideItems = revision_request_items($_POST);
         $validationWarnings = revision_validation_warnings(revision_input_snapshot($revisionId, $revisionOverrideItems));
-        save_revision_lines($revisionId, $revisionOverrideItems);
+        try {
+            save_revision_lines($revisionId, $revisionOverrideItems);
+            $savedTotals = revision_totals($revisionId);
+        } catch (Throwable $e) {
+            if (is_ajax_request()) {
+                http_response_code(500);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'ok' => false,
+                    'warnings' => [['type' => 'rule', 'message' => 'Unable to save this revision right now.']],
+                ]);
+                exit;
+            }
+            throw $e;
+        }
         if (is_ajax_request()) {
             header('Content-Type: application/json');
             echo json_encode([
                 'ok' => true,
                 'message' => 'Order changes saved.',
                 'warnings' => $validationWarnings,
-                'totals' => revision_totals($revisionId),
+                'totals' => $savedTotals,
             ]);
             exit;
         }
