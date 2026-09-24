@@ -16,7 +16,12 @@ if (user_bootstrap_required()) {
 }
 
 $returnTo = trim((string) ($_GET['return_to'] ?? $_POST['return_to'] ?? url_for('')));
-if ($returnTo === '' || str_contains($returnTo, '://')) {
+if (
+    $returnTo === ''
+    || !str_starts_with($returnTo, '/')
+    || str_starts_with($returnTo, '//')
+    || str_contains($returnTo, '://')
+) {
     $returnTo = url_for('');
 }
 
