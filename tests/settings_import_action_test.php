@@ -309,7 +309,7 @@ $createSubfolderCommand = sprintf(
     escapeshellarg($baseUrl . '/settings?tab=resources')
 );
 exec($createSubfolderCommand, $createSubfolderOutput, $createSubfolderStatus);
-$resourceSubfolderId = (int) $freshDb->query("SELECT id FROM resource_folders WHERE name = 'Drafts' ORDER BY id DESC LIMIT 1")->fetchColumn();
+$resourceSubfolderId = (int) $freshDb->query("SELECT id FROM resource_folders WHERE name = 'Drafts' AND parent_id = " . $resourceFolderId . " ORDER BY id DESC LIMIT 1")->fetchColumn();
 $resourceCommand = sprintf(
     "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F %s -F 'action=upload_resource' -F 'resource_title=Shop Resource' -F 'resource_pdf=@%s;type=application/pdf;filename=resource.pdf' %s",
     escapeshellarg($resourceResponsePath),
@@ -324,6 +324,10 @@ $resourceCommand = sprintf(
 exec($resourceCommand, $resourceOutput, $resourceStatus);
 $resourceHeaders = is_file($resourceHeadersPath) ? file_get_contents($resourceHeadersPath) : '';
 $resourceBody = is_file($resourceResponsePath) ? file_get_contents($resourceResponsePath) : '';
+$freshDb = new PDO('sqlite:' . $testDbPath, null, null, [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+]);
 $resourceStmt = $freshDb->prepare('SELECT * FROM resources WHERE title = ? ORDER BY id DESC LIMIT 1');
 $resourceStmt->execute(['Shop Resource']);
 $resourceRow = $resourceStmt->fetch() ?: [];

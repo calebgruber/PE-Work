@@ -2325,6 +2325,19 @@ function create_resource_folder(string $name, ?int $parentId = null): array
         $parentId = null;
     }
 
+    if (resource_folder_parenting_supported()) {
+        $duplicateStmt = $parentId === null
+            ? db()->prepare('SELECT COUNT(*) FROM resource_folders WHERE parent_id IS NULL AND name = ?')
+            : db()->prepare('SELECT COUNT(*) FROM resource_folders WHERE parent_id = ? AND name = ?');
+        $duplicateStmt->execute($parentId === null ? [$name] : [$parentId, $name]);
+    } else {
+        $duplicateStmt = db()->prepare('SELECT COUNT(*) FROM resource_folders WHERE name = ?');
+        $duplicateStmt->execute([$name]);
+    }
+    if ((int) $duplicateStmt->fetchColumn() > 0) {
+        return ['ok' => false, 'message' => 'That folder already exists.'];
+    }
+
     $stmt = resource_folder_parenting_supported()
         ? db()->prepare('INSERT INTO resource_folders (name, parent_id) VALUES (?, ?)')
         : db()->prepare('INSERT INTO resource_folders (name) VALUES (?)');

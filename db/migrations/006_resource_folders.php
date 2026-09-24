@@ -5,7 +5,7 @@ return [
     'sqlite' => [
         'CREATE TABLE IF NOT EXISTS resource_folders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )',
         static function (PDO $pdo): void {
@@ -17,7 +17,7 @@ return [
     'mysql' => [
         'CREATE TABLE IF NOT EXISTS resource_folders (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL UNIQUE,
+            name VARCHAR(255) NOT NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4',
         static function (PDO $pdo): void {

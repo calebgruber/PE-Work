@@ -422,6 +422,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
         if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
+            if (is_ajax_request()) {
+                http_response_code(404);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'ok' => false,
+                    'warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']],
+                ]);
+                exit;
+            }
             http_response_code(404);
             exit('Revision not found for this show.');
         }

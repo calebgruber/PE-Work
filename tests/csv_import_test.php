@@ -61,6 +61,19 @@ function ensure_catalog_item(string $category, string $name, int $shopQuantity, 
 
 run_pending_migrations();
 assert_true((int) db()->query('SELECT COUNT(*) FROM inventory_items')->fetchColumn() === 0, 'Expected fresh migrations to leave inventory empty.');
+$manualsFolder = create_resource_folder('Manuals');
+$archiveFolder = create_resource_folder('Archive');
+$manualsFolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Manuals' AND parent_id IS NULL ORDER BY id DESC LIMIT 1")->fetchColumn();
+$archiveFolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Archive' AND parent_id IS NULL ORDER BY id DESC LIMIT 1")->fetchColumn();
+$draftsUnderManuals = create_resource_folder('Drafts', $manualsFolderId);
+$draftsUnderArchive = create_resource_folder('Drafts', $archiveFolderId);
+$duplicateDraftsUnderManuals = create_resource_folder('Drafts', $manualsFolderId);
+assert_true(($manualsFolder['ok'] ?? false) === true && ($archiveFolder['ok'] ?? false) === true, 'Expected root resource folders to be created.');
+assert_true($manualsFolderId > 0 && $archiveFolderId > 0, 'Expected root resource folder ids to be queryable.');
+assert_true(($draftsUnderManuals['ok'] ?? false) === true, 'Expected a subfolder to be creatable under the first parent.');
+assert_true(($draftsUnderArchive['ok'] ?? false) === true, 'Expected matching subfolder names to be allowed under different parents.');
+assert_true(($duplicateDraftsUnderManuals['ok'] ?? true) === false, 'Expected matching subfolder names under the same parent to be rejected.');
+assert_true((int) db()->query("SELECT COUNT(*) FROM resource_folders WHERE name = 'Drafts'")->fetchColumn() === 2, 'Expected sibling uniqueness to allow the same folder name in two separate branches.');
 
 $orderingCategory = create_category('Ordering');
 assert_true($orderingCategory['ok'] === true, 'Expected ordering category creation to succeed.');
@@ -575,13 +588,13 @@ assert_true(find_revision($thirdRevisionId) === null, 'Expected deleted revision
 assert_true((int) db()->query('SELECT COUNT(*) FROM revision_items WHERE revision_id = ' . (int) $thirdRevisionId)->fetchColumn() === 0, 'Expected deleting a revision to remove related revision lines.');
 assert_true(delete_show_revision($initialRevisionId)['ok'] === false, 'Expected initial revision deletion to be blocked.');
 
-$resourceFolderResult = create_resource_folder('Manuals');
+$resourceFolderResult = create_resource_folder('Packets');
 assert_true($resourceFolderResult['ok'] === true, 'Expected resource folder creation to succeed.');
-$resourceFolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Manuals'")->fetchColumn();
+$resourceFolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Packets' AND parent_id IS NULL")->fetchColumn();
 assert_true($resourceFolderId > 0, 'Expected resource folder id.');
-$resourceSubfolderResult = create_resource_folder('Drafts', $resourceFolderId);
+$resourceSubfolderResult = create_resource_folder('Notes', $resourceFolderId);
 assert_true($resourceSubfolderResult['ok'] === true, 'Expected resource subfolder creation to succeed.');
-$resourceSubfolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Drafts'")->fetchColumn();
+$resourceSubfolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Notes' AND parent_id = " . $resourceFolderId)->fetchColumn();
 assert_true($resourceSubfolderId > 0, 'Expected resource subfolder id.');
 $resourceFolders = fetch_resource_folders();
 $draftsFolder = null;
@@ -591,7 +604,7 @@ foreach ($resourceFolders as $folderRow) {
         break;
     }
 }
-assert_true(($draftsFolder['full_path'] ?? '') === 'Manuals / Drafts', 'Expected resource subfolders to report their full path.');
+assert_true(($draftsFolder['full_path'] ?? '') === 'Packets / Notes', 'Expected resource subfolders to report their full path.');
 db()->prepare(
     'INSERT INTO resources (title, original_name, stored_name, mime_type, file_size, folder_id)
      VALUES (?, ?, ?, ?, ?, ?)'
@@ -599,8 +612,8 @@ db()->prepare(
 $resourceId = (int) db()->lastInsertId();
 $folderResources = fetch_resources($resourceSubfolderId);
 assert_true(count($folderResources) === 1, 'Expected folder-filtered resources to include the inserted PDF.');
-assert_true(($folderResources[0]['folder_name'] ?? '') === 'Drafts', 'Expected fetched resource rows to include the immediate folder name.');
-assert_true(($folderResources[0]['folder_path'] ?? '') === 'Manuals / Drafts', 'Expected fetched resources to include full folder paths.');
+assert_true(($folderResources[0]['folder_name'] ?? '') === 'Notes', 'Expected fetched resource rows to include the immediate folder name.');
+assert_true(($folderResources[0]['folder_path'] ?? '') === 'Packets / Notes', 'Expected fetched resources to include full folder paths.');
 assert_true(delete_resource_folder($resourceFolderId)['ok'] === false, 'Expected parent folder deletion to be blocked while subfolders exist.');
 assert_true(move_resource_to_folder($resourceId, null)['ok'] === true, 'Expected moving a resource back to the root library to succeed.');
 assert_true(delete_resource_folder($resourceSubfolderId)['ok'] === true, 'Expected deleting an empty resource subfolder to succeed.');

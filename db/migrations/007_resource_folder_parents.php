@@ -7,6 +7,7 @@ return [
             if (!table_column_exists('resource_folders', 'parent_id')) {
                 $pdo->exec('ALTER TABLE resource_folders ADD COLUMN parent_id INTEGER NULL REFERENCES resource_folders(id) ON DELETE SET NULL');
             }
+            $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS resource_folders_parent_name_unique ON resource_folders(parent_id, name)');
         },
     ],
     'mysql' => [
@@ -42,6 +43,17 @@ return [
             ")->fetchColumn() > 0;
             if (!$foreignKeyExists) {
                 $pdo->exec('ALTER TABLE resource_folders ADD CONSTRAINT fk_resource_folders_parent FOREIGN KEY (parent_id) REFERENCES resource_folders(id) ON DELETE SET NULL');
+            }
+
+            $uniqueIndexExists = (int) $pdo->query("
+                SELECT COUNT(1)
+                FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'resource_folders'
+                  AND index_name = 'resource_folders_parent_name_unique'
+            ")->fetchColumn() > 0;
+            if (!$uniqueIndexExists) {
+                $pdo->exec('ALTER TABLE resource_folders ADD UNIQUE INDEX resource_folders_parent_name_unique (parent_id, name)');
             }
         },
     ],
