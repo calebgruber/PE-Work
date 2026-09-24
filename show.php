@@ -6,9 +6,11 @@ require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
 require_login();
+$currentUser = current_user();
 
-function render_show_form(array $show): void
+function render_show_form(array $show, array $owners, array $currentUser): void
 {
+    $isAdmin = is_admin($currentUser);
     $people = [
         ['key' => 'ld', 'label' => 'LD'],
         ['key' => 'assistant_ld', 'label' => 'Assistant LD'],
@@ -23,6 +25,30 @@ function render_show_form(array $show): void
 
         <div class="section-label">Required</div>
         <div class="card-grid">
+          <div class="form-group">
+            <label for="concentration">Domain</label>
+            <select class="form-control" id="concentration" name="concentration" required>
+              <?php foreach (user_concentrations() as $value => $label): ?>
+              <option value="<?= h($value) ?>"<?= show_concentration($show) === $value ? ' selected' : '' ?>><?= h($label) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="owner_user_id">Show Owner</label>
+            <?php if ($isAdmin): ?>
+            <select class="form-control" id="owner_user_id" name="owner_user_id" required>
+              <option value="">Choose a user</option>
+              <?php foreach ($owners as $owner): ?>
+              <option value="<?= h((string) $owner['id']) ?>"<?= (int) ($show['owner_user_id'] ?? 0) === (int) $owner['id'] ? ' selected' : '' ?>>
+                <?= h($owner['display_name']) ?> · <?= h(concentration_label($owner['concentration'] ?? 'lighting')) ?>
+              </option>
+              <?php endforeach; ?>
+            </select>
+            <?php else: ?>
+            <input type="hidden" name="owner_user_id" value="<?= h((string) ((int) ($show['owner_user_id'] ?? 0) ?: (int) ($currentUser['id'] ?? 0))) ?>">
+            <input class="form-control" id="owner_user_id" value="<?= h((string) ($currentUser['display_name'] ?? 'Assigned to you')) ?>" readonly>
+            <?php endif; ?>
+          </div>
           <div class="form-group">
             <label for="show_name">Show Name</label>
             <input class="form-control" id="show_name" name="show_name" required value="<?= h($show['show_name'] ?? '') ?>">
@@ -391,7 +417,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         header('Content-Type: application/json');
         echo json_encode([
-            'warnings' => revision_validation_warnings(revision_input_snapshot($revisionId, revision_request_items($_POST))),
+            'warnings' => revision_validation_warnings(revision_input_snapshot($revisionId, revision_request_items($_POST)), show_concentration($show)),
         ]);
         exit;
     }
@@ -412,7 +438,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Content-Type: application/json');
         echo json_encode([
             'ok' => true,
-            'warnings' => revision_validation_warnings(revision_input_snapshot($revisionId)),
+            'warnings' => revision_validation_warnings(revision_input_snapshot($revisionId), show_concentration($show)),
             'totals' => revision_totals($revisionId),
         ]);
         exit;
@@ -436,7 +462,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $revisionOverrideItems = revision_request_items($_POST);
-        $validationWarnings = revision_validation_warnings(revision_input_snapshot($revisionId, $revisionOverrideItems));
+        $validationWarnings = revision_validation_warnings(revision_input_snapshot($revisionId, $revisionOverrideItems), show_concentration($show));
         try {
             save_revision_lines($revisionId, $revisionOverrideItems);
             $savedTotals = revision_totals($revisionId);
@@ -491,6 +517,7 @@ foreach ($revisions as $revisionRow) {
 
 $latestRevision = $showId ? find_latest_revision($showId) : null;
 $currentRevision = null;
+$showOwners = show_owner_options();
 if ($mode === 'edit' && !empty($_GET['revision_id'])) {
     $currentRevision = find_revision((int) $_GET['revision_id']);
     if (!$currentRevision || (int) $currentRevision['show_id'] !== (int) $showId) {
@@ -519,7 +546,7 @@ if ($mode === 'edit' && $currentRevision) {
 ui_head('Show Builder', '', APP_NAME, 'theater_comedy');
 ui_sidebar(APP_NAME, 'theater_comedy', nav_items('shows'));
 
-$actions = '<a class="btn btn-ghost" href="' . h(url_for('settings')) . '"><span class="material-symbols-outlined">inventory_2</span>Inventory</a>';
+$actions = '';
 if ($showId && $latestRevision) {
     $actions .= '<a class="btn btn-primary" href="' . h(url_for('export?show_id=' . $showId . '&revision_id=' . (int) $latestRevision['id'])) . '"><span class="material-symbols-outlined">print</span>Exports</a>';
 }
@@ -538,7 +565,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
 
   <?php if (!$showId): ?>
     <?php ui_card_open('theater_comedy', 'Create Show'); ?>
-      <?php render_show_form($show); ?>
+      <?php render_show_form($show, $showOwners, $currentUser); ?>
     <?php ui_card_close(); ?>
   <?php elseif ($mode === 'edit' && $currentRevision): ?>
     <?php ui_card_open($currentRevision['is_initial'] ? 'checklist' : 'history', $currentRevision['is_initial'] ? 'Edit Initial Order' : 'Edit ' . revision_display_code($currentRevision)); ?>
@@ -550,12 +577,6 @@ if ($mode === 'edit' && $showId && $currentRevision) {
         <div class="summary-block"><strong>Spare Total</strong><span data-revision-spare-total><?= h((string) $totals['spare_total']) ?></span></div>
         <div class="summary-block"><strong>Combined Total</strong><span data-revision-overall-total><?= h((string) $totals['overall_total']) ?></span></div>
       </div>
-      <?php if ($revisions): ?>
-      <div class="section-label">Revision History</div>
-      <div class="helper-text" style="margin-bottom:1rem;">Every revision for this show stays visible here so you can follow the full paper trail while editing.</div>
-      <?php render_revision_history_table((int) $showId, $revisions, (int) $currentRevision['id']); ?>
-      <?php endif; ?>
-
       <?php if (!$catalog): ?>
         <div class="empty-state">
           <span class="material-symbols-outlined">inventory_2</span>
@@ -709,7 +730,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
 
     <?php if ($tab === 'info'): ?>
       <?php ui_card_open('theater_comedy', 'Show Information'); ?>
-        <?php render_show_form($show); ?>
+        <?php render_show_form($show, $showOwners, $currentUser); ?>
       <?php ui_card_close(); ?>
     <?php elseif ($tab === 'paperwork'): ?>
       <?php ui_card_open('description', 'Show Paperwork Settings'); ?>

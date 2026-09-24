@@ -67,6 +67,7 @@ function ui_head(string $pageTitle, string $appSlug = '', string $appHeading = '
   <title><?= h($pageTitle) ?> | <?= h(APP_NAME) ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
   <link rel="stylesheet" href="<?= h(asset_url('shared/assets/style.css')) ?>">
@@ -76,9 +77,9 @@ function ui_head(string $pageTitle, string $appSlug = '', string $appHeading = '
     document.addEventListener('DOMContentLoaded',function(){var l=document.getElementById('page-loader');if(l)l.classList.add('pg-done');});
   </script>
 </head>
-<body>
+<body class="tabler-shell">
 <div id="page-loader"></div>
-<div class="app">
+<div class="app page">
 <?php
 }
 
@@ -89,47 +90,49 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
     $profileUrl = url_for('profile');
     $logoutUrl = $userLogoutUrl !== '' ? $userLogoutUrl : url_for('logout');
     ?>
-  <div class="topbar">
-    <a href="<?= h(url_for('')) ?>" class="topbar-app topbar-app-link">
-      <span class="material-symbols-outlined"><?= h($headerIcon) ?></span>
-      <?= h($appHeading) ?>
-    </a>
-    <nav class="top-nav" aria-label="Primary">
+  <div class="topbar navbar navbar-expand-md">
+    <div class="container-xl topbar-shell">
+      <a href="<?= h(url_for('')) ?>" class="navbar-brand navbar-brand-autodark topbar-app topbar-app-link">
+        <span class="material-symbols-outlined"><?= h($headerIcon) ?></span>
+        <?= h($appHeading) ?>
+      </a>
+      <nav class="navbar-nav top-nav" aria-label="Primary">
 <?php foreach ($navItems as $item): ?>
 <?php if (!isset($item['section'])): ?>
-      <a href="<?= h($item['href'] ?? '#') ?>" class="top-nav-item<?= !empty($item['active']) ? ' active' : '' ?>">
-        <span class="material-symbols-outlined"><?= h($item['icon'] ?? 'circle') ?></span>
-        <?= h($item['label'] ?? '') ?>
-      </a>
+        <a href="<?= h($item['href'] ?? '#') ?>" class="nav-link top-nav-item<?= !empty($item['active']) ? ' active' : '' ?>">
+          <span class="material-symbols-outlined"><?= h($item['icon'] ?? 'circle') ?></span>
+          <?= h($item['label'] ?? '') ?>
+        </a>
 <?php endif; ?>
 <?php endforeach; ?>
-    </nav>
+      </nav>
 
-    <div class="topbar-right">
+      <div class="navbar-nav flex-row topbar-right">
       <?php if ($user): ?>
-      <a href="<?= h($profileUrl) ?>" class="topbar-user" style="text-decoration:none;">
-        <span class="topbar-avatar">
-          <img src="<?= h((string) ($user['avatar_url'] ?? user_avatar_url($user))) ?>" alt="" class="topbar-avatar-image">
-        </span>
-        <span>
-          <strong style="display:block;color:#f8fafc;"><?= h((string) ($user['display_name'] ?? 'User')) ?></strong>
-          <?= h(role_label((string) ($user['role'] ?? 'user'))) ?>
-        </span>
-      </a>
-      <a href="<?= h($profileUrl) ?>" class="topbar-btn" title="Profile" aria-label="Profile">
-        <span class="material-symbols-outlined">person</span>
-      </a>
-      <a href="<?= h($logoutUrl) ?>" class="topbar-btn" title="Logout" aria-label="Logout">
-        <span class="material-symbols-outlined">logout</span>
-      </a>
+        <a href="<?= h($profileUrl) ?>" class="topbar-user" style="text-decoration:none;">
+          <span class="topbar-avatar">
+            <img src="<?= h((string) ($user['avatar_url'] ?? user_avatar_url($user))) ?>" alt="" class="topbar-avatar-image">
+          </span>
+          <span>
+            <strong style="display:block;color:#f8fafc;"><?= h((string) ($user['display_name'] ?? 'User')) ?></strong>
+            <?= h(role_label((string) ($user['role'] ?? 'user'))) ?>
+          </span>
+        </a>
+        <a href="<?= h($profileUrl) ?>" class="topbar-btn" title="Profile" aria-label="Profile">
+          <span class="material-symbols-outlined">person</span>
+        </a>
+        <a href="<?= h($logoutUrl) ?>" class="topbar-btn" title="Logout" aria-label="Logout">
+          <span class="material-symbols-outlined">logout</span>
+        </a>
       <?php endif; ?>
-      <button id="theme-toggle" class="topbar-btn" title="Toggle theme" aria-label="Toggle theme">
-        <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
-      </button>
+        <button id="theme-toggle" class="topbar-btn" title="Toggle theme" aria-label="Toggle theme">
+          <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
+        </button>
+      </div>
     </div>
   </div>
 
-  <main class="content">
+  <main class="content page-wrapper">
 <?php
 }
 

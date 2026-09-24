@@ -49,6 +49,7 @@ $usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
   <title>Setup | <?= h(APP_NAME) ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
   <link rel="stylesheet" href="<?= h(asset_url('shared/assets/style.css')) ?>">
@@ -57,15 +58,17 @@ $usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
     (function(){var t=localStorage.getItem('cg-theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);})();
   </script>
 </head>
-<body>
+<body class="tabler-shell">
 <div class="login-page">
-  <div class="login-card" style="max-width:720px;margin:3rem auto;">
-    <div class="login-header">
-      <span class="material-symbols-outlined logo-icon">construction</span>
-      <h1><?= h(APP_NAME) ?> Setup</h1>
-      <p>Apply migrations, keep local config intact, and bootstrap the first admin account.</p>
-    </div>
-    <div class="login-body">
+  <div class="container container-tight py-4">
+    <div class="card login-card" style="max-width:720px;margin:0 auto;">
+      <div class="card-body">
+        <div class="login-header">
+          <span class="material-symbols-outlined logo-icon">construction</span>
+          <h1><?= h(APP_NAME) ?> Setup</h1>
+          <p>Apply migrations, keep local config intact, and bootstrap the first admin account.</p>
+        </div>
+        <div class="login-body">
       <?php ui_flash(); ?>
       <?php foreach ($bootstrapErrors as $error): ?>
       <div class="alerts">
@@ -173,6 +176,8 @@ $usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
         </table>
       </div>
       <?php endif; ?>
+        </div>
+      </div>
     </div>
   </div>
 </div>

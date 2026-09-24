@@ -10,6 +10,7 @@ require_login();
 $user = current_user();
 $stats = dashboard_stats();
 $shows = list_shows();
+$showGroups = is_admin($user) ? list_shows_grouped_by_owner() : [];
 
 ui_head('Dashboard', '', APP_NAME, 'theater_comedy');
 ui_sidebar(APP_NAME, 'theater_comedy', nav_items('dashboard'));
@@ -19,7 +20,7 @@ if (is_admin($user)) {
     $actions .= '<a class="btn btn-ghost" href="' . h(url_for('settings')) . '"><span class="material-symbols-outlined">settings</span>System Settings</a>';
 }
 
-ui_page_header('Shop Order Dashboard', 'Manage shows, inventory, revisions, exports, and migrations from one place.', $actions);
+ui_page_header('Shop Order Dashboard', is_admin($user) ? 'Manage every user\'s shows, inventory, revisions, exports, and migrations from one place.' : 'Manage your shows, revisions, and exports from one place.', $actions);
 ?>
 <div class="page-body">
   <?php ui_flash(); ?>
@@ -73,43 +74,95 @@ ui_page_header('Shop Order Dashboard', 'Manage shows, inventory, revisions, expo
     </div>
   </div>
 
-  <?php ui_card_open('checklist', 'Shows'); ?>
-    <?php if ($shows): ?>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Show</th>
-            <th>Theatre</th>
-            <th>Latest Revision</th>
-            <th>Revision Date</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ($shows as $show): ?>
-          <tr>
-            <td>
-              <strong><?= h($show['show_name']) ?></strong><br>
-              <span class="muted"><?= h($show['shop_name']) ?></span>
-            </td>
-            <td><?= h($show['theatre_name']) ?></td>
-            <td><?= $show['latest_revision_code'] ? ui_badge($show['latest_revision_code'], 'info') : ui_badge('No Revision', 'neutral') ?></td>
-            <td><?= h($show['latest_revision_date'] ?: '—') ?></td>
-            <td><a class="btn btn-sm btn-ghost" href="<?= h(url_for('show?show_id=' . (int) $show['id'])) ?>">Open</a></td>
-          </tr>
-          <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
+  <?php if (is_admin($user)): ?>
+    <?php if ($showGroups): ?>
+      <div class="stack">
+        <?php foreach ($showGroups as $group): ?>
+          <?php $owner = $group['user']; ?>
+          <?php ui_card_open('checklist', (string) ($owner['display_name'] ?? 'Unassigned'), '<span class="badge badge-neutral">' . h(concentration_label($owner['concentration'] ?? 'lighting')) . '</span>'); ?>
+            <div class="helper-text" style="margin-bottom:1rem;"><?= h((string) ($owner['email'] ?? '')) ?></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Show</th>
+                    <th>Domain</th>
+                    <th>Theatre</th>
+                    <th>Latest Revision</th>
+                    <th>Revision Date</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($group['shows'] as $show): ?>
+                  <tr>
+                    <td>
+                      <strong><?= h($show['show_name']) ?></strong><br>
+                      <span class="muted"><?= h($show['shop_name']) ?></span>
+                    </td>
+                    <td><?= ui_badge(concentration_label($show['concentration'] ?? 'lighting'), 'neutral') ?></td>
+                    <td><?= h($show['theatre_name']) ?></td>
+                    <td><?= $show['latest_revision_code'] ? ui_badge($show['latest_revision_code'], 'info') : ui_badge('No Revision', 'neutral') ?></td>
+                    <td><?= h($show['latest_revision_date'] ?: '—') ?></td>
+                    <td><a class="btn btn-sm btn-ghost" href="<?= h(url_for('show?show_id=' . (int) $show['id'])) ?>">Open</a></td>
+                  </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+            </div>
+          <?php ui_card_close(); ?>
+        <?php endforeach; ?>
+      </div>
     <?php else: ?>
-    <div class="empty-state">
-      <span class="material-symbols-outlined">theater_comedy</span>
-      <h3>No shows yet</h3>
-      <p>Create the first show record, then generate the initial shop order and its revisions.</p>
-    </div>
+      <?php ui_card_open('checklist', 'Shows'); ?>
+        <div class="empty-state">
+          <span class="material-symbols-outlined">theater_comedy</span>
+          <h3>No shows yet</h3>
+          <p>Create the first show record, then generate the initial shop order and its revisions.</p>
+        </div>
+      <?php ui_card_close(); ?>
     <?php endif; ?>
-  <?php ui_card_close(); ?>
+  <?php else: ?>
+    <?php ui_card_open('checklist', 'My Shows'); ?>
+      <?php if ($shows): ?>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Show</th>
+              <th>Domain</th>
+              <th>Theatre</th>
+              <th>Latest Revision</th>
+              <th>Revision Date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($shows as $show): ?>
+            <tr>
+              <td>
+                <strong><?= h($show['show_name']) ?></strong><br>
+                <span class="muted"><?= h($show['shop_name']) ?></span>
+              </td>
+              <td><?= ui_badge(concentration_label($show['concentration'] ?? 'lighting'), 'neutral') ?></td>
+              <td><?= h($show['theatre_name']) ?></td>
+              <td><?= $show['latest_revision_code'] ? ui_badge($show['latest_revision_code'], 'info') : ui_badge('No Revision', 'neutral') ?></td>
+              <td><?= h($show['latest_revision_date'] ?: '—') ?></td>
+              <td><a class="btn btn-sm btn-ghost" href="<?= h(url_for('show?show_id=' . (int) $show['id'])) ?>">Open</a></td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php else: ?>
+      <div class="empty-state">
+        <span class="material-symbols-outlined">theater_comedy</span>
+        <h3>No shows yet</h3>
+        <p>Create your first show record, then generate the initial shop order and its revisions.</p>
+      </div>
+      <?php endif; ?>
+    <?php ui_card_close(); ?>
+  <?php endif; ?>
 
   <?php endif; ?>
 </div>

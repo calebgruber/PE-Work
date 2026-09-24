@@ -179,6 +179,45 @@ function concentration_label(?string $concentration): string
     return $concentrations[$concentration ?? ''] ?? 'Lighting';
 }
 
+function valid_domain_concentration(?string $concentration): string
+{
+    $value = strtolower(trim((string) $concentration));
+    return array_key_exists($value, user_concentrations()) ? $value : 'lighting';
+}
+
+function show_owner_options(): array
+{
+    return auth_tables_ready() ? list_users() : [];
+}
+
+function show_owner_id_for_user(?array $user = null): ?int
+{
+    $user = $user ?? current_user();
+    $userId = (int) ($user['id'] ?? 0);
+    return $userId > 0 ? $userId : null;
+}
+
+function can_access_show(array $show, ?array $user = null): bool
+{
+    $user = $user ?? current_user();
+    if (!$show) {
+        return false;
+    }
+    if (is_admin($user)) {
+        return true;
+    }
+
+    $ownerId = (int) ($show['owner_user_id'] ?? 0);
+    $userId = (int) ($user['id'] ?? 0);
+
+    return $ownerId > 0 && $userId > 0 && $ownerId === $userId;
+}
+
+function show_concentration(?array $show): string
+{
+    return valid_domain_concentration($show['concentration'] ?? 'lighting');
+}
+
 function user_count(): int
 {
     if (!auth_tables_ready()) {
@@ -403,8 +442,7 @@ function valid_user_role(string $role): string
 
 function valid_user_concentration(string $concentration): string
 {
-    $concentrations = user_concentrations();
-    return array_key_exists($concentration, $concentrations) ? $concentration : 'lighting';
+    return valid_domain_concentration($concentration);
 }
 
 function validate_password_rules(string $password): ?string
@@ -787,7 +825,7 @@ function import_inventory_csv_from_handle($handle): array
     }
 
     $headerMap = [];
-    $allowedHeaders = ['category', 'name', 'shop_quantity', 'unit', 'default_note', 'description'];
+    $allowedHeaders = ['category', 'name', 'shop_quantity', 'unit', 'default_note', 'description', 'concentration', 'domain'];
     foreach ($header as $index => $column) {
         $normalized = normalize_csv_header((string) $column);
         if ($normalized === '') {
@@ -815,6 +853,9 @@ function import_inventory_csv_from_handle($handle): array
     if ($supportsSortOrder) {
         $updateFields[] = 'sort_order = ?';
     }
+    if (table_column_exists('inventory_items', 'concentration')) {
+        $updateFields[] = 'concentration = ?';
+    }
     $updateFields[] = 'shop_quantity = ?';
     $updateFields[] = 'unit = ?';
     $updateFields[] = 'default_note = ?';
@@ -833,6 +874,9 @@ function import_inventory_csv_from_handle($handle): array
     if ($supportsSortOrder) {
         $insertColumns[] = 'sort_order';
     }
+    if (table_column_exists('inventory_items', 'concentration')) {
+        $insertColumns[] = 'concentration';
+    }
     array_push($insertColumns, 'shop_quantity', 'unit', 'default_note', 'description');
     if ($supportsSpacer) {
         $insertColumns[] = 'is_spacer';
@@ -850,7 +894,9 @@ function import_inventory_csv_from_handle($handle): array
             continue;
         }
 
-        $categoryId = category_id_for_name($category);
+        $rowConcentration = normalize_csv_value($row[$headerMap['concentration'] ?? $headerMap['domain'] ?? -1] ?? '');
+        $rowConcentration = valid_domain_concentration($rowConcentration !== '' ? $rowConcentration : 'lighting');
+        $categoryId = category_id_for_name($category, $rowConcentration);
         if ($categoryId <= 0) {
             fclose($handle);
             return ['ok' => false, 'message' => 'Unable to resolve category "' . $category . '" while importing inventory.'];
@@ -883,6 +929,9 @@ function import_inventory_csv_from_handle($handle): array
                     $sourceCategoriesToNormalize[$currentCategoryId] = true;
                 }
             }
+            if (table_column_exists('inventory_items', 'concentration')) {
+                $updateParams[] = $rowConcentration;
+            }
             $updateParams = array_merge($updateParams, [$shopQuantity, $unit, $defaultNote, $description]);
             if ($supportsSpacer) {
                 $updateParams[] = 0;
@@ -894,6 +943,9 @@ function import_inventory_csv_from_handle($handle): array
             $insertParams = [$categoryId, $name];
             if ($supportsSortOrder) {
                 $insertParams[] = next_inventory_item_sort_order($categoryId);
+            }
+            if (table_column_exists('inventory_items', 'concentration')) {
+                $insertParams[] = $rowConcentration;
             }
             $insertParams = array_merge($insertParams, [$shopQuantity, $unit, $defaultNote, $description]);
             if ($supportsSpacer) {
@@ -915,8 +967,11 @@ function import_inventory_csv_from_handle($handle): array
 
 function blank_show(): array
 {
+    $user = current_user();
     return [
         'id' => null,
+        'owner_user_id' => show_owner_id_for_user($user),
+        'concentration' => valid_domain_concentration($user['concentration'] ?? 'lighting'),
         'show_name' => '',
         'theatre_name' => '',
         'shop_name' => '',
@@ -952,6 +1007,7 @@ function blank_show(): array
 function show_required_labels(): array
 {
     return [
+        'concentration' => 'Domain',
         'show_name' => 'Show Name',
         'theatre_name' => 'Theatre Name',
         'shop_name' => 'Shop Name',
@@ -976,10 +1032,26 @@ function show_required_labels(): array
 function save_show_record(array $input, ?int $showId = null): array
 {
     $show = blank_show();
+    $existingShow = $showId ? find_show($showId) : null;
+    if ($showId && !$existingShow) {
+        return ['show' => $show, 'errors' => ['Show not found.']];
+    }
     foreach ($show as $field => $value) {
         if (array_key_exists($field, $input)) {
             $show[$field] = trim((string) $input[$field]);
         }
+    }
+    $show['concentration'] = valid_domain_concentration($show['concentration'] ?? 'lighting');
+
+    $currentUser = current_user();
+    if (is_admin($currentUser) && auth_tables_ready()) {
+        $requestedOwnerId = (int) ($input['owner_user_id'] ?? ($existingShow['owner_user_id'] ?? 0));
+        $owner = $requestedOwnerId > 0 ? find_user_by_id($requestedOwnerId) : null;
+        $show['owner_user_id'] = $owner ? (int) $owner['id'] : show_owner_id_for_user($currentUser);
+    } elseif ($existingShow) {
+        $show['owner_user_id'] = (int) ($existingShow['owner_user_id'] ?? 0) ?: show_owner_id_for_user($currentUser);
+    } else {
+        $show['owner_user_id'] = show_owner_id_for_user($currentUser);
     }
 
     foreach (['pull_date', 'return_date', 'strike_date', 'opening_date', 'closing_date'] as $dateField) {
@@ -996,6 +1068,9 @@ function save_show_record(array $input, ?int $showId = null): array
     if (!empty($input['show_image_url']) && $show['show_image_url'] === null) {
         $errors[] = 'Show image must be an app-relative path, not an external URL.';
     }
+    if ((int) ($show['owner_user_id'] ?? 0) <= 0 && user_count() > 0) {
+        $errors[] = 'Choose who owns this show.';
+    }
 
     if ($errors) {
         return ['show' => $show, 'errors' => $errors];
@@ -1005,6 +1080,7 @@ function save_show_record(array $input, ?int $showId = null): array
         $show['id'] = $showId;
         $stmt = db()->prepare(
             'UPDATE shows SET
+                owner_user_id = ?, concentration = ?,
                 show_name = ?, theatre_name = ?, shop_name = ?,
                 ld_name = ?, ld_email = ?, ld_phone = ?,
                 assistant_ld_name = ?, assistant_ld_email = ?, assistant_ld_phone = ?,
@@ -1016,6 +1092,7 @@ function save_show_record(array $input, ?int $showId = null): array
              WHERE id = ?'
         );
         $stmt->execute([
+            $show['owner_user_id'], $show['concentration'],
             $show['show_name'], $show['theatre_name'], $show['shop_name'],
             $show['ld_name'], $show['ld_email'], $show['ld_phone'],
             $show['assistant_ld_name'], $show['assistant_ld_email'], $show['assistant_ld_phone'],
@@ -1029,6 +1106,7 @@ function save_show_record(array $input, ?int $showId = null): array
     } else {
         $stmt = db()->prepare(
             'INSERT INTO shows (
+                owner_user_id, concentration,
                 show_name, theatre_name, shop_name,
                 ld_name, ld_email, ld_phone,
                 assistant_ld_name, assistant_ld_email, assistant_ld_phone,
@@ -1037,9 +1115,10 @@ function save_show_record(array $input, ?int $showId = null): array
                 assistant_shop_manager_name, assistant_shop_manager_email, assistant_shop_manager_phone,
                 show_image_url, pull_date, return_date, strike_date, opening_date, closing_date,
                 theatre_address, shop_address, show_notes
-             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
         );
         $stmt->execute([
+            $show['owner_user_id'], $show['concentration'],
             $show['show_name'], $show['theatre_name'], $show['shop_name'],
             $show['ld_name'], $show['ld_email'], $show['ld_phone'],
             $show['assistant_ld_name'], $show['assistant_ld_email'], $show['assistant_ld_phone'],
@@ -1060,24 +1139,71 @@ function list_shows(): array
     if (!schema_ready()) {
         return [];
     }
-
-    return db()->query(
-        'SELECT
+    $user = current_user();
+    $ownerFilter = !is_admin($user) ? show_owner_id_for_user($user) : null;
+    $sql = 'SELECT
             s.*,
+            u.display_name AS owner_display_name,
+            u.email AS owner_email,
             (SELECT revision_code FROM show_revisions sr WHERE sr.show_id = s.id ORDER BY revision_index DESC LIMIT 1) AS latest_revision_code,
             (SELECT revision_date FROM show_revisions sr WHERE sr.show_id = s.id ORDER BY revision_index DESC LIMIT 1) AS latest_revision_date,
             (SELECT COUNT(*) FROM show_revisions sr WHERE sr.show_id = s.id) AS revision_count
          FROM shows s
-         ORDER BY s.updated_at DESC, s.show_name ASC'
-    )->fetchAll();
+         LEFT JOIN users u ON u.id = s.owner_user_id';
+    $params = [];
+    if ($ownerFilter !== null) {
+        $sql .= ' WHERE s.owner_user_id = ?';
+        $params[] = $ownerFilter;
+    }
+    $sql .= ' ORDER BY s.updated_at DESC, s.show_name ASC';
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+function list_shows_grouped_by_owner(): array
+{
+    $groups = [];
+    foreach (list_users() as $user) {
+        $groups[(int) $user['id']] = [
+            'user' => $user,
+            'shows' => [],
+        ];
+    }
+
+    foreach (list_shows() as $show) {
+        $ownerId = (int) ($show['owner_user_id'] ?? 0);
+        if (!isset($groups[$ownerId])) {
+            $groups[$ownerId] = [
+                'user' => [
+                    'id' => 0,
+                    'display_name' => 'Unassigned',
+                    'email' => '',
+                    'concentration' => $show['concentration'] ?? 'lighting',
+                ],
+                'shows' => [],
+            ];
+        }
+        $groups[$ownerId]['shows'][] = $show;
+    }
+
+    return array_values(array_filter($groups, static fn (array $group): bool => !empty($group['shows'])));
 }
 
 function find_show(int $showId): ?array
 {
-    $stmt = db()->prepare('SELECT * FROM shows WHERE id = ?');
+    $stmt = db()->prepare(
+        'SELECT s.*, u.display_name AS owner_display_name, u.email AS owner_email
+         FROM shows s
+         LEFT JOIN users u ON u.id = s.owner_user_id
+         WHERE s.id = ?'
+    );
     $stmt->execute([$showId]);
     $show = $stmt->fetch();
-    return $show ?: null;
+    if (!$show || !can_access_show($show)) {
+        return null;
+    }
+    return $show;
 }
 
 function dashboard_stats(): array
@@ -1085,25 +1211,66 @@ function dashboard_stats(): array
     if (!schema_ready()) {
         return ['shows' => 0, 'items' => 0, 'revisions' => 0, 'rules' => 0];
     }
-
+    $user = current_user();
+    $ownerFilter = !is_admin($user) ? show_owner_id_for_user($user) : null;
+    if ($ownerFilter !== null) {
+        $showCountStmt = db()->prepare('SELECT COUNT(*) FROM shows WHERE owner_user_id = ?');
+        $showCountStmt->execute([$ownerFilter]);
+        $revisionCountStmt = db()->prepare(
+            'SELECT COUNT(*)
+             FROM show_revisions sr
+             INNER JOIN shows s ON s.id = sr.show_id
+             WHERE s.owner_user_id = ?'
+        );
+        $revisionCountStmt->execute([$ownerFilter]);
+        $showCount = (int) $showCountStmt->fetchColumn();
+        $revisionCount = (int) $revisionCountStmt->fetchColumn();
+    } else {
+        $showCount = (int) db()->query('SELECT COUNT(*) FROM shows')->fetchColumn();
+        $revisionCount = (int) db()->query('SELECT COUNT(*) FROM show_revisions')->fetchColumn();
+    }
     return [
-        'shows' => (int) db()->query('SELECT COUNT(*) FROM shows')->fetchColumn(),
+        'shows' => $showCount,
         'items' => (int) db()->query('SELECT COUNT(*) FROM inventory_items WHERE is_active = 1')->fetchColumn(),
-        'revisions' => (int) db()->query('SELECT COUNT(*) FROM show_revisions')->fetchColumn(),
+        'revisions' => $revisionCount,
         'rules' => (int) db()->query('SELECT COUNT(*) FROM system_rules')->fetchColumn(),
     ];
 }
 
-function fetch_categories(): array
+function fetch_categories(?string $concentration = null): array
 {
-    return table_exists('inventory_categories')
-        ? db()->query('SELECT * FROM inventory_categories ORDER BY sort_order ASC, name ASC')->fetchAll()
-        : [];
+    if (!table_exists('inventory_categories')) {
+        return [];
+    }
+
+    $supportsConcentration = table_column_exists('inventory_categories', 'concentration');
+    $sql = 'SELECT * FROM inventory_categories';
+    $params = [];
+    if ($supportsConcentration) {
+        if ($concentration !== null) {
+            $sql .= ' WHERE concentration = ?';
+            $params[] = valid_domain_concentration($concentration);
+        }
+    }
+    $sql .= ' ORDER BY sort_order ASC, name ASC';
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+
+    if (!$supportsConcentration) {
+        foreach ($rows as &$row) {
+            $row['concentration'] = 'lighting';
+        }
+        unset($row);
+    }
+
+    return $rows;
 }
 
-function fetch_inventory_catalog(): array
+function fetch_inventory_catalog(?string $concentration = null): array
 {
-    $categories = fetch_categories();
+    $normalizedConcentration = $concentration !== null ? valid_domain_concentration($concentration) : null;
+    $categories = fetch_categories($normalizedConcentration);
     $itemOrderSql = table_column_exists('inventory_items', 'sort_order') ? 'COALESCE(i.sort_order, 0), ' : '';
     $extraSelect = [];
     if (!table_column_exists('inventory_items', 'sort_order')) {
@@ -1112,16 +1279,26 @@ function fetch_inventory_catalog(): array
     if (!table_column_exists('inventory_items', 'is_spacer')) {
         $extraSelect[] = '0 AS is_spacer';
     }
+    if (!table_column_exists('inventory_items', 'concentration')) {
+        $extraSelect[] = 'COALESCE(c.concentration, "lighting") AS concentration';
+    }
     $selectSuffix = $extraSelect ? ', ' . implode(', ', $extraSelect) : '';
-    $items = table_exists('inventory_items')
-        ? db()->query(
-            'SELECT i.*' . $selectSuffix . ', c.name AS category_name
+    if (!table_exists('inventory_items')) {
+        return [];
+    }
+    $sql = 'SELECT i.*' . $selectSuffix . ', c.name AS category_name, COALESCE(c.concentration, i.concentration, "lighting") AS category_concentration
              FROM inventory_items i
              LEFT JOIN inventory_categories c ON c.id = i.category_id
-             WHERE i.is_active = 1
-             ORDER BY COALESCE(c.sort_order, 9999), COALESCE(c.name, "Uncategorized"), ' . $itemOrderSql . ' i.name, i.id'
-        )->fetchAll()
-        : [];
+             WHERE i.is_active = 1';
+    $params = [];
+    if ($normalizedConcentration !== null) {
+        $sql .= ' AND COALESCE(i.concentration, c.concentration, "lighting") = ?';
+        $params[] = $normalizedConcentration;
+    }
+    $sql .= ' ORDER BY COALESCE(c.sort_order, 9999), COALESCE(c.name, "Uncategorized"), ' . $itemOrderSql . ' i.name, i.id';
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    $items = $stmt->fetchAll();
 
     $byCategory = [];
     foreach ($categories as $category) {
@@ -1136,6 +1313,7 @@ function fetch_inventory_catalog(): array
                 'id' => 0,
                 'name' => 'Uncategorized',
                 'sort_order' => 9999,
+                'concentration' => $item['concentration'] ?? 'lighting',
                 'items' => [],
             ];
         }
@@ -1376,16 +1554,24 @@ function revision_input_snapshot(int $revisionId, array $overrides = []): array
     return $snapshot;
 }
 
-function revision_validation_warnings(array $items): array
+function revision_validation_warnings(array $items, ?string $concentration = null): array
 {
     $warnings = [];
     $normalized = normalize_revision_lines_input($items);
     $supportsSpacer = table_column_exists('inventory_items', 'is_spacer');
-    $inventory = db()->query(
-        'SELECT id, name, shop_quantity' . ($supportsSpacer ? ', is_spacer' : ', 0 AS is_spacer') . '
+    $supportsConcentration = table_column_exists('inventory_items', 'concentration');
+    $sql = 'SELECT id, name, shop_quantity' . ($supportsSpacer ? ', is_spacer' : ', 0 AS is_spacer')
+        . ($supportsConcentration ? ', concentration' : ', "lighting" AS concentration') . '
          FROM inventory_items
-         WHERE is_active = 1'
-    )->fetchAll();
+         WHERE is_active = 1';
+    $params = [];
+    if ($concentration !== null) {
+        $sql .= ' AND concentration = ?';
+        $params[] = valid_domain_concentration($concentration);
+    }
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    $inventory = $stmt->fetchAll();
 
     $rentByItem = [];
     foreach ($inventory as $item) {
@@ -1408,7 +1594,7 @@ function revision_validation_warnings(array $items): array
         }
     }
 
-    foreach (fetch_rules() as $rule) {
+    foreach (fetch_rules($concentration) as $rule) {
         $triggerQty = max(1, (int) ($rule['trigger_quantity'] ?? 0));
         $requiredQty = max(1, (int) ($rule['required_quantity'] ?? 0));
         $triggerCurrent = $rentByItem[(int) ($rule['trigger_item_id'] ?? 0)] ?? 0;
@@ -1437,9 +1623,21 @@ function revision_validation_warnings(array $items): array
     return $warnings;
 }
 
+function revision_concentration(int $revisionId): string
+{
+    $stmt = db()->prepare(
+        'SELECT COALESCE(s.concentration, "lighting")
+         FROM show_revisions sr
+         INNER JOIN shows s ON s.id = sr.show_id
+         WHERE sr.id = ?'
+    );
+    $stmt->execute([$revisionId]);
+    return valid_domain_concentration((string) ($stmt->fetchColumn() ?: 'lighting'));
+}
+
 function catalog_for_revision(?int $revisionId, array $overrides = []): array
 {
-    $catalog = fetch_inventory_catalog();
+    $catalog = fetch_inventory_catalog($revisionId ? revision_concentration($revisionId) : null);
     $lineItems = [];
     $overrideLines = normalize_revision_lines_input($overrides);
 
@@ -1476,8 +1674,17 @@ function catalog_for_revision(?int $revisionId, array $overrides = []): array
 
 function save_revision_lines(int $revisionId, array $items): void
 {
+    $allowedConcentration = $revisionId > 0 ? revision_concentration($revisionId) : null;
     $allowedIds = [];
-    foreach (db()->query('SELECT id FROM inventory_items WHERE is_active = 1')->fetchAll() as $row) {
+    $sql = 'SELECT id FROM inventory_items WHERE is_active = 1';
+    $params = [];
+    if ($allowedConcentration !== null && table_column_exists('inventory_items', 'concentration')) {
+        $sql .= ' AND concentration = ?';
+        $params[] = $allowedConcentration;
+    }
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    foreach ($stmt->fetchAll() as $row) {
         $allowedIds[(int) $row['id']] = true;
     }
 
@@ -1529,27 +1736,42 @@ function revision_totals(int $revisionId): array
     ];
 }
 
-function fetch_rules(): array
+function fetch_rules(?string $concentration = null): array
 {
     if (!table_exists('system_rules')) {
         return [];
     }
-
-    return db()->query(
-        'SELECT
+    $supportsCategoryConcentration = table_column_exists('inventory_categories', 'concentration');
+    $supportsItemConcentration = table_column_exists('inventory_items', 'concentration');
+    $ruleConcentrationSql = $supportsItemConcentration
+        ? 'COALESCE(ti.concentration, ri.concentration, "lighting")'
+        : ($supportsCategoryConcentration
+            ? 'COALESCE(tc.concentration, rc.concentration, "lighting")'
+            : '"lighting"');
+    $sql = 'SELECT
             r.*,
             ti.name AS trigger_item_name,
-            ri.name AS required_item_name
+            ri.name AS required_item_name,
+            ' . $ruleConcentrationSql . ' AS concentration
          FROM system_rules r
          LEFT JOIN inventory_items ti ON ti.id = r.trigger_item_id
          LEFT JOIN inventory_items ri ON ri.id = r.required_item_id
-         ORDER BY r.created_at DESC, r.id DESC'
-    )->fetchAll();
+         LEFT JOIN inventory_categories tc ON tc.id = ti.category_id
+         LEFT JOIN inventory_categories rc ON rc.id = ri.category_id';
+    $params = [];
+    if ($concentration !== null) {
+        $sql .= ' WHERE ' . $ruleConcentrationSql . ' = ?';
+        $params[] = valid_domain_concentration($concentration);
+    }
+    $sql .= ' ORDER BY r.created_at DESC, r.id DESC';
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
 }
 
 function rule_suggestions(int $revisionId): array
 {
-    $rules = fetch_rules();
+    $rules = fetch_rules(revision_concentration($revisionId));
     if (!$rules) {
         return [];
     }
@@ -1599,7 +1821,18 @@ function save_inventory_batch(array $items): void
 
     $supportsSortOrder = table_column_exists('inventory_items', 'sort_order');
     $supportsSpacer = table_column_exists('inventory_items', 'is_spacer');
-    $updateFields = 'category_id = ?, shop_quantity = ?, unit = ?, default_note = ?, description = ?';
+    $supportsConcentration = table_column_exists('inventory_items', 'concentration');
+    $categoryConcentrations = [];
+    if ($supportsConcentration && table_exists('inventory_categories')) {
+        foreach (db()->query('SELECT id, concentration FROM inventory_categories')->fetchAll() as $categoryRow) {
+            $categoryConcentrations[(int) $categoryRow['id']] = valid_domain_concentration((string) ($categoryRow['concentration'] ?? 'lighting'));
+        }
+    }
+    $updateFields = 'category_id = ?';
+    if ($supportsConcentration) {
+        $updateFields .= ', concentration = ?';
+    }
+    $updateFields .= ', shop_quantity = ?, unit = ?, default_note = ?, description = ?';
     if ($supportsSortOrder) {
         $updateFields .= ', sort_order = ?';
     }
@@ -1621,13 +1854,19 @@ function save_inventory_batch(array $items): void
         if ($categoryId <= 0) {
             $categoryId = $existingCategoryId;
         }
+        $itemConcentration = $supportsConcentration ? ($categoryConcentrations[$categoryId] ?? 'lighting') : null;
         $params = [
             $categoryId,
+        ];
+        if ($supportsConcentration) {
+            $params[] = $itemConcentration;
+        }
+        $params = array_merge($params, [
             max(0, (int) ($row['shop_quantity'] ?? 0)),
             trim((string) ($row['unit'] ?? '')),
             trim((string) ($row['default_note'] ?? '')),
             trim((string) ($row['description'] ?? '')),
-        ];
+        ]);
         if ($supportsSortOrder) {
             $params[] = max(0, (int) ($row['sort_order'] ?? 0));
         }
@@ -1714,29 +1953,43 @@ function shift_inventory_item_sort_orders(int $categoryId, int $minimumSortOrder
     $stmt->execute([$categoryId, $minimumSortOrder]);
 }
 
-function create_category(string $name): array
+function create_category(string $name, ?string $concentration = null): array
 {
     $name = trim($name);
+    $concentration = valid_domain_concentration($concentration);
     if ($name === '') {
         return ['ok' => false, 'message' => 'Category name is required.'];
     }
 
-    $stmt = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE LOWER(name) = LOWER(?)');
-    $stmt->execute([$name]);
+    $supportsConcentration = table_column_exists('inventory_categories', 'concentration');
+    $stmt = db()->prepare(
+        'SELECT COUNT(*) FROM inventory_categories WHERE LOWER(name) = LOWER(?)'
+        . ($supportsConcentration ? ' AND concentration = ?' : '')
+    );
+    $stmt->execute($supportsConcentration ? [$name, $concentration] : [$name]);
     if ((int) $stmt->fetchColumn() > 0) {
-        return ['ok' => false, 'message' => 'That category already exists.'];
+        return ['ok' => false, 'message' => 'That category already exists in this domain.'];
     }
 
     $pdo = db();
-    $insert = $pdo->prepare(
-        'INSERT INTO inventory_categories (name, sort_order)
-         SELECT ?, COALESCE(MAX(sort_order), 0) + 1
-         FROM inventory_categories'
-    );
+    if ($supportsConcentration) {
+        $insert = $pdo->prepare(
+            'INSERT INTO inventory_categories (name, concentration, sort_order)
+             SELECT ?, ?, COALESCE(MAX(sort_order), 0) + 1
+             FROM inventory_categories
+             WHERE concentration = ?'
+        );
+    } else {
+        $insert = $pdo->prepare(
+            'INSERT INTO inventory_categories (name, sort_order)
+             SELECT ?, COALESCE(MAX(sort_order), 0) + 1
+             FROM inventory_categories'
+        );
+    }
 
     try {
         $pdo->beginTransaction();
-        $insert->execute([$name]);
+        $insert->execute($supportsConcentration ? [$name, $concentration, $concentration] : [$name]);
         $pdo->commit();
         return ['ok' => true, 'message' => 'Category added.'];
     } catch (Throwable $e) {
@@ -1744,7 +1997,7 @@ function create_category(string $name): array
             $pdo->rollBack();
         }
         if (is_unique_constraint_violation($e)) {
-            return ['ok' => false, 'message' => 'That category already exists.'];
+            return ['ok' => false, 'message' => 'That category already exists in this domain.'];
         }
         throw $e;
     }
@@ -1755,6 +2008,8 @@ function update_category(array $input): array
     $categoryId = (int) ($input['category_id'] ?? 0);
     $name = trim((string) ($input['name'] ?? ''));
     $sortOrder = max(0, (int) ($input['sort_order'] ?? 0));
+    $supportsConcentration = table_column_exists('inventory_categories', 'concentration');
+    $concentration = valid_domain_concentration((string) ($input['concentration'] ?? 'lighting'));
 
     if ($categoryId <= 0 || $name === '') {
         return ['ok' => false, 'message' => 'Category name is required.'];
@@ -1766,14 +2021,26 @@ function update_category(array $input): array
         return ['ok' => false, 'message' => 'Category not found.'];
     }
 
-    $dup = db()->prepare('SELECT COUNT(*) FROM inventory_categories WHERE LOWER(name) = LOWER(?) AND id != ?');
-    $dup->execute([$name, $categoryId]);
+    $dup = db()->prepare(
+        'SELECT COUNT(*) FROM inventory_categories WHERE LOWER(name) = LOWER(?) AND id != ?'
+        . ($supportsConcentration ? ' AND concentration = ?' : '')
+    );
+    $dup->execute($supportsConcentration ? [$name, $categoryId, $concentration] : [$name, $categoryId]);
     if ((int) $dup->fetchColumn() > 0) {
-        return ['ok' => false, 'message' => 'Another category already uses that name.'];
+        return ['ok' => false, 'message' => 'Another category already uses that name in this domain.'];
     }
 
-    $stmt = db()->prepare('UPDATE inventory_categories SET name = ?, sort_order = ? WHERE id = ?');
-    $stmt->execute([$name, $sortOrder, $categoryId]);
+    if ($supportsConcentration) {
+        $stmt = db()->prepare('UPDATE inventory_categories SET name = ?, concentration = ?, sort_order = ? WHERE id = ?');
+        $stmt->execute([$name, $concentration, $sortOrder, $categoryId]);
+        if (table_column_exists('inventory_items', 'concentration')) {
+            $syncItems = db()->prepare('UPDATE inventory_items SET concentration = ?, updated_at = CURRENT_TIMESTAMP WHERE category_id = ?');
+            $syncItems->execute([$concentration, $categoryId]);
+        }
+    } else {
+        $stmt = db()->prepare('UPDATE inventory_categories SET name = ?, sort_order = ? WHERE id = ?');
+        $stmt->execute([$name, $sortOrder, $categoryId]);
+    }
     return ['ok' => true, 'message' => 'Category updated.'];
 }
 
@@ -1813,10 +2080,18 @@ function create_inventory_item(array $input): array
     if ((int) $categoryLookup->fetchColumn() !== 1) {
         return ['ok' => false, 'message' => 'Choose a valid category.'];
     }
+    $categoryInfo = db()->prepare('SELECT concentration FROM inventory_categories WHERE id = ?');
+    $categoryInfo->execute([$categoryId]);
+    $itemConcentration = valid_domain_concentration((string) ($categoryInfo->fetchColumn() ?: 'lighting'));
 
     $columns = ['category_id', 'name'];
     $placeholders = ['?', '?'];
     $params = [$categoryId, $name];
+    if (table_column_exists('inventory_items', 'concentration')) {
+        $columns[] = 'concentration';
+        $placeholders[] = '?';
+        $params[] = $itemConcentration;
+    }
     if ($supportsSortOrder) {
         $columns[] = 'sort_order';
         $placeholders[] = '?';
@@ -1897,18 +2172,23 @@ function create_spacer_near_inventory_item(int $itemId, string $position): array
     return ['ok' => true, 'message' => 'Spacer added ' . $position . ' this item.'];
 }
 
-function category_id_for_name(string $name): int
+function category_id_for_name(string $name, ?string $concentration = null): int
 {
     $trimmed = trim($name);
-    $stmt = db()->prepare('SELECT id FROM inventory_categories WHERE LOWER(name) = LOWER(?)');
-    $stmt->execute([$trimmed]);
+    $supportsConcentration = table_column_exists('inventory_categories', 'concentration');
+    $normalizedConcentration = valid_domain_concentration($concentration);
+    $stmt = db()->prepare(
+        'SELECT id FROM inventory_categories WHERE LOWER(name) = LOWER(?)'
+        . ($supportsConcentration ? ' AND concentration = ?' : '')
+    );
+    $stmt->execute($supportsConcentration ? [$trimmed, $normalizedConcentration] : [$trimmed]);
     $id = $stmt->fetchColumn();
     if ($id) {
         return (int) $id;
     }
 
     try {
-        $result = create_category($trimmed);
+        $result = create_category($trimmed, $normalizedConcentration);
         if (!$result['ok'] && !str_contains(strtolower($result['message']), 'already exists')) {
             return 0;
         }
@@ -1917,7 +2197,7 @@ function category_id_for_name(string $name): int
             throw $e;
         }
     }
-    $stmt->execute([$trimmed]);
+    $stmt->execute($supportsConcentration ? [$trimmed, $normalizedConcentration] : [$trimmed]);
     return (int) $stmt->fetchColumn();
 }
 
@@ -1958,14 +2238,23 @@ function save_rule(array $input): array
         return ['ok' => false, 'message' => 'Choose both the trigger item and the required item.'];
     }
 
-    $lookup = db()->prepare('SELECT COUNT(*) FROM inventory_items WHERE id = ? AND is_active = 1');
+    $lookup = db()->prepare(
+        'SELECT id, concentration
+         FROM inventory_items
+         WHERE id = ? AND is_active = 1'
+    );
     $lookup->execute([$triggerItem]);
-    if ((int) $lookup->fetchColumn() !== 1) {
+    $triggerRow = $lookup->fetch() ?: null;
+    if (!$triggerRow) {
         return ['ok' => false, 'message' => 'Choose a valid trigger item.'];
     }
     $lookup->execute([$requiredItem]);
-    if ((int) $lookup->fetchColumn() !== 1) {
+    $requiredRow = $lookup->fetch() ?: null;
+    if (!$requiredRow) {
         return ['ok' => false, 'message' => 'Choose a valid suggested item.'];
+    }
+    if (valid_domain_concentration($triggerRow['concentration'] ?? 'lighting') !== valid_domain_concentration($requiredRow['concentration'] ?? 'lighting')) {
+        return ['ok' => false, 'message' => 'Rules must use trigger and suggested items from the same domain.'];
     }
 
     $note = trim((string) ($input['note'] ?? ''));

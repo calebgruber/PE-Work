@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($action === 'add_category') {
-            $result = create_category($_POST['category_name'] ?? '');
+            $result = create_category($_POST['category_name'] ?? '', $_POST['concentration'] ?? 'lighting');
             flash($result['ok'] ? 'success' : 'warning', $result['message']);
             header('Location: ' . url_for('settings?tab=inventory'));
             exit;
@@ -205,6 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $catalog = schema_ready() ? fetch_inventory_catalog() : [];
 $categories = schema_ready() ? fetch_categories() : [];
 $rules = schema_ready() ? fetch_rules() : [];
+$concentrationOptions = user_concentrations();
 $layout = export_layout_settings();
 $applied = applied_migrations();
 $migrationFiles = migration_files();
@@ -275,7 +276,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
           <?php foreach ($catalog as $category): ?>
           <section class="inventory-accordion" data-inventory-category data-category-id="<?= h((string) $category['id']) ?>" data-category-name="<?= h(strtolower($category['name'])) ?>">
             <button type="button" class="inventory-accordion-trigger" data-accordion-trigger aria-expanded="false">
-              <span><?= h($category['name']) ?></span>
+              <span><?= h($category['name']) ?> <span class="badge badge-neutral"><?= h(concentration_label($category['concentration'] ?? 'lighting')) ?></span></span>
               <span class="material-symbols-outlined">expand_more</span>
             </button>
             <div class="inventory-accordion-panel hidden" data-accordion-panel>
@@ -314,9 +315,13 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
                             <label>Category</label>
                             <select class="form-control compact-input" name="items[<?= h((string) $item['id']) ?>][category_id]">
                               <?php foreach ($categories as $itemCategory): ?>
-                              <option value="<?= h((string) $itemCategory['id']) ?>" <?= (int) ($item['category_id'] ?? 0) === (int) $itemCategory['id'] ? 'selected' : '' ?>><?= h($itemCategory['name']) ?></option>
+                              <option value="<?= h((string) $itemCategory['id']) ?>" <?= (int) ($item['category_id'] ?? 0) === (int) $itemCategory['id'] ? 'selected' : '' ?>><?= h($itemCategory['name']) ?> · <?= h(concentration_label($itemCategory['concentration'] ?? 'lighting')) ?></option>
                               <?php endforeach; ?>
                             </select>
+                          </div>
+                          <div class="form-group">
+                            <label>Domain</label>
+                            <input class="form-control compact-input" value="<?= h(concentration_label($item['concentration'] ?? ($category['concentration'] ?? 'lighting'))) ?>" readonly>
                           </div>
                           <div class="form-group">
                             <label>Shop Has</label>
@@ -409,6 +414,14 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
                   <input class="form-control" name="name" value="<?= h($category['name']) ?>">
                 </div>
                 <div class="form-group">
+                  <label>Domain</label>
+                  <select class="form-control compact-input" name="concentration">
+                    <?php foreach ($concentrationOptions as $value => $label): ?>
+                    <option value="<?= h($value) ?>"<?= ($category['concentration'] ?? 'lighting') === $value ? ' selected' : '' ?>><?= h($label) ?></option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="form-group">
                   <label>Sort Order</label>
                   <input class="form-control compact-input" type="number" min="0" name="sort_order" value="<?= h((string) $category['sort_order']) ?>">
                 </div>
@@ -441,6 +454,14 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
               <label for="category_name">New Category</label>
               <input class="form-control" id="category_name" name="category_name" placeholder="Fixtures">
             </div>
+            <div class="form-group">
+              <label for="category_concentration">Domain</label>
+              <select class="form-control" id="category_concentration" name="concentration">
+                <?php foreach ($concentrationOptions as $value => $label): ?>
+                <option value="<?= h($value) ?>"><?= h($label) ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
             <div class="form-actions">
               <button type="submit" class="btn btn-ghost">
                 <span class="material-symbols-outlined">add</span>
@@ -459,7 +480,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
               <select class="form-control" id="category_id" name="category_id">
                 <option value="">Choose a category</option>
                 <?php foreach ($categories as $category): ?>
-                <option value="<?= h((string) $category['id']) ?>"><?= h($category['name']) ?></option>
+                <option value="<?= h((string) $category['id']) ?>"><?= h($category['name']) ?> · <?= h(concentration_label($category['concentration'] ?? 'lighting')) ?></option>
                 <?php endforeach; ?>
               </select>
             </div>
@@ -506,7 +527,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
 
           <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0;">
 
-          <p class="helper-text">Upload a CSV exported from Excel with columns: <code>category,name,shop_quantity,unit,default_note,description</code>.</p>
+          <p class="helper-text">Upload a CSV exported from Excel with columns: <code>category,name,shop_quantity,unit,default_note,description</code>. Add an optional <code>concentration</code> or <code>domain</code> column for sound inventory; otherwise imports default to lighting.</p>
           <form method="post" enctype="multipart/form-data" class="stack">
             <?= csrf_input() ?>
             <input type="hidden" name="action" value="import_inventory">
@@ -516,7 +537,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
             </div>
             <div class="form-group">
               <label for="inventory_csv_text">Or paste CSV rows</label>
-              <textarea class="form-control" id="inventory_csv_text" name="inventory_csv_text" rows="8" placeholder="category,name,shop_quantity,unit,default_note,description&#10;FIXTURES,HES Solaframe Theatre,12,ea,.,."></textarea>
+              <textarea class="form-control" id="inventory_csv_text" name="inventory_csv_text" rows="8" placeholder="category,name,shop_quantity,unit,default_note,description,concentration&#10;FIXTURES,HES Solaframe Theatre,12,ea,.,.,lighting"></textarea>
               <div class="helper-text">Paste one item per line. If you paste text here, it will import this instead of the uploaded file.</div>
             </div>
             <div class="form-actions">
@@ -716,6 +737,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
           <table>
             <thead>
               <tr>
+                <th>Domain</th>
                 <th>When You Pull</th>
                 <th>Suggest</th>
                 <th>Note</th>
@@ -725,11 +747,12 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
             <tbody>
               <?php foreach ($rules as $rule): ?>
               <tr>
+                <td><?= ui_badge(concentration_label($rule['concentration'] ?? 'lighting'), 'neutral') ?></td>
                 <td>
                   <select class="form-control" aria-label="Trigger item for rule <?= (int) $rule['id'] ?>" name="trigger_item_id" form="rule-form-<?= (int) $rule['id'] ?>">
                     <option value="">Choose an item</option>
                     <?php foreach ($ruleCatalog as $category): foreach ($category['items'] as $item): ?>
-                    <option value="<?= h((string) $item['id']) ?>" <?= (int) $rule['trigger_item_id'] === (int) $item['id'] ? 'selected' : '' ?>><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
+                    <option value="<?= h((string) $item['id']) ?>" <?= (int) $rule['trigger_item_id'] === (int) $item['id'] ? 'selected' : '' ?>><?= h(concentration_label($item['concentration'] ?? ($category['concentration'] ?? 'lighting'))) ?> · <?= h($category['name']) ?> · <?= h($item['name']) ?></option>
                     <?php endforeach; endforeach; ?>
                   </select>
                   <input class="form-control" aria-label="Trigger quantity for rule <?= (int) $rule['id'] ?>" type="number" min="1" name="trigger_quantity" value="<?= h((string) $rule['trigger_quantity']) ?>" form="rule-form-<?= (int) $rule['id'] ?>" style="margin-top:0.5rem;">
@@ -738,7 +761,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
                   <select class="form-control" aria-label="Suggested item for rule <?= (int) $rule['id'] ?>" name="required_item_id" form="rule-form-<?= (int) $rule['id'] ?>">
                     <option value="">Choose an item</option>
                     <?php foreach ($ruleCatalog as $category): foreach ($category['items'] as $item): ?>
-                    <option value="<?= h((string) $item['id']) ?>" <?= (int) $rule['required_item_id'] === (int) $item['id'] ? 'selected' : '' ?>><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
+                    <option value="<?= h((string) $item['id']) ?>" <?= (int) $rule['required_item_id'] === (int) $item['id'] ? 'selected' : '' ?>><?= h(concentration_label($item['concentration'] ?? ($category['concentration'] ?? 'lighting'))) ?> · <?= h($category['name']) ?> · <?= h($item['name']) ?></option>
                     <?php endforeach; endforeach; ?>
                   </select>
                   <input class="form-control" aria-label="Suggested quantity for rule <?= (int) $rule['id'] ?>" type="number" min="1" name="required_quantity" value="<?= h((string) $rule['required_quantity']) ?>" form="rule-form-<?= (int) $rule['id'] ?>" style="margin-top:0.5rem;">
@@ -775,13 +798,14 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
         <form method="post" class="stack" style="margin-top:1rem;">
           <?= csrf_input() ?>
           <input type="hidden" name="action" value="save_rule">
+          <p class="helper-text">Rules only save when both items come from the same domain, so lighting and sound suggestions stay separate.</p>
           <div class="card-grid">
             <div class="form-group">
               <label for="trigger_item_id">Trigger Item</label>
               <select class="form-control" id="trigger_item_id" name="trigger_item_id">
                 <option value="">Choose an item</option>
                 <?php foreach ($ruleCatalog as $category): foreach ($category['items'] as $item): ?>
-                <option value="<?= h((string) $item['id']) ?>"><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
+                <option value="<?= h((string) $item['id']) ?>"><?= h(concentration_label($item['concentration'] ?? ($category['concentration'] ?? 'lighting'))) ?> · <?= h($category['name']) ?> · <?= h($item['name']) ?></option>
                 <?php endforeach; endforeach; ?>
               </select>
             </div>
@@ -794,7 +818,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
               <select class="form-control" id="required_item_id" name="required_item_id">
                 <option value="">Choose an item</option>
                 <?php foreach ($ruleCatalog as $category): foreach ($category['items'] as $item): ?>
-                <option value="<?= h((string) $item['id']) ?>"><?= h($category['name']) ?> · <?= h($item['name']) ?></option>
+                <option value="<?= h((string) $item['id']) ?>"><?= h(concentration_label($item['concentration'] ?? ($category['concentration'] ?? 'lighting'))) ?> · <?= h($category['name']) ?> · <?= h($item['name']) ?></option>
                 <?php endforeach; endforeach; ?>
               </select>
             </div>

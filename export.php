@@ -27,12 +27,14 @@ if (!$revision || (int) $revision['show_id'] !== $showId) {
     exit;
 }
 
-function export_type_labels(string $type): array
+function export_type_labels(string $type, string $concentration = 'lighting'): array
 {
+    $domainLabel = concentration_label($concentration);
+    $orderTitle = strtoupper($domainLabel . ' Shop Order');
     return match ($type) {
         'spares' => ['title' => 'Spare List', 'equipment_heading' => 'SPARE BREAKDOWN'],
         'returns' => ['title' => 'Return Checklist', 'equipment_heading' => 'RETURN BREAKDOWN'],
-        default => ['title' => 'Electrical Equipment List', 'equipment_heading' => 'EQUIPMENT BREAKDOWN'],
+        default => ['title' => $domainLabel . ' Equipment List', 'equipment_heading' => strtoupper($domainLabel . ' Equipment Breakdown'), 'order_title' => $orderTitle],
     };
 }
 
@@ -539,7 +541,7 @@ function export_equipment_pages(array $rows, array $layout): array
 }
 
 $type = $_GET['type'] ?? 'order';
-$labels = export_type_labels($type);
+$labels = export_type_labels($type, show_concentration($show));
 $layout = export_layout_settings($showId);
 $equipmentMetrics = export_equipment_layout_metrics($layout);
 $summaryMetrics = export_summary_layout_metrics($layout);
@@ -593,7 +595,9 @@ $coverShowTitle = ($layout['layout.cover_show_title'] ?? '1') === '1';
 $showPageNumbers = ($layout['layout.show_page_numbers'] ?? '1') === '1';
 $coverTheatreName = trim((string) ($show['theatre_name'] ?? ''));
 $coverTheatreAddress = trim((string) ($show['theatre_address'] ?? ''));
-$coverTitle = $type === 'order' ? 'LIGHTING SHOP ORDER' : strtoupper($labels['title']);
+$coverTitle = $type === 'order'
+    ? (string) ($labels['order_title'] ?? strtoupper(concentration_label($show['concentration'] ?? 'lighting') . ' Shop Order'))
+    : strtoupper($labels['title']);
 $showImagePath = trim((string) ($show['show_image_url'] ?? ''));
 $showImageUrl = $showImagePath !== '' && ($layout['layout.show_image'] ?? '1') === '1' ? url_for($showImagePath) : '';
 ?>
