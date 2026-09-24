@@ -5,8 +5,25 @@ require_once __DIR__ . '/shared/db.php';
 require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
+if (!schema_ready() || !auth_tables_ready()) {
+    header('Location: ' . url_for('setup'));
+    exit;
+}
+
 require_login();
 $currentUser = current_user();
+
+function revision_json_not_found(bool $includeOk = false): void
+{
+    http_response_code(404);
+    header('Content-Type: application/json');
+    $payload = ['warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']]];
+    if ($includeOk) {
+        $payload['ok'] = false;
+    }
+    echo json_encode($payload);
+    exit;
+}
 
 function render_show_form(array $show, array $owners, array $currentUser): void
 {
@@ -426,18 +443,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'validate_revision' && !empty($_POST['revision_id'])) {
         if (!$show || !can_access_show($show, $currentUser)) {
-            http_response_code(404);
-            header('Content-Type: application/json');
-            echo json_encode(['warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']]]);
-            exit;
+            revision_json_not_found();
         }
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
         if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
-            http_response_code(404);
-            header('Content-Type: application/json');
-            echo json_encode(['warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']]]);
-            exit;
+            revision_json_not_found();
         }
 
         header('Content-Type: application/json');
@@ -449,18 +460,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'autosave_revision' && !empty($_POST['revision_id'])) {
         if (!$show || !can_access_show($show, $currentUser)) {
-            http_response_code(404);
-            header('Content-Type: application/json');
-            echo json_encode(['ok' => false, 'warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']]]);
-            exit;
+            revision_json_not_found(true);
         }
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
         if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
-            http_response_code(404);
-            header('Content-Type: application/json');
-            echo json_encode(['ok' => false, 'warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']]]);
-            exit;
+            revision_json_not_found(true);
         }
 
         $revisionOverrideItems = revision_request_items($_POST);
@@ -477,28 +482,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'save_revision' && !empty($_POST['revision_id'])) {
         if (!$show || !can_access_show($show, $currentUser)) {
-            http_response_code(404);
             if (is_ajax_request()) {
-                header('Content-Type: application/json');
-                echo json_encode([
-                    'ok' => false,
-                    'warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']],
-                ]);
-                exit;
+                revision_json_not_found(true);
             }
+            http_response_code(404);
             exit('Revision not found for this show.');
         }
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
         if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
             if (is_ajax_request()) {
-                http_response_code(404);
-                header('Content-Type: application/json');
-                echo json_encode([
-                    'ok' => false,
-                    'warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']],
-                ]);
-                exit;
+                revision_json_not_found(true);
             }
             http_response_code(404);
             exit('Revision not found for this show.');

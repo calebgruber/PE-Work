@@ -659,6 +659,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
           <div class="resource-grid">
             <?php foreach ($resources as $resource): ?>
             <?php $resourceUrl = url_for('resource_file?id=' . (int) $resource['id']); ?>
+            <?php $resourceToken = resource_access_token($resource); ?>
             <article class="resource-card">
               <div class="resource-card-header">
                 <div>
@@ -677,14 +678,14 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
                 </form>
               </div>
               <div class="resource-actions">
-                <a class="btn btn-ghost btn-sm" href="<?= h($resourceUrl) ?>" target="_blank" rel="noopener">
+                <button type="button" class="btn btn-ghost btn-sm" data-resource-open data-resource-url="<?= h($resourceUrl) ?>" data-resource-token="<?= h($resourceToken) ?>" data-resource-name="<?= h($resource['original_name']) ?>">
                   <span class="material-symbols-outlined">open_in_new</span>
                   Open Resource
-                </a>
-                <a class="btn btn-ghost btn-sm" href="<?= h($resourceUrl . '&download=1') ?>">
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" data-resource-download data-resource-url="<?= h($resourceUrl . '&download=1') ?>" data-resource-token="<?= h($resourceToken) ?>" data-resource-name="<?= h($resource['original_name']) ?>">
                   <span class="material-symbols-outlined">download</span>
                   Download
-                </a>
+                </button>
               </div>
               <form method="post" class="stack" style="margin-top:0.75rem;">
                 <?= csrf_input() ?>
@@ -708,9 +709,9 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
               </form>
               <?php $resourceMime = strtolower((string) ($resource['mime_type'] ?? '')); ?>
               <?php if (str_starts_with($resourceMime, 'image/')): ?>
-              <img class="resource-image-preview" src="<?= h($resourceUrl) ?>" alt="<?= h($resource['title']) ?>">
+              <img class="resource-image-preview" data-resource-preview="image" data-resource-url="<?= h($resourceUrl) ?>" data-resource-token="<?= h($resourceToken) ?>" alt="<?= h($resource['title']) ?>">
               <?php else: ?>
-              <iframe class="resource-frame" src="<?= h($resourceUrl) ?>" title="<?= h($resource['title']) ?>">
+              <iframe class="resource-frame" data-resource-preview="document" data-resource-url="<?= h($resourceUrl) ?>" data-resource-token="<?= h($resourceToken) ?>" title="<?= h($resource['title']) ?>">
                 Resource preview unavailable. Use the Open Resource or Download buttons above.
               </iframe>
               <?php endif; ?>
@@ -1135,4 +1136,66 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
     <?php ui_card_close(); ?>
   <?php endif; ?>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const fetchResourceBlob = async function (url, token) {
+    const response = await fetch(url, {
+      headers: { 'X-Resource-Token': token },
+      credentials: 'same-origin'
+    });
+    if (!response.ok) {
+      throw new Error('Unable to load resource.');
+    }
+    return response.blob();
+  };
+
+  const openBlobUrl = function (blob, filename, download) {
+    const blobUrl = URL.createObjectURL(blob);
+    if (download) {
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'resource';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } else {
+      window.open(blobUrl, '_blank', 'noopener');
+    }
+    window.setTimeout(function () {
+      URL.revokeObjectURL(blobUrl);
+    }, 60000);
+  };
+
+  document.querySelectorAll('[data-resource-open], [data-resource-download]').forEach(function (button) {
+    button.addEventListener('click', async function () {
+      if (button.dataset.loading === '1') return;
+      button.dataset.loading = '1';
+      const originalDisabled = button.disabled;
+      button.disabled = true;
+      try {
+        const blob = await fetchResourceBlob(button.dataset.resourceUrl || '', button.dataset.resourceToken || '');
+        openBlobUrl(blob, button.dataset.resourceName || 'resource', button.hasAttribute('data-resource-download'));
+      } catch (error) {
+        window.alert(error && error.message ? error.message : 'Unable to load resource.');
+      } finally {
+        button.disabled = originalDisabled;
+        button.dataset.loading = '0';
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-resource-preview]').forEach(function (element) {
+    fetchResourceBlob(element.dataset.resourceUrl || '', element.dataset.resourceToken || '')
+      .then(function (blob) {
+        const blobUrl = URL.createObjectURL(blob);
+        element.src = blobUrl;
+      })
+      .catch(function () {
+        if (element.tagName === 'IFRAME') {
+          element.setAttribute('srcdoc', '<p style="font-family: sans-serif; padding: 1rem;">Preview unavailable. Use the Open Resource or Download buttons above.</p>');
+        }
+      });
+  });
+});
+</script>
 <?php ui_end(); ?>

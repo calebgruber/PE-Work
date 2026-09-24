@@ -14,7 +14,7 @@ if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
     exit('Invalid CSRF token.');
 }
 
-logout_user();
 flash('success', 'You have been signed out.');
+logout_user();
 header('Location: ' . url_for('login'));
 exit;

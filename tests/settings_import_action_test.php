@@ -361,6 +361,11 @@ $createSubfolderCommand = sprintf(
     escapeshellarg($baseUrl . '/settings?tab=resources')
 );
 exec($createSubfolderCommand, $createSubfolderOutput, $createSubfolderStatus);
+$freshDb = null;
+$freshDb = new PDO('sqlite:' . $testDbPath, null, null, [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+]);
 $resourceSubfolderId = (int) $freshDb->query("SELECT id FROM resource_folders WHERE name = 'Drafts' AND parent_id = " . $resourceFolderId . " ORDER BY id DESC LIMIT 1")->fetchColumn();
 $resourceCommand = sprintf(
     "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F %s -F 'action=upload_resource' -F 'resource_title=Shop Resource' -F 'resource_pdf=@%s;type=application/pdf;filename=resource.pdf' %s",

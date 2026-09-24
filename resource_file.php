@@ -26,10 +26,8 @@ if (!$resource) {
     exit('Not found');
 }
 
-$user = current_user();
-$isAuthorizedSession = $user && is_admin($user);
 $providedToken = trim((string) ($_SERVER['HTTP_X_RESOURCE_TOKEN'] ?? ''));
-if (!$isAuthorizedSession && ($providedToken === '' || !hash_equals(resource_access_token($resource), $providedToken))) {
+if ($providedToken === '' || !hash_equals(resource_access_token($resource), $providedToken)) {
     http_response_code(403);
     exit('Forbidden');
 }

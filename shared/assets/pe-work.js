@@ -336,6 +336,7 @@
     }
 
     editor.addEventListener('submit', function (event) {
+      const submitter = event.submitter || null;
       if (allowNativeSubmit) {
         allowNativeSubmit = false;
         return;
@@ -389,7 +390,11 @@
           manualSaveInFlight = false;
           if (error instanceof TypeError) {
             allowNativeSubmit = true;
-            editor.submit();
+            if (typeof editor.requestSubmit === 'function') {
+              editor.requestSubmit(submitter || undefined);
+            } else {
+              editor.submit();
+            }
             return;
           }
           renderAutosaveStatus(error?.message || 'Save failed. Try again.', 'error');

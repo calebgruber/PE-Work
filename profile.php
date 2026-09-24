@@ -5,6 +5,11 @@ require_once __DIR__ . '/shared/db.php';
 require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
+if (!schema_ready() || !auth_tables_ready()) {
+    header('Location: ' . url_for('setup'));
+    exit;
+}
+
 require_login(['allow_password_change' => true]);
 
 $user = current_user();
@@ -83,7 +88,7 @@ ui_page_header('My Profile', $forcePassword ? 'Change your temporary password be
         <div class="card-grid">
           <div class="form-group">
             <label for="current_password"><?= $forcePassword ? 'Temporary Password' : 'Current Password' ?></label>
-            <input class="form-control" id="current_password" type="password" name="current_password"<?= $forcePassword ? '' : '' ?>>
+            <input class="form-control" id="current_password" type="password" name="current_password">
           </div>
           <div class="form-group">
             <label for="new_password">New Password</label>

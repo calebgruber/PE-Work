@@ -5,6 +5,11 @@ require_once __DIR__ . '/shared/db.php';
 require_once __DIR__ . '/shared/app.php';
 require_once __DIR__ . '/shared/ui.php';
 
+if (!schema_ready() || !auth_tables_ready()) {
+    header('Location: ' . url_for('setup'));
+    exit;
+}
+
 require_admin();
 
 $user = current_user();
