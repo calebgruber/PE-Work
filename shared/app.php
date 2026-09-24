@@ -1190,7 +1190,7 @@ function list_shows_grouped_by_owner(): array
     return array_values(array_filter($groups, static fn (array $group): bool => !empty($group['shows'])));
 }
 
-function find_show(int $showId): ?array
+function find_show_unrestricted(int $showId): ?array
 {
     $stmt = db()->prepare(
         'SELECT s.*, u.display_name AS owner_display_name, u.email AS owner_email
@@ -1200,6 +1200,12 @@ function find_show(int $showId): ?array
     );
     $stmt->execute([$showId]);
     $show = $stmt->fetch();
+    return $show;
+}
+
+function find_show(int $showId): ?array
+{
+    $show = find_show_unrestricted($showId);
     if (!$show || !can_access_show($show)) {
         return null;
     }

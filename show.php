@@ -328,8 +328,8 @@ if (!in_array($tab, ['info', 'paperwork', 'orders', 'revisions'], true)) {
 }
 $mode = ($_GET['mode'] ?? '') === 'edit' ? 'edit' : 'view';
 $revisionOverrideItems = [];
-$show = $showId ? find_show($showId) : blank_show();
-if ($showId && !$show) {
+$show = $showId ? find_show_unrestricted($showId) : blank_show();
+if ($showId && (!$show || !can_access_show($show, $currentUser))) {
     http_response_code(404);
     exit('Show not found.');
 }
@@ -340,7 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . url_for($showId ? ('show?show_id=' . $showId . '&tab=' . $tab) : 'show'));
         exit;
     }
-    if ($showId && !$show) {
+    if ($showId && (!$show || !can_access_show($show, $currentUser))) {
         http_response_code(404);
         exit('Show not found.');
     }
@@ -402,6 +402,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete_revision' && $showId) {
+        if (!$show || !can_access_show($show, $currentUser)) {
+            http_response_code(404);
+            exit('Show not found.');
+        }
         $revision = find_revision((int) ($_POST['revision_id'] ?? 0));
         if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
             flash('warning', 'Revision not found for this show.');
@@ -414,6 +418,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'validate_revision' && !empty($_POST['revision_id'])) {
+        if (!$show || !can_access_show($show, $currentUser)) {
+            http_response_code(404);
+            header('Content-Type: application/json');
+            echo json_encode(['warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']]]);
+            exit;
+        }
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
         if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
@@ -431,6 +441,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'autosave_revision' && !empty($_POST['revision_id'])) {
+        if (!$show || !can_access_show($show, $currentUser)) {
+            http_response_code(404);
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']]]);
+            exit;
+        }
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
         if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
@@ -453,6 +469,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'save_revision' && !empty($_POST['revision_id'])) {
+        if (!$show || !can_access_show($show, $currentUser)) {
+            http_response_code(404);
+            if (is_ajax_request()) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'ok' => false,
+                    'warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']],
+                ]);
+                exit;
+            }
+            exit('Revision not found for this show.');
+        }
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
         if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
@@ -523,8 +551,13 @@ $currentRevision = null;
 $showOwners = show_owner_options();
 if ($mode === 'edit' && !empty($_GET['revision_id'])) {
     $currentRevision = find_revision((int) $_GET['revision_id']);
-    $revisionShow = $currentRevision ? find_show((int) ($currentRevision['show_id'] ?? 0)) : null;
-    if (!$currentRevision || !$revisionShow || (int) $currentRevision['show_id'] !== (int) $showId) {
+    $revisionShow = $currentRevision ? find_show_unrestricted((int) ($currentRevision['show_id'] ?? 0)) : null;
+    if (
+        !$currentRevision
+        || !$revisionShow
+        || !can_access_show($revisionShow, $currentUser)
+        || (int) $currentRevision['show_id'] !== (int) $showId
+    ) {
         http_response_code(404);
         exit('Revision not found for this show.');
     }

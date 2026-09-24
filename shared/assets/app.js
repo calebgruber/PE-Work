@@ -175,6 +175,9 @@
 
     // Intercept form submits
     document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      if (form.matches('[data-revision-editor], [data-no-loader]')) return;
       if (!e.defaultPrevented) startLoader();
     });
   }
