@@ -114,7 +114,7 @@ function render_show_form(array $show): void
     <?php
 }
 
-function render_show_paperwork_form(int $showId, array $layout): void
+function render_show_paperwork_form(array $layout): void
 {
     ?>
       <form method="post" class="stack">
@@ -434,7 +434,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo json_encode([
                 'ok' => true,
                 'message' => 'Order changes saved.',
-                'warnings' => revision_validation_warnings(revision_input_snapshot($revisionId)),
+                'warnings' => $validationWarnings,
                 'totals' => revision_totals($revisionId),
             ]);
             exit;
@@ -690,7 +690,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
       <?php ui_card_close(); ?>
     <?php elseif ($tab === 'paperwork'): ?>
       <?php ui_card_open('description', 'Show Paperwork Settings'); ?>
-        <?php render_show_paperwork_form((int) $showId, $showLayout); ?>
+        <?php render_show_paperwork_form($showLayout); ?>
       <?php ui_card_close(); ?>
     <?php elseif ($tab === 'orders'): ?>
       <?php ui_card_open('assignment', 'Initial Order'); ?>

@@ -79,6 +79,7 @@
     let latestAutosaveRun = 0;
     let autosaveAbortController = null;
     let hasPendingAutosave = false;
+    let manualSaveInFlight = false;
 
     function buildRevisionPayload() {
       const payload = {};
@@ -240,6 +241,9 @@
         })
         .catch(function (error) {
           if (abortController.signal.aborted) {
+            if (autosaveRun === latestAutosaveRun && !manualSaveInFlight) {
+              hasPendingAutosave = false;
+            }
             return;
           }
           if (autosaveRun !== latestAutosaveRun) {
@@ -324,6 +328,7 @@
         autosaveAbortController.abort();
       }
       event.preventDefault();
+      manualSaveInFlight = true;
       renderAutosaveStatus('Saving changes…', 'saving');
       fetch(editor.getAttribute('action') || window.location.href, {
         method: 'POST',
@@ -349,6 +354,7 @@
           });
         })
         .then(function (payload) {
+          manualSaveInFlight = false;
           hasPendingAutosave = false;
           renderWarnings(Array.isArray(payload?.warnings) ? payload.warnings : []);
           renderTotals(payload?.totals || null);
@@ -358,6 +364,7 @@
           }
         })
         .catch(function (error) {
+          manualSaveInFlight = false;
           renderAutosaveStatus(error?.message || 'Save failed. Try again.', 'error');
         });
     });
