@@ -323,11 +323,6 @@ function show_has_initial_revision(int $showId): bool
     return find_initial_revision($showId) !== null;
 }
 
-if (!schema_ready()) {
-    header('Location: ' . url_for('setup'));
-    exit;
-}
-
 $showIdParam = $_GET['show_id'] ?? null;
 if (is_array($showIdParam)) {
     http_response_code(404);
@@ -431,7 +426,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit('Show not found.');
         }
         $revision = find_revision((int) ($_POST['revision_id'] ?? 0));
-        if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
+        $revisionShow = $revision ? find_show((int) $revision['show_id']) : null;
+        if (
+            !$revision
+            || (int) $revision['show_id'] !== (int) $showId
+            || !$revisionShow
+            || !can_access_show($revisionShow, $currentUser)
+        ) {
             flash('warning', 'Revision not found for this show.');
         } else {
             $result = delete_show_revision((int) $revision['id']);
@@ -538,12 +539,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $revisions = $showId ? list_revisions($showId) : [];
 $initialRevision = null;
-$savedRevisions = [];
 foreach ($revisions as $revisionRow) {
     if ((int) ($revisionRow['is_initial'] ?? 0) === 1) {
         $initialRevision = $revisionRow;
-    } else {
-        $savedRevisions[] = $revisionRow;
     }
 }
 

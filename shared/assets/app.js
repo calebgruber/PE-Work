@@ -11,6 +11,8 @@
     localStorage.setItem(THEME_KEY, theme);
     const icon = document.getElementById('theme-icon');
     if (icon) icon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+    const toggle = document.getElementById('theme-toggle');
+    if (toggle) toggle.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
   }
 
   function initTheme() {
@@ -37,27 +39,6 @@
         }
       });
     });
-  }
-
-  /* ── Mobile sidebar toggle ────────────────────── */
-  function initMobileMenu() {
-    const btn = document.getElementById('mobile-menu-btn');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-
-    if (!btn || !sidebar) return;
-
-    btn.addEventListener('click', function () {
-      sidebar.classList.toggle('open');
-      if (overlay) overlay.classList.toggle('hidden');
-    });
-
-    if (overlay) {
-      overlay.addEventListener('click', function () {
-        sidebar.classList.remove('open');
-        overlay.classList.add('hidden');
-      });
-    }
   }
 
   /* ── Auto-dismiss flash messages ─────────────── */
@@ -191,7 +172,6 @@
 
     initTheme();
     initAlerts();
-    initMobileMenu();
     initFlash();
     initConfirm();
     initPasswordStrength();

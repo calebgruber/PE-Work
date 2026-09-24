@@ -127,10 +127,11 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
           <?= csrf_input() ?>
           <button type="submit" class="topbar-btn" title="Logout" aria-label="Logout">
             <span class="material-symbols-outlined">logout</span>
+            <span class="visually-hidden">Logout</span>
           </button>
         </form>
       <?php endif; ?>
-        <button id="theme-toggle" class="topbar-btn" title="Toggle theme" aria-label="Toggle theme">
+        <button id="theme-toggle" class="topbar-btn" type="button" title="Toggle theme" aria-label="Toggle theme" aria-pressed="false">
           <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
         </button>
       </div>

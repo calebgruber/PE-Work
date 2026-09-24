@@ -134,6 +134,7 @@
     }
 
     function scheduleValidation() {
+      if (typeof window.fetch !== 'function') return;
       if (validationTimer) {
         window.clearTimeout(validationTimer);
       }
@@ -141,6 +142,10 @@
     }
 
     function runValidation(callback) {
+      if (typeof window.fetch !== 'function') {
+        if (callback) callback([]);
+        return;
+      }
       if (validationAbortController) {
         validationAbortController.abort();
       }
@@ -151,6 +156,7 @@
 
       fetch(editor.getAttribute('action') || window.location.href, {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
           'X-Requested-With': 'XMLHttpRequest'
         },
@@ -198,6 +204,7 @@
     }
 
     function runAutosave() {
+      if (typeof window.fetch !== 'function') return;
       if (autosaveAbortController) {
         autosaveAbortController.abort();
       }
@@ -211,6 +218,7 @@
 
       fetch(editor.getAttribute('action') || window.location.href, {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
           'X-Requested-With': 'XMLHttpRequest'
         },
@@ -353,6 +361,7 @@
       renderAutosaveStatus('Saving changes…', 'saving');
       fetch(editor.getAttribute('action') || window.location.href, {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
           'X-Requested-With': 'XMLHttpRequest'
         },
@@ -383,7 +392,10 @@
           renderTotals(payload?.totals || null);
           renderAutosaveStatus(payload?.message || 'All changes saved.', 'saved');
           if (Array.isArray(payload?.warnings) && payload.warnings.length > 0 && warningsWrap) {
-            warningsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const bounds = warningsWrap.getBoundingClientRect();
+            if (bounds.top < 0 || bounds.bottom > window.innerHeight) {
+              warningsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
           }
         })
         .catch(function (error) {

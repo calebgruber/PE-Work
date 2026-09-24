@@ -1,17 +1,12 @@
 /* =====================================================
    CG Internal – Shared Stylesheet
-   Matches the example UI: sidebar + cards + alerts
+   Matches the example UI: topbar + cards + alerts
    Uses Google Material Symbols (Outlined)
    ===================================================== */
 
 /* ── CSS custom properties (light theme default) ─── */
 :root {
-  --sidebar-bg:      #0f172a;
-  --sidebar-text:    #94a3b8;
-  --sidebar-active:  #f8fafc;
-  --sidebar-hover:   #1e293b;
   --sidebar-accent:  #3b82f6;
-  --sidebar-width:   240px;
 
   --bg:              #f6f8fb;
   --surface:         #ffffff;
@@ -45,6 +40,7 @@
   --radius-lg:       14px;
   --shadow:          0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px rgb(15 23 42 / 0.06);
   --shadow-md:       0 4px 10px rgb(15 23 42 / 0.06), 0 16px 40px rgb(15 23 42 / 0.08);
+  --pill-radius:     100px;
 
   --font:            'Inter', system-ui, -apple-system, sans-serif;
   --transition:      150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -272,138 +268,6 @@ img { max-width: 100%; }
 
 /* Push all page content below the topbar */
 .app { padding-top: 3.25rem; }
-.sidebar { top: 3.25rem; height: calc(100vh - 3.25rem); }
-
-/* ── Sidebar ─────────────────────────────────────── */
-.sidebar {
-  width: var(--sidebar-width);
-  background: var(--sidebar-bg);
-  color: var(--sidebar-text);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-  transition: width var(--transition);
-}
-
-.sidebar-header {
-  padding: 1.25rem 1rem 0.75rem;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.sidebar-header h2 {
-  font-size: 1.0625rem;
-  font-weight: 700;
-  color: #f8fafc;
-  letter-spacing: -0.02em;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.sidebar-header .app-logo {
-  font-size: 1.4rem;
-  color: var(--sidebar-accent);
-}
-
-.sidebar-section {
-  padding: 0.75rem 0.75rem 0.25rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #475569;
-}
-
-nav { padding: 0.5rem 0.5rem; flex: 1; }
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius);
-  color: var(--sidebar-text);
-  text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: background var(--transition), color var(--transition);
-  margin-bottom: 2px;
-  cursor: pointer;
-}
-
-.nav-item:hover {
-  background: var(--sidebar-hover);
-  color: #e2e8f0;
-  text-decoration: none;
-}
-
-.nav-item.active {
-  background: rgba(59, 130, 246, 0.15);
-  color: var(--sidebar-active);
-  border-left: 2px solid var(--sidebar-accent);
-  padding-left: calc(0.75rem - 2px);
-}
-
-.nav-item .material-symbols-outlined {
-  font-size: 1.125rem;
-  flex-shrink: 0;
-  opacity: 0.85;
-}
-
-.nav-item.active .material-symbols-outlined {
-  opacity: 1;
-  color: var(--sidebar-accent);
-}
-
-.sidebar-footer {
-  padding: 0.75rem;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-
-.user-info:hover { background: var(--sidebar-hover); }
-
-.user-avatar {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background: var(--sidebar-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: white;
-  flex-shrink: 0;
-}
-
-.user-details { min-width: 0; }
-
-.user-name {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: #f1f5f9;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.user-role {
-  font-size: 0.6875rem;
-  color: #64748b;
-}
 
 /* ── Main content area ───────────────────────────── */
 .content {
@@ -492,8 +356,8 @@ nav { padding: 0.5rem 0.5rem; flex: 1; }
   position: relative;
   /* Light mode text: white or black (per --alert-text-on-solid) */
   color: var(--alert-text-on-solid, #ffffff);
-   border-top-right-radius: 100px;
-   border-bottom-right-radius: 100px;
+   border-top-right-radius: var(--pill-radius);
+   border-bottom-right-radius: var(--pill-radius);
 }
 
 [data-theme="dark"] .alert {
@@ -564,8 +428,8 @@ nav { padding: 0.5rem 0.5rem; flex: 1; }
   flex-shrink: 0;
   /* Light mode: solid accent background */
   background: var(--card-accent, var(--primary));
-   border-top-right-radius: 100px;
-   border-bottom-right-radius: 100px;
+   border-top-right-radius: var(--pill-radius);
+   border-bottom-right-radius: var(--pill-radius);
 }
 
 [data-theme="dark"] .card-tab {
@@ -1332,37 +1196,30 @@ tbody tr:hover td { background: color-mix(in srgb, var(--bg) 78%, white 22%); }
 .font-medium  { font-weight: 500; }
 .w-full       { width: 100%; }
 .hidden       { display: none; }
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .divider      { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
 .truncate     { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Responsive ──────────────────────────────────── */
 @media (max-width: 768px) {
-  .sidebar {
-    position: fixed;
-    z-index: 50;
-    transform: translateX(-100%);
-    transition: transform var(--transition);
-  }
-  .sidebar.open { transform: translateX(0); }
   .content { margin-left: 0; }
 
   .card-grid-3 { grid-template-columns: 1fr; }
   .form-row    { grid-template-columns: 1fr; }
   .schedule-grid { grid-template-columns: repeat(3, 1fr); }
 
-  .page-header { padding: 1rem; }
-  .page-body   { padding: 1rem; }
-
-  .mobile-menu-btn { display: flex !important; }
-}
-
-.mobile-menu-btn {
-  display: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text);
-  align-items: center;
+  .page-header { padding: 1rem 0; }
+  .page-body   { padding: 0 0 1rem; }
 }
 
 /* ── Page loader (thin top progress bar) ─────────── */

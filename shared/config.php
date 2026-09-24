@@ -66,11 +66,10 @@ date_default_timezone_set(APP_TIMEZONE);
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     $httpsEnabled = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443)
-        || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string) $_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
-        || (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && strtolower((string) $_SERVER['HTTP_X_FORWARDED_SSL']) === 'on');
+        || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443);
+    $cookiePath = APP_BASE_URL === '' || APP_BASE_URL === '/' ? '/' : rtrim(APP_BASE_URL, '/') . '/';
     session_set_cookie_params([
-        'path' => '/',
+        'path' => $cookiePath,
         'httponly' => true,
         'secure' => $httpsEnabled,
         'samesite' => 'Lax',
