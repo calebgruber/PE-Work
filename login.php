@@ -20,6 +20,7 @@ if (
     $returnTo === ''
     || !str_starts_with($returnTo, '/')
     || str_starts_with($returnTo, '//')
+    || str_contains($returnTo, '\\')
     || str_contains($returnTo, '://')
 ) {
     $returnTo = url_for('');

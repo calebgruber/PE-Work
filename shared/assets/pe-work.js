@@ -79,6 +79,7 @@
     let autosaveAbortController = null;
     let hasPendingAutosave = false;
     let manualSaveInFlight = false;
+    let allowNativeSubmit = false;
 
     function buildRevisionPayload() {
       const payload = {};
@@ -313,7 +314,17 @@
       search.addEventListener('input', applySearch);
     }
 
+    if (typeof window.fetch !== 'function') {
+      applySearch();
+      renderAutosaveStatus('Autosave requires a newer browser. Standard saves still work.', 'idle');
+      return;
+    }
+
     editor.addEventListener('submit', function (event) {
+      if (allowNativeSubmit) {
+        allowNativeSubmit = false;
+        return;
+      }
       if (autosaveTimer) {
         window.clearTimeout(autosaveTimer);
         autosaveTimer = null;
@@ -359,6 +370,11 @@
         })
         .catch(function (error) {
           manualSaveInFlight = false;
+          if (error instanceof TypeError) {
+            allowNativeSubmit = true;
+            editor.submit();
+            return;
+          }
           renderAutosaveStatus(error?.message || 'Save failed. Try again.', 'error');
         });
     });

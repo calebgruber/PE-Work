@@ -4,8 +4,6 @@ require_once __DIR__ . '/shared/config.php';
 require_once __DIR__ . '/shared/db.php';
 require_once __DIR__ . '/shared/app.php';
 
-require_login();
-
 if (!schema_ready()) {
     http_response_code(404);
     exit('Not found');
