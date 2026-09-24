@@ -659,7 +659,8 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
           <div class="resource-grid">
             <?php foreach ($resources as $resource): ?>
             <?php $resourceUrl = url_for('resource_file?id=' . (int) $resource['id']); ?>
-            <?php $resourceToken = resource_access_token($resource); ?>
+            <?php $resourceExpiry = resource_access_expires_at(); ?>
+            <?php $resourceToken = resource_access_token($resource, $resourceExpiry); ?>
             <article class="resource-card">
               <div class="resource-card-header">
                 <div>
@@ -678,11 +679,11 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
                 </form>
               </div>
               <div class="resource-actions">
-                <button type="button" class="btn btn-ghost btn-sm" data-resource-open data-resource-url="<?= h($resourceUrl) ?>" data-resource-token="<?= h($resourceToken) ?>" data-resource-name="<?= h($resource['original_name']) ?>">
+                <button type="button" class="btn btn-ghost btn-sm" data-resource-open data-resource-url="<?= h($resourceUrl) ?>" data-resource-token="<?= h($resourceToken) ?>" data-resource-expiry="<?= h((string) $resourceExpiry) ?>" data-resource-name="<?= h($resource['original_name']) ?>">
                   <span class="material-symbols-outlined">open_in_new</span>
                   Open Resource
                 </button>
-                <button type="button" class="btn btn-ghost btn-sm" data-resource-download data-resource-url="<?= h($resourceUrl . '&download=1') ?>" data-resource-token="<?= h($resourceToken) ?>" data-resource-name="<?= h($resource['original_name']) ?>">
+                <button type="button" class="btn btn-ghost btn-sm" data-resource-download data-resource-url="<?= h($resourceUrl . '&download=1') ?>" data-resource-token="<?= h($resourceToken) ?>" data-resource-expiry="<?= h((string) $resourceExpiry) ?>" data-resource-name="<?= h($resource['original_name']) ?>">
                   <span class="material-symbols-outlined">download</span>
                   Download
                 </button>
@@ -709,9 +710,9 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
               </form>
               <?php $resourceMime = strtolower((string) ($resource['mime_type'] ?? '')); ?>
               <?php if (str_starts_with($resourceMime, 'image/')): ?>
-              <img class="resource-image-preview" data-resource-preview="image" data-resource-url="<?= h($resourceUrl) ?>" data-resource-token="<?= h($resourceToken) ?>" alt="<?= h($resource['title']) ?>">
+              <img class="resource-image-preview" data-resource-preview="image" data-resource-url="<?= h($resourceUrl) ?>" data-resource-token="<?= h($resourceToken) ?>" data-resource-expiry="<?= h((string) $resourceExpiry) ?>" alt="<?= h($resource['title']) ?>">
               <?php else: ?>
-              <iframe class="resource-frame" data-resource-preview="document" data-resource-url="<?= h($resourceUrl) ?>" data-resource-token="<?= h($resourceToken) ?>" title="<?= h($resource['title']) ?>">
+              <iframe class="resource-frame" data-resource-preview="document" data-resource-url="<?= h($resourceUrl) ?>" data-resource-token="<?= h($resourceToken) ?>" data-resource-expiry="<?= h((string) $resourceExpiry) ?>" title="<?= h($resource['title']) ?>">
                 Resource preview unavailable. Use the Open Resource or Download buttons above.
               </iframe>
               <?php endif; ?>
@@ -1138,9 +1139,12 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  const fetchResourceBlob = async function (url, token) {
+  const fetchResourceBlob = async function (url, token, expiry) {
     const response = await fetch(url, {
-      headers: { 'X-Resource-Token': token },
+      headers: {
+        'X-Resource-Token': token,
+        'X-Resource-Expires': expiry
+      },
       credentials: 'same-origin'
     });
     if (!response.ok) {
@@ -1173,7 +1177,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const originalDisabled = button.disabled;
       button.disabled = true;
       try {
-        const blob = await fetchResourceBlob(button.dataset.resourceUrl || '', button.dataset.resourceToken || '');
+        const blob = await fetchResourceBlob(button.dataset.resourceUrl || '', button.dataset.resourceToken || '', button.dataset.resourceExpiry || '');
         openBlobUrl(blob, button.dataset.resourceName || 'resource', button.hasAttribute('data-resource-download'));
       } catch (error) {
         window.alert(error && error.message ? error.message : 'Unable to load resource.');
@@ -1185,7 +1189,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   document.querySelectorAll('[data-resource-preview]').forEach(function (element) {
-    fetchResourceBlob(element.dataset.resourceUrl || '', element.dataset.resourceToken || '')
+    fetchResourceBlob(element.dataset.resourceUrl || '', element.dataset.resourceToken || '', element.dataset.resourceExpiry || '')
       .then(function (blob) {
         const blobUrl = URL.createObjectURL(blob);
         element.src = blobUrl;

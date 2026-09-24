@@ -421,17 +421,21 @@ $testPaths[] = $resourceForbiddenPath;
 $testPaths[] = $resourceInvalidHeadersPath;
 $testPaths[] = $resourceInvalidPath;
 $resourceUrl = $baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0);
-$resourceHeader = 'X-Resource-Token: ' . resource_access_token($resourceRow);
+$resourceExpiry = resource_access_expires_at();
+$resourceHeader = 'X-Resource-Token: ' . resource_access_token($resourceRow, $resourceExpiry);
+$resourceExpiryHeader = 'X-Resource-Expires: ' . $resourceExpiry;
 exec(sprintf(
-    "curl -fsS -H %s -o %s -D %s %s",
+    "curl -fsS -H %s -H %s -o %s -D %s %s",
     escapeshellarg($resourceHeader),
+    escapeshellarg($resourceExpiryHeader),
     escapeshellarg($resourceFetchPath),
     escapeshellarg($resourceFetchHeadersPath),
     escapeshellarg($resourceUrl)
 ), $resourceFetchOutput, $resourceFetchStatus);
 exec(sprintf(
-    "curl -fsS -H %s -o %s -D %s %s",
+    "curl -fsS -H %s -H %s -o %s -D %s %s",
     escapeshellarg($resourceHeader),
+    escapeshellarg($resourceExpiryHeader),
     escapeshellarg($resourceDownloadPath),
     escapeshellarg($resourceDownloadHeadersPath),
     escapeshellarg($resourceUrl . '&download=1')
@@ -443,8 +447,9 @@ exec(sprintf(
     escapeshellarg($baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0))
 ), $resourceForbiddenOutput, $resourceForbiddenStatus);
 exec(sprintf(
-    "curl -sS -H %s -o %s -D %s %s",
+    "curl -sS -H %s -H %s -o %s -D %s %s",
     escapeshellarg('X-Resource-Token: invalid-token'),
+    escapeshellarg($resourceExpiryHeader),
     escapeshellarg($resourceInvalidPath),
     escapeshellarg($resourceInvalidHeadersPath),
     escapeshellarg($baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0))
@@ -499,10 +504,13 @@ if ($imageStoredName !== '') {
     $testPaths[] = upload_dir('resources') . '/' . $imageStoredName;
 }
 $imageResourceUrl = $baseUrl . '/resource_file?id=' . (int) ($imageResourceRow['id'] ?? 0);
-$imageResourceHeader = 'X-Resource-Token: ' . resource_access_token($imageResourceRow);
+$imageResourceExpiry = resource_access_expires_at();
+$imageResourceHeader = 'X-Resource-Token: ' . resource_access_token($imageResourceRow, $imageResourceExpiry);
+$imageResourceExpiryHeader = 'X-Resource-Expires: ' . $imageResourceExpiry;
 exec(sprintf(
-    "curl -fsS -H %s -o %s -D %s %s",
+    "curl -fsS -H %s -H %s -o %s -D %s %s",
     escapeshellarg($imageResourceHeader),
+    escapeshellarg($imageResourceExpiryHeader),
     escapeshellarg($imageFetchPath),
     escapeshellarg($imageFetchHeadersPath),
     escapeshellarg($imageResourceUrl)

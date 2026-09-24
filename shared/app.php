@@ -2923,9 +2923,14 @@ function resource_path(array $resource): string
     return $currentPath;
 }
 
-function resource_access_token(array $resource): string
+function resource_access_expires_at(int $ttlSeconds = 900): int
 {
-    return hash_hmac('sha256', (string) $resource['id'] . '|' . (string) $resource['stored_name'], APP_SECRET);
+    return time() + max(60, $ttlSeconds);
+}
+
+function resource_access_token(array $resource, int $expiresAt): string
+{
+    return hash_hmac('sha256', (string) $resource['id'] . '|' . (string) $resource['stored_name'] . '|' . $expiresAt, APP_SECRET);
 }
 
 function is_unique_constraint_violation(Throwable $e): bool

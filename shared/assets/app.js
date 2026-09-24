@@ -179,9 +179,7 @@
       if (!(form instanceof HTMLFormElement)) return;
       if (!form.matches('[data-start-loader]')) return;
       if (form.matches('[data-revision-editor], [data-no-loader]')) return;
-      window.setTimeout(function () {
-        if (!e.defaultPrevented) startLoader();
-      }, 0);
+      startLoader();
     });
   }
 

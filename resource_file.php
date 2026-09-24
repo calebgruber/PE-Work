@@ -27,7 +27,14 @@ if (!$resource) {
 }
 
 $providedToken = trim((string) ($_SERVER['HTTP_X_RESOURCE_TOKEN'] ?? ''));
-if ($providedToken === '' || !hash_equals(resource_access_token($resource), $providedToken)) {
+$providedExpiry = trim((string) ($_SERVER['HTTP_X_RESOURCE_EXPIRES'] ?? ''));
+$expiresAt = ctype_digit($providedExpiry) ? (int) $providedExpiry : 0;
+if (
+    $providedToken === ''
+    || $expiresAt < time()
+    || $expiresAt > time() + 3600
+    || !hash_equals(resource_access_token($resource, $expiresAt), $providedToken)
+) {
     http_response_code(403);
     exit('Forbidden');
 }
