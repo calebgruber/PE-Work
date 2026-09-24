@@ -397,7 +397,7 @@
     });
 
     window.addEventListener('beforeunload', function (event) {
-      if (!hasPendingAutosave && !hasDirtyRevisionChanges) return;
+      if (manualSaveInFlight || (!hasPendingAutosave && !hasDirtyRevisionChanges)) return;
       event.preventDefault();
       event.returnValue = '';
     });

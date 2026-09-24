@@ -415,15 +415,18 @@ $testPaths[] = $resourceForbiddenHeadersPath;
 $testPaths[] = $resourceForbiddenPath;
 $testPaths[] = $resourceInvalidHeadersPath;
 $testPaths[] = $resourceInvalidPath;
-$resourceUrl = $baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0) . '&token=' . rawurlencode(resource_access_token($resourceRow));
+$resourceUrl = $baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0);
+$resourceHeader = 'X-Resource-Token: ' . resource_access_token($resourceRow);
 exec(sprintf(
-    "curl -fsS -o %s -D %s %s",
+    "curl -fsS -H %s -o %s -D %s %s",
+    escapeshellarg($resourceHeader),
     escapeshellarg($resourceFetchPath),
     escapeshellarg($resourceFetchHeadersPath),
     escapeshellarg($resourceUrl)
 ), $resourceFetchOutput, $resourceFetchStatus);
 exec(sprintf(
-    "curl -fsS -o %s -D %s %s",
+    "curl -fsS -H %s -o %s -D %s %s",
+    escapeshellarg($resourceHeader),
     escapeshellarg($resourceDownloadPath),
     escapeshellarg($resourceDownloadHeadersPath),
     escapeshellarg($resourceUrl . '&download=1')
@@ -435,10 +438,11 @@ exec(sprintf(
     escapeshellarg($baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0))
 ), $resourceForbiddenOutput, $resourceForbiddenStatus);
 exec(sprintf(
-    "curl -sS -o %s -D %s %s",
+    "curl -sS -H %s -o %s -D %s %s",
+    escapeshellarg('X-Resource-Token: invalid-token'),
     escapeshellarg($resourceInvalidPath),
     escapeshellarg($resourceInvalidHeadersPath),
-    escapeshellarg($baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0) . '&token=invalid-token')
+    escapeshellarg($baseUrl . '/resource_file?id=' . (int) ($resourceRow['id'] ?? 0))
 ), $resourceInvalidOutput, $resourceInvalidStatus);
 $resourceFetchHeaders = is_file($resourceFetchHeadersPath) ? file_get_contents($resourceFetchHeadersPath) : '';
 $resourceDownloadHeaders = is_file($resourceDownloadHeadersPath) ? file_get_contents($resourceDownloadHeadersPath) : '';
@@ -489,9 +493,11 @@ $imageStoredName = (string) ($imageResourceRow['stored_name'] ?? '');
 if ($imageStoredName !== '') {
     $testPaths[] = upload_dir('resources') . '/' . $imageStoredName;
 }
-$imageResourceUrl = $baseUrl . '/resource_file?id=' . (int) ($imageResourceRow['id'] ?? 0) . '&token=' . rawurlencode(resource_access_token($imageResourceRow));
+$imageResourceUrl = $baseUrl . '/resource_file?id=' . (int) ($imageResourceRow['id'] ?? 0);
+$imageResourceHeader = 'X-Resource-Token: ' . resource_access_token($imageResourceRow);
 exec(sprintf(
-    "curl -fsS -o %s -D %s %s",
+    "curl -fsS -H %s -o %s -D %s %s",
+    escapeshellarg($imageResourceHeader),
     escapeshellarg($imageFetchPath),
     escapeshellarg($imageFetchHeadersPath),
     escapeshellarg($imageResourceUrl)

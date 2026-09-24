@@ -658,7 +658,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
           <?php if ($resources): ?>
           <div class="resource-grid">
             <?php foreach ($resources as $resource): ?>
-            <?php $resourceUrl = url_for('resource_file?id=' . (int) $resource['id'] . '&token=' . rawurlencode(resource_access_token($resource))); ?>
+            <?php $resourceUrl = url_for('resource_file?id=' . (int) $resource['id']); ?>
             <article class="resource-card">
               <div class="resource-card-header">
                 <div>
