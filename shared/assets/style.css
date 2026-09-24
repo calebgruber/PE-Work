@@ -86,6 +86,18 @@ body {
   line-height: 1.5;
 }
 
+.tabler-shell {
+  --tblr-body-font-family: var(--font);
+  --tblr-body-bg: var(--bg);
+  --tblr-body-color: var(--text);
+  --tblr-border-color: var(--border);
+  --tblr-link-color: var(--text-link);
+  --tblr-primary: 32, 107, 196;
+  --tblr-card-bg: var(--surface);
+  --tblr-bg-surface: var(--surface);
+  --tblr-bg-surface-secondary: var(--surface-raised);
+}
+
 a { color: var(--text-link); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
@@ -455,6 +467,10 @@ nav { padding: 0.5rem 0.5rem; flex: 1; }
 .page-body {
   padding: 0 0 2rem;
   flex: 1;
+}
+
+.page-wrapper {
+  background: transparent;
 }
 
 /* ── Alerts ──────────────────────────────────────── */
@@ -996,6 +1012,10 @@ tbody tr:hover td { background: color-mix(in srgb, var(--bg) 78%, white 22%); }
 
 .auth-panel-wide {
   align-items: stretch;
+}
+
+.auth-panel .card {
+  width: 100%;
 }
 
 /* Left banner panel (3/4 width) */

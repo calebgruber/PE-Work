@@ -67,7 +67,7 @@ function ui_head(string $pageTitle, string $appSlug = '', string $appHeading = '
   <title><?= h($pageTitle) ?> | <?= h(APP_NAME) ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.5.1/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
   <link rel="stylesheet" href="<?= h(asset_url('shared/assets/style.css')) ?>">
@@ -90,7 +90,7 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
     $profileUrl = url_for('profile');
     $logoutUrl = $userLogoutUrl !== '' ? $userLogoutUrl : url_for('logout');
     ?>
-  <header class="topbar navbar navbar-expand-md">
+  <header class="topbar navbar navbar-expand-md d-print-none">
     <div class="container-xl topbar-shell">
       <div class="topbar-branding">
         <a href="<?= h(url_for('')) ?>" class="navbar-brand navbar-brand-autodark topbar-app topbar-app-link">
@@ -236,6 +236,7 @@ function ui_end(): void
     </div>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.5.1/dist/js/tabler.min.js"></script>
 <script src="<?= h(asset_url('shared/assets/app.js')) ?>"></script>
 <script src="<?= h(asset_url('shared/assets/pe-work.js')) ?>"></script>
 </body>
