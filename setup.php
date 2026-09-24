@@ -157,6 +157,7 @@ $usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
       <div class="section-label">Migration Results</div>
       <div class="table-wrap">
         <table>
+          <caption>Migration execution results</caption>
           <thead>
             <tr>
               <th>Migration</th>

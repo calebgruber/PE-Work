@@ -353,7 +353,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($result['errors'] as $error) {
                 flash('danger', $error);
             }
-            $show = array_merge(blank_show(), $result['show']);
+            $show = array_merge($showId ? $show : blank_show(), $result['show']);
         } else {
             $show = $result['show'];
             $showId = (int) $show['id'];

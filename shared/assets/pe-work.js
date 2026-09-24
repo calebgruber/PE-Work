@@ -79,6 +79,7 @@
     let autosaveAbortController = null;
     let hasPendingAutosave = false;
     let hasDirtyRevisionChanges = false;
+    let pendingAutosaveRun = 0;
     let manualSaveInFlight = false;
     let allowNativeSubmit = false;
 
@@ -205,6 +206,7 @@
       const formData = buildRevisionFormData('autosave_revision');
       const autosaveRun = ++latestAutosaveRun;
       hasPendingAutosave = true;
+      pendingAutosaveRun = autosaveRun;
       renderAutosaveStatus('Saving changes…', 'saving');
 
       fetch(editor.getAttribute('action') || window.location.href, {
@@ -235,7 +237,10 @@
           if (autosaveRun !== latestAutosaveRun) {
             return;
           }
-          hasPendingAutosave = false;
+          if (pendingAutosaveRun === autosaveRun) {
+            hasPendingAutosave = false;
+            pendingAutosaveRun = 0;
+          }
           hasDirtyRevisionChanges = false;
           renderWarnings(Array.isArray(payload?.warnings) ? payload.warnings : []);
           renderTotals(payload?.totals || null);
@@ -243,12 +248,19 @@
         })
         .catch(function (error) {
           if (abortController.signal.aborted) {
+            if (pendingAutosaveRun === autosaveRun && autosaveRun === latestAutosaveRun) {
+              hasPendingAutosave = false;
+              pendingAutosaveRun = 0;
+            }
             return;
           }
           if (autosaveRun !== latestAutosaveRun) {
             return;
           }
-          hasPendingAutosave = false;
+          if (pendingAutosaveRun === autosaveRun) {
+            hasPendingAutosave = false;
+            pendingAutosaveRun = 0;
+          }
           hasDirtyRevisionChanges = true;
           renderAutosaveStatus(error?.message || 'Autosave failed. Use Save Changes.', 'error');
         });
@@ -365,6 +377,7 @@
           manualSaveInFlight = false;
           hasPendingAutosave = false;
           hasDirtyRevisionChanges = false;
+          pendingAutosaveRun = 0;
           renderWarnings(Array.isArray(payload?.warnings) ? payload.warnings : []);
           renderTotals(payload?.totals || null);
           renderAutosaveStatus(payload?.message || 'All changes saved.', 'saved');
@@ -462,11 +475,18 @@
 
         const first = focusables[0];
         const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
 
-        if (event.shiftKey && document.activeElement === first) {
+        if (!active || active === modal || !modal.contains(active)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+          return;
+        }
+
+        if (event.shiftKey && active === first) {
           event.preventDefault();
           last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
+        } else if (!event.shiftKey && active === last) {
           event.preventDefault();
           first.focus();
         }
