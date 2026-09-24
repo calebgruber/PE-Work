@@ -218,6 +218,16 @@ function show_concentration(?array $show): string
     return valid_domain_concentration($show['concentration'] ?? 'lighting');
 }
 
+function shows_support_owner_scope(): bool
+{
+    return table_column_exists('shows', 'owner_user_id');
+}
+
+function shows_support_concentration(): bool
+{
+    return table_column_exists('shows', 'concentration');
+}
+
 function user_count(): int
 {
     if (!auth_tables_ready()) {
@@ -1033,6 +1043,8 @@ function save_show_record(array $input, ?int $showId = null): array
 {
     $show = blank_show();
     $existingShow = $showId ? find_show($showId) : null;
+    $supportsOwnerScope = shows_support_owner_scope();
+    $supportsConcentration = shows_support_concentration();
     if ($showId && !$existingShow) {
         return ['show' => $show, 'errors' => ['Show not found.']];
     }
@@ -1041,17 +1053,21 @@ function save_show_record(array $input, ?int $showId = null): array
             $show[$field] = trim((string) $input[$field]);
         }
     }
-    $show['concentration'] = valid_domain_concentration($show['concentration'] ?? 'lighting');
+    $show['concentration'] = $supportsConcentration
+        ? valid_domain_concentration($show['concentration'] ?? 'lighting')
+        : 'lighting';
 
     $currentUser = current_user();
-    if (is_admin($currentUser) && auth_tables_ready()) {
+    if ($supportsOwnerScope && is_admin($currentUser) && auth_tables_ready()) {
         $requestedOwnerId = (int) ($input['owner_user_id'] ?? ($existingShow['owner_user_id'] ?? 0));
         $owner = $requestedOwnerId > 0 ? find_user_by_id($requestedOwnerId) : null;
         $show['owner_user_id'] = $owner ? (int) $owner['id'] : show_owner_id_for_user($currentUser);
-    } elseif ($existingShow) {
+    } elseif ($supportsOwnerScope && $existingShow) {
         $show['owner_user_id'] = (int) ($existingShow['owner_user_id'] ?? 0) ?: show_owner_id_for_user($currentUser);
-    } else {
+    } elseif ($supportsOwnerScope) {
         $show['owner_user_id'] = show_owner_id_for_user($currentUser);
+    } else {
+        $show['owner_user_id'] = null;
     }
 
     foreach (['pull_date', 'return_date', 'strike_date', 'opening_date', 'closing_date'] as $dateField) {
@@ -1068,7 +1084,7 @@ function save_show_record(array $input, ?int $showId = null): array
     if (!empty($input['show_image_url']) && $show['show_image_url'] === null) {
         $errors[] = 'Show image must be an app-relative path, not an external URL.';
     }
-    if ((int) ($show['owner_user_id'] ?? 0) <= 0 && user_count() > 0) {
+    if ($supportsOwnerScope && (int) ($show['owner_user_id'] ?? 0) <= 0 && user_count() > 0) {
         $errors[] = 'Choose who owns this show.';
     }
 
@@ -1078,21 +1094,28 @@ function save_show_record(array $input, ?int $showId = null): array
 
     if ($showId) {
         $show['id'] = $showId;
-        $stmt = db()->prepare(
-            'UPDATE shows SET
-                owner_user_id = ?, concentration = ?,
-                show_name = ?, theatre_name = ?, shop_name = ?,
-                ld_name = ?, ld_email = ?, ld_phone = ?,
-                assistant_ld_name = ?, assistant_ld_email = ?, assistant_ld_phone = ?,
-                production_electrician_name = ?, production_electrician_email = ?, production_electrician_phone = ?,
-                shop_manager_name = ?, shop_manager_email = ?, shop_manager_phone = ?,
-                assistant_shop_manager_name = ?, assistant_shop_manager_email = ?, assistant_shop_manager_phone = ?,
-                show_image_url = ?, pull_date = ?, return_date = ?, strike_date = ?, opening_date = ?, closing_date = ?,
-                theatre_address = ?, shop_address = ?, show_notes = ?, updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?'
-        );
-        $stmt->execute([
-            $show['owner_user_id'], $show['concentration'],
+        $updateFields = [];
+        $updateParams = [];
+        if ($supportsOwnerScope) {
+            $updateFields[] = 'owner_user_id = ?';
+            $updateParams[] = $show['owner_user_id'];
+        }
+        if ($supportsConcentration) {
+            $updateFields[] = 'concentration = ?';
+            $updateParams[] = $show['concentration'];
+        }
+        $updateFields = array_merge($updateFields, [
+            'show_name = ?', 'theatre_name = ?', 'shop_name = ?',
+            'ld_name = ?', 'ld_email = ?', 'ld_phone = ?',
+            'assistant_ld_name = ?', 'assistant_ld_email = ?', 'assistant_ld_phone = ?',
+            'production_electrician_name = ?', 'production_electrician_email = ?', 'production_electrician_phone = ?',
+            'shop_manager_name = ?', 'shop_manager_email = ?', 'shop_manager_phone = ?',
+            'assistant_shop_manager_name = ?', 'assistant_shop_manager_email = ?', 'assistant_shop_manager_phone = ?',
+            'show_image_url = ?', 'pull_date = ?', 'return_date = ?', 'strike_date = ?', 'opening_date = ?', 'closing_date = ?',
+            'theatre_address = ?', 'shop_address = ?', 'show_notes = ?', 'updated_at = CURRENT_TIMESTAMP',
+        ]);
+        $stmt = db()->prepare('UPDATE shows SET ' . implode(', ', $updateFields) . ' WHERE id = ?');
+        $stmt->execute(array_merge($updateParams, [
             $show['show_name'], $show['theatre_name'], $show['shop_name'],
             $show['ld_name'], $show['ld_email'], $show['ld_phone'],
             $show['assistant_ld_name'], $show['assistant_ld_email'], $show['assistant_ld_phone'],
@@ -1102,23 +1125,37 @@ function save_show_record(array $input, ?int $showId = null): array
             $show['show_image_url'], $show['pull_date'], $show['return_date'], $show['strike_date'], $show['opening_date'], $show['closing_date'],
             $show['theatre_address'], $show['shop_address'], $show['show_notes'],
             $showId,
-        ]);
+        ]));
     } else {
+        $columns = [];
+        $placeholders = [];
+        $insertParams = [];
+        if ($supportsOwnerScope) {
+            $columns[] = 'owner_user_id';
+            $placeholders[] = '?';
+            $insertParams[] = $show['owner_user_id'];
+        }
+        if ($supportsConcentration) {
+            $columns[] = 'concentration';
+            $placeholders[] = '?';
+            $insertParams[] = $show['concentration'];
+        }
+        $columns = array_merge($columns, [
+            'show_name', 'theatre_name', 'shop_name',
+            'ld_name', 'ld_email', 'ld_phone',
+            'assistant_ld_name', 'assistant_ld_email', 'assistant_ld_phone',
+            'production_electrician_name', 'production_electrician_email', 'production_electrician_phone',
+            'shop_manager_name', 'shop_manager_email', 'shop_manager_phone',
+            'assistant_shop_manager_name', 'assistant_shop_manager_email', 'assistant_shop_manager_phone',
+            'show_image_url', 'pull_date', 'return_date', 'strike_date', 'opening_date', 'closing_date',
+            'theatre_address', 'shop_address', 'show_notes',
+        ]);
+        $placeholders = array_merge($placeholders, array_fill(0, 27, '?'));
         $stmt = db()->prepare(
-            'INSERT INTO shows (
-                owner_user_id, concentration,
-                show_name, theatre_name, shop_name,
-                ld_name, ld_email, ld_phone,
-                assistant_ld_name, assistant_ld_email, assistant_ld_phone,
-                production_electrician_name, production_electrician_email, production_electrician_phone,
-                shop_manager_name, shop_manager_email, shop_manager_phone,
-                assistant_shop_manager_name, assistant_shop_manager_email, assistant_shop_manager_phone,
-                show_image_url, pull_date, return_date, strike_date, opening_date, closing_date,
-                theatre_address, shop_address, show_notes
-             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+            'INSERT INTO shows (' . implode(', ', $columns) . ')
+             VALUES (' . implode(',', $placeholders) . ')'
         );
-        $stmt->execute([
-            $show['owner_user_id'], $show['concentration'],
+        $stmt->execute(array_merge($insertParams, [
             $show['show_name'], $show['theatre_name'], $show['shop_name'],
             $show['ld_name'], $show['ld_email'], $show['ld_phone'],
             $show['assistant_ld_name'], $show['assistant_ld_email'], $show['assistant_ld_phone'],
@@ -1127,7 +1164,7 @@ function save_show_record(array $input, ?int $showId = null): array
             $show['assistant_shop_manager_name'], $show['assistant_shop_manager_email'], $show['assistant_shop_manager_phone'],
             $show['show_image_url'], $show['pull_date'], $show['return_date'], $show['strike_date'], $show['opening_date'], $show['closing_date'],
             $show['theatre_address'], $show['shop_address'], $show['show_notes'],
-        ]);
+        ]));
         $show['id'] = (int) db()->lastInsertId();
     }
 
@@ -1140,16 +1177,21 @@ function list_shows(): array
         return [];
     }
     $user = current_user();
-    $ownerFilter = !is_admin($user) ? show_owner_id_for_user($user) : null;
+    $supportsOwnerScope = shows_support_owner_scope();
+    $supportsConcentration = shows_support_concentration();
+    $ownerFilter = $supportsOwnerScope && !is_admin($user) ? show_owner_id_for_user($user) : null;
+    $ownerJoin = $supportsOwnerScope ? 'LEFT JOIN users u ON u.id = s.owner_user_id' : 'LEFT JOIN users u ON 1 = 0';
+    $concentrationSelect = $supportsConcentration ? 's.concentration' : '"lighting" AS concentration';
     $sql = 'SELECT
             s.*,
+            ' . $concentrationSelect . ',
             u.display_name AS owner_display_name,
             u.email AS owner_email,
             (SELECT revision_code FROM show_revisions sr WHERE sr.show_id = s.id ORDER BY revision_index DESC LIMIT 1) AS latest_revision_code,
             (SELECT revision_date FROM show_revisions sr WHERE sr.show_id = s.id ORDER BY revision_index DESC LIMIT 1) AS latest_revision_date,
             (SELECT COUNT(*) FROM show_revisions sr WHERE sr.show_id = s.id) AS revision_count
          FROM shows s
-         LEFT JOIN users u ON u.id = s.owner_user_id';
+         ' . $ownerJoin;
     $params = [];
     if ($ownerFilter !== null) {
         $sql .= ' WHERE s.owner_user_id = ?';
@@ -1192,10 +1234,14 @@ function list_shows_grouped_by_owner(): array
 
 function find_show_unrestricted(int $showId): ?array
 {
+    $supportsOwnerScope = shows_support_owner_scope();
+    $supportsConcentration = shows_support_concentration();
+    $ownerJoin = $supportsOwnerScope ? 'LEFT JOIN users u ON u.id = s.owner_user_id' : 'LEFT JOIN users u ON 1 = 0';
+    $concentrationSelect = $supportsConcentration ? 's.concentration' : '"lighting" AS concentration';
     $stmt = db()->prepare(
-        'SELECT s.*, u.display_name AS owner_display_name, u.email AS owner_email
+        'SELECT s.*, ' . $concentrationSelect . ', u.display_name AS owner_display_name, u.email AS owner_email
          FROM shows s
-         LEFT JOIN users u ON u.id = s.owner_user_id
+         ' . $ownerJoin . '
          WHERE s.id = ?'
     );
     $stmt->execute([$showId]);
@@ -1218,7 +1264,8 @@ function dashboard_stats(): array
         return ['shows' => 0, 'items' => 0, 'revisions' => 0, 'rules' => 0];
     }
     $user = current_user();
-    $ownerFilter = !is_admin($user) ? show_owner_id_for_user($user) : null;
+    $supportsOwnerScope = shows_support_owner_scope();
+    $ownerFilter = $supportsOwnerScope && !is_admin($user) ? show_owner_id_for_user($user) : null;
     if ($ownerFilter !== null) {
         $showCountStmt = db()->prepare('SELECT COUNT(*) FROM shows WHERE owner_user_id = ?');
         $showCountStmt->execute([$ownerFilter]);
@@ -1279,26 +1326,34 @@ function fetch_inventory_catalog(?string $concentration = null): array
     $categories = fetch_categories($normalizedConcentration);
     $itemOrderSql = table_column_exists('inventory_items', 'sort_order') ? 'COALESCE(i.sort_order, 0), ' : '';
     $extraSelect = [];
+    $supportsCategoryConcentration = table_column_exists('inventory_categories', 'concentration');
+    $supportsItemConcentration = table_column_exists('inventory_items', 'concentration');
     if (!table_column_exists('inventory_items', 'sort_order')) {
         $extraSelect[] = '0 AS sort_order';
     }
     if (!table_column_exists('inventory_items', 'is_spacer')) {
         $extraSelect[] = '0 AS is_spacer';
     }
-    if (!table_column_exists('inventory_items', 'concentration')) {
-        $extraSelect[] = 'COALESCE(c.concentration, "lighting") AS concentration';
+    if (!$supportsItemConcentration) {
+        $extraSelect[] = ($supportsCategoryConcentration ? 'COALESCE(c.concentration, "lighting")' : '"lighting"') . ' AS concentration';
     }
     $selectSuffix = $extraSelect ? ', ' . implode(', ', $extraSelect) : '';
     if (!table_exists('inventory_items')) {
         return [];
     }
-    $sql = 'SELECT i.*' . $selectSuffix . ', c.name AS category_name, COALESCE(c.concentration, i.concentration, "lighting") AS category_concentration
+    $categoryConcentrationExpr = $supportsCategoryConcentration
+        ? ($supportsItemConcentration ? 'COALESCE(c.concentration, i.concentration, "lighting")' : 'COALESCE(c.concentration, "lighting")')
+        : ($supportsItemConcentration ? 'COALESCE(i.concentration, "lighting")' : '"lighting"');
+    $filterConcentrationExpr = $supportsItemConcentration
+        ? ($supportsCategoryConcentration ? 'COALESCE(i.concentration, c.concentration, "lighting")' : 'COALESCE(i.concentration, "lighting")')
+        : ($supportsCategoryConcentration ? 'COALESCE(c.concentration, "lighting")' : '"lighting"');
+    $sql = 'SELECT i.*' . $selectSuffix . ', c.name AS category_name, ' . $categoryConcentrationExpr . ' AS category_concentration
              FROM inventory_items i
              LEFT JOIN inventory_categories c ON c.id = i.category_id
              WHERE i.is_active = 1';
     $params = [];
     if ($normalizedConcentration !== null) {
-        $sql .= ' AND COALESCE(i.concentration, c.concentration, "lighting") = ?';
+        $sql .= ' AND ' . $filterConcentrationExpr . ' = ?';
         $params[] = $normalizedConcentration;
     }
     $sql .= ' ORDER BY COALESCE(c.sort_order, 9999), COALESCE(c.name, "Uncategorized"), ' . $itemOrderSql . ' i.name, i.id';
@@ -1571,7 +1626,7 @@ function revision_validation_warnings(array $items, ?string $concentration = nul
          FROM inventory_items
          WHERE is_active = 1';
     $params = [];
-    if ($concentration !== null) {
+    if ($concentration !== null && $supportsConcentration) {
         $sql .= ' AND concentration = ?';
         $params[] = valid_domain_concentration($concentration);
     }
@@ -1631,8 +1686,9 @@ function revision_validation_warnings(array $items, ?string $concentration = nul
 
 function revision_concentration(int $revisionId): string
 {
+    $expr = shows_support_concentration() ? 'COALESCE(s.concentration, "lighting")' : '"lighting"';
     $stmt = db()->prepare(
-        'SELECT COALESCE(s.concentration, "lighting")
+        'SELECT ' . $expr . '
          FROM show_revisions sr
          INNER JOIN shows s ON s.id = sr.show_id
          WHERE sr.id = ?'
@@ -2244,8 +2300,9 @@ function save_rule(array $input): array
         return ['ok' => false, 'message' => 'Choose both the trigger item and the required item.'];
     }
 
+    $supportsConcentration = table_column_exists('inventory_items', 'concentration');
     $lookup = db()->prepare(
-        'SELECT id, concentration
+        'SELECT id' . ($supportsConcentration ? ', concentration' : ', "lighting" AS concentration') . '
          FROM inventory_items
          WHERE id = ? AND is_active = 1'
     );
