@@ -143,10 +143,10 @@ function render_show_paperwork_form(int $showId, array $layout): void
             <textarea class="form-control" id="export_notes" name="export_notes" rows="8"><?= h($layout['layout.export_notes'] ?? '') ?></textarea>
           </div>
           <div class="pill-row" style="margin-top:1rem;">
-            <label class="tab"><input type="checkbox" name="show_image" value="1" <?= ($layout['layout.show_image'] ?? '1') === '1' ? 'checked' : '' ?>> Show image on exports</label>
-            <label class="tab"><input type="checkbox" name="cover_show_title" value="1" <?= ($layout['layout.cover_show_title'] ?? '1') === '1' ? 'checked' : '' ?>> Show title above cover image</label>
-            <label class="tab"><input type="checkbox" name="show_page_numbers" value="1" <?= ($layout['layout.show_page_numbers'] ?? '1') === '1' ? 'checked' : '' ?>> Page X of X</label>
-            <label class="tab"><input type="checkbox" name="show_revision_summary" value="1" <?= ($layout['layout.show_revision_summary'] ?? '1') === '1' ? 'checked' : '' ?>> Revision summary block</label>
+            <label class="tab"><input type="hidden" name="show_image" value="0"><input type="checkbox" name="show_image" value="1" <?= ($layout['layout.show_image'] ?? '1') === '1' ? 'checked' : '' ?>> Show image on exports</label>
+            <label class="tab"><input type="hidden" name="cover_show_title" value="0"><input type="checkbox" name="cover_show_title" value="1" <?= ($layout['layout.cover_show_title'] ?? '1') === '1' ? 'checked' : '' ?>> Show title above cover image</label>
+            <label class="tab"><input type="hidden" name="show_page_numbers" value="0"><input type="checkbox" name="show_page_numbers" value="1" <?= ($layout['layout.show_page_numbers'] ?? '1') === '1' ? 'checked' : '' ?>> Page X of X</label>
+            <label class="tab"><input type="hidden" name="show_revision_summary" value="0"><input type="checkbox" name="show_revision_summary" value="1" <?= ($layout['layout.show_revision_summary'] ?? '1') === '1' ? 'checked' : '' ?>> Revision summary block</label>
           </div>
         </section>
 

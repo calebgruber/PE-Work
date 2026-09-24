@@ -657,10 +657,14 @@ exec(sprintf(
 ), $paperworkOutput, $paperworkStatus);
 $paperworkHeaders = is_file($paperworkHeadersPath) ? file_get_contents($paperworkHeadersPath) : '';
 $paperworkResponseHtml = is_file($paperworkResponsePath) ? file_get_contents($paperworkResponsePath) : '';
-$showFooterStmt = db()->prepare('SELECT value FROM show_settings WHERE show_id = ? AND `key` = ?');
+$paperworkDb = new PDO('sqlite:' . $testDbPath, null, null, [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+]);
+$showFooterStmt = $paperworkDb->prepare('SELECT value FROM show_settings WHERE show_id = ? AND `key` = ?');
 $showFooterStmt->execute([$validationShowId, 'layout.footer_text']);
 $showFooterValue = (string) $showFooterStmt->fetchColumn();
-$showPreparedByStmt = db()->prepare('SELECT value FROM show_settings WHERE show_id = ? AND `key` = ?');
+$showPreparedByStmt = $paperworkDb->prepare('SELECT value FROM show_settings WHERE show_id = ? AND `key` = ?');
 $showPreparedByStmt->execute([$validationShowId, 'layout.cover_prepared_by_name']);
 $showPreparedByValue = (string) $showPreparedByStmt->fetchColumn();
 settings_assert($paperworkPageStatus === 0 && $paperworkToken !== '', 'Expected paperwork tab request to provide a CSRF token.', $repoRoot, $process, $pipes, $testPaths);

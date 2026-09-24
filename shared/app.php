@@ -2684,6 +2684,16 @@ function show_export_layout_override_keys(): array
     ];
 }
 
+function show_export_layout_checkbox_input_names(): array
+{
+    return [
+        'show_image',
+        'cover_show_title',
+        'show_page_numbers',
+        'show_revision_summary',
+    ];
+}
+
 function export_layout_settings(?int $showId = null): array
 {
     $defaults = export_layout_defaults();
@@ -2805,7 +2815,24 @@ function save_export_layout(array $input): void
 
 function save_show_export_layout(int $showId, array $input): void
 {
-    $values = export_layout_sanitized_values($input);
+    $currentLayout = export_layout_settings($showId);
+    $normalizedInput = [];
+    foreach (show_export_layout_override_keys() as $key) {
+        $inputName = substr($key, strlen('layout.'));
+        if (array_key_exists($inputName, $input)) {
+            $normalizedInput[$inputName] = $input[$inputName];
+            continue;
+        }
+
+        if (in_array($inputName, show_export_layout_checkbox_input_names(), true)) {
+            $normalizedInput[$inputName] = ($currentLayout[$key] ?? '0') === '1' ? '1' : '0';
+            continue;
+        }
+
+        $normalizedInput[$inputName] = $currentLayout[$key] ?? '';
+    }
+
+    $values = export_layout_sanitized_values($normalizedInput);
     foreach (show_export_layout_override_keys() as $key) {
         if (array_key_exists($key, $values)) {
             save_show_setting($showId, $key, $values[$key]);

@@ -486,8 +486,8 @@ assert_true(str_contains($exportHtml, 'height: 0.360in;'), 'Expected export cate
 assert_true((bool) preg_match('/table\\.word-table tbody tr:not\\(\\.category-gap-row\\):not\\(\\.category-header-row\\):not\\(\\.category-column-header-row\\) td \\{[^}]*line-height: 1\\.10;/s', $exportHtml), 'Expected normal row line height to be applied only to non-header, non-category rows.');
 assert_true(!(bool) preg_match('/table\\.word-table\\.equipment-table \\{[^}]*line-height:/s', $exportHtml), 'Expected table-level line height to stay off the whole equipment table so header/category line heights remain separate.');
 assert_true(str_contains($exportHtml, 'padding: 0.222in 0 0;'), 'Expected category spacing above each section to use the saved layout setting.');
-assert_true((bool) preg_match('/<section class="page cover-page">.*?<div class="footer cover-footer">.*?Prepared by: Caleb Tester(?!.*?<span>Prepared by: Caleb Tester<\/span>).*?<\/div>/s', $exportHtml), 'Expected the cover footer to show the prepared-by name only once.');
-assert_true(substr_count($exportHtml, 'Prepared by: Caleb Tester') >= 3, 'Expected the prepared-by name to be used globally across paperwork footers.');
+assert_true((bool) preg_match('/<section class="page cover-page">.*?<div class="footer cover-footer">.*?Prepared by: Show Override Person(?!.*?<span>Prepared by: Show Override Person<\/span>).*?<\/div>/s', $exportHtml), 'Expected the cover footer to show the show-level prepared-by name only once.');
+assert_true(substr_count($exportHtml, 'Prepared by: Show Override Person') >= 3, 'Expected the show-level prepared-by name to be used across paperwork footers.');
 $coverSectionEnd = strpos($exportHtml, '</section>');
 $coverSection = $coverSectionEnd === false ? $exportHtml : substr($exportHtml, 0, $coverSectionEnd);
 assert_true(!str_contains($coverSection, 'class="page-header-bar"'), 'Expected the cover page to omit the restored paperwork header.');
