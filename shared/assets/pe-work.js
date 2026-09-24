@@ -71,7 +71,6 @@
     const overallTotal = document.querySelector('[data-revision-overall-total]');
     const submitButtons = Array.prototype.slice.call(editor.querySelectorAll('[data-revision-submit]'));
     const items = Array.prototype.slice.call(editor.querySelectorAll('[data-revision-item]'));
-    let allowValidatedSubmit = false;
     let validationTimer = null;
     let latestValidationRun = 0;
     let validationAbortController = null;
@@ -315,11 +314,6 @@
     }
 
     editor.addEventListener('submit', function (event) {
-      if (allowValidatedSubmit) {
-        allowValidatedSubmit = false;
-        renderAutosaveStatus('All changes saved.', 'saved');
-        return;
-      }
       if (autosaveTimer) {
         window.clearTimeout(autosaveTimer);
         autosaveTimer = null;

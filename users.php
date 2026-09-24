@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!($result['ok'] ?? false)) {
             $error = (string) ($result['message'] ?? 'Unable to create user.');
         } else {
-            flash('success', (string) ($result['message'] ?? 'User created.'));
+            flash('success', (string) ($result['message'] ?? 'User created and invite email sent.'));
             header('Location: ' . url_for('users'));
             exit;
         }
