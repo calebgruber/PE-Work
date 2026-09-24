@@ -241,9 +241,6 @@
         })
         .catch(function (error) {
           if (abortController.signal.aborted) {
-            if (autosaveRun === latestAutosaveRun && !manualSaveInFlight) {
-              hasPendingAutosave = false;
-            }
             return;
           }
           if (autosaveRun !== latestAutosaveRun) {

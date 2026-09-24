@@ -27,11 +27,33 @@ return [
                     UNIQUE (parent_id, name)
                 )
             ');
-            $pdo->exec("
-                INSERT INTO resource_folders_new (id, name, created_at, parent_id)
-                SELECT id, name, created_at, {$parentSelect}
+            $rows = $pdo->query("
+                SELECT id, name, created_at, {$parentSelect} AS parent_id
                 FROM resource_folders
-            ");
+                ORDER BY COALESCE(parent_id, 0), LOWER(name), id
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            $insert = $pdo->prepare('
+                INSERT INTO resource_folders_new (id, name, created_at, parent_id)
+                VALUES (?, ?, ?, ?)
+            ');
+            $seen = [];
+            foreach ($rows as $row) {
+                $parentKey = array_key_exists('parent_id', $row) && $row['parent_id'] !== null ? (string) $row['parent_id'] : 'root';
+                $baseName = (string) ($row['name'] ?? 'Folder');
+                $candidate = $baseName;
+                $suffix = 2;
+                while (isset($seen[$parentKey . '|' . strtolower($candidate)])) {
+                    $candidate = $baseName . ' (' . $suffix . ')';
+                    $suffix++;
+                }
+                $seen[$parentKey . '|' . strtolower($candidate)] = true;
+                $insert->execute([
+                    (int) $row['id'],
+                    $candidate,
+                    $row['created_at'],
+                    $row['parent_id'] !== null ? (int) $row['parent_id'] : null,
+                ]);
+            }
             $pdo->exec('DROP TABLE resource_folders');
             $pdo->exec('ALTER TABLE resource_folders_new RENAME TO resource_folders');
             $pdo->exec('CREATE INDEX IF NOT EXISTS idx_resource_folders_parent_id ON resource_folders(parent_id)');
@@ -63,6 +85,32 @@ return [
                   AND index_name = 'resource_folders_parent_name_unique'
             ")->fetchColumn() > 0;
             if (!$uniqueIndexExists) {
+                $duplicates = $pdo->query("
+                    SELECT parent_id, name, GROUP_CONCAT(id ORDER BY id ASC) AS ids
+                    FROM resource_folders
+                    GROUP BY parent_id, name
+                    HAVING COUNT(*) > 1
+                ")->fetchAll(PDO::FETCH_ASSOC);
+                $rename = $pdo->prepare('UPDATE resource_folders SET name = ? WHERE id = ?');
+                foreach ($duplicates as $duplicate) {
+                    $ids = array_values(array_filter(array_map('intval', explode(',', (string) ($duplicate['ids'] ?? '')))));
+                    $baseName = (string) ($duplicate['name'] ?? 'Folder');
+                    $parentId = $duplicate['parent_id'];
+                    $used = [$baseName => true];
+                    foreach ($ids as $index => $id) {
+                        if ($index === 0) {
+                            continue;
+                        }
+                        $suffix = $index + 1;
+                        $candidate = $baseName . ' (' . $suffix . ')';
+                        while (isset($used[$candidate])) {
+                            $suffix++;
+                            $candidate = $baseName . ' (' . $suffix . ')';
+                        }
+                        $used[$candidate] = true;
+                        $rename->execute([$candidate, $id]);
+                    }
+                }
                 $pdo->exec('ALTER TABLE resource_folders ADD UNIQUE INDEX resource_folders_parent_name_unique (parent_id, name)');
             }
         },

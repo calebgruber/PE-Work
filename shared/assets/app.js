@@ -178,7 +178,9 @@
       var form = e.target;
       if (!(form instanceof HTMLFormElement)) return;
       if (form.matches('[data-revision-editor], [data-no-loader]')) return;
-      if (!e.defaultPrevented) startLoader();
+      window.setTimeout(function () {
+        if (!e.defaultPrevented) startLoader();
+      }, 0);
     });
   }
 

@@ -364,7 +364,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'save_show_layout' && $showId) {
-        save_show_export_layout($showId, $_POST);
+        $showLayoutInput = [];
+        foreach (show_export_layout_override_keys() as $layoutKey) {
+            $inputName = substr($layoutKey, strlen('layout.'));
+            if (array_key_exists($inputName, $_POST)) {
+                $showLayoutInput[$inputName] = $_POST[$inputName];
+            }
+        }
+        save_show_export_layout($showId, $showLayoutInput);
         flash('success', 'Show paperwork settings saved.');
         header('Location: ' . url_for('show?show_id=' . $showId . '&tab=paperwork'));
         exit;
