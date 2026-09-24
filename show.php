@@ -329,6 +329,10 @@ if (!in_array($tab, ['info', 'paperwork', 'orders', 'revisions'], true)) {
 $mode = ($_GET['mode'] ?? '') === 'edit' ? 'edit' : 'view';
 $revisionOverrideItems = [];
 $show = $showId ? find_show($showId) : blank_show();
+if ($showId && !$show) {
+    http_response_code(404);
+    exit('Show not found.');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
@@ -497,11 +501,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . url_for('show?show_id=' . $showId . '&mode=edit&tab=' . $returnTab . '&revision_id=' . $revisionId));
         exit;
     }
-}
-
-if ($showId && !$show) {
-    http_response_code(404);
-    exit('Show not found.');
 }
 
 $revisions = $showId ? list_revisions($showId) : [];

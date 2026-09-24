@@ -724,6 +724,29 @@ $bootstrapAdminResult = bootstrap_admin_user([
 ]);
 assert_true($bootstrapAdminResult['ok'] === true, 'Expected bootstrap admin creation to succeed in ownership tests.');
 $adminUser = current_user();
+$adminShowResult = save_show_record([
+    'show_name' => 'Admin Owned Show',
+    'concentration' => 'lighting',
+    'theatre_name' => 'Admin Theatre',
+    'shop_name' => 'Admin Shop',
+    'ld_name' => 'Admin LD',
+    'ld_email' => 'admin-ld@example.com',
+    'ld_phone' => '606-606-6060',
+    'assistant_ld_name' => 'Admin ALD',
+    'assistant_ld_email' => 'admin-ald@example.com',
+    'assistant_ld_phone' => '707-707-7070',
+    'production_electrician_name' => 'Admin PE',
+    'production_electrician_email' => 'admin-pe@example.com',
+    'production_electrician_phone' => '808-808-8080',
+    'shop_manager_name' => 'Admin SM',
+    'shop_manager_email' => 'admin-sm@example.com',
+    'shop_manager_phone' => '909-909-9090',
+    'assistant_shop_manager_name' => 'Admin ASM',
+    'assistant_shop_manager_email' => 'admin-asm@example.com',
+    'assistant_shop_manager_phone' => '010-010-0101',
+]);
+assert_true($adminShowResult['errors'] === [], 'Expected admin-owned show creation to succeed.');
+assert_true((int) ($adminShowResult['show']['owner_user_id'] ?? 0) === (int) ($adminUser['id'] ?? 0), 'Expected admin-created shows to default to the current admin owner when no explicit owner is provided.');
 $userInsert = db()->prepare('
     INSERT INTO users (display_name, email, password_hash, role, concentration, must_change_password, avatar_seed, is_active, created_by_user_id, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, 0, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)

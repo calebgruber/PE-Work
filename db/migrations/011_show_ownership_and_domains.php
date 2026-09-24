@@ -69,6 +69,15 @@ return [
                 $stmt->execute([$database, $table, $column]);
                 return (int) $stmt->fetchColumn() > 0;
             };
+            $indexExists = static function (string $table, string $index) use ($pdo, $database): bool {
+                $stmt = $pdo->prepare(
+                    'SELECT COUNT(*)
+                     FROM information_schema.STATISTICS
+                     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = ?'
+                );
+                $stmt->execute([$database, $table, $index]);
+                return (int) $stmt->fetchColumn() > 0;
+            };
 
             if (!$columnExists('shows', 'owner_user_id')) {
                 $pdo->exec('ALTER TABLE shows ADD COLUMN owner_user_id INT UNSIGNED NULL AFTER id');
@@ -99,10 +108,18 @@ return [
                 $stmt->execute([$ownerId]);
             }
 
-            $pdo->exec('ALTER TABLE shows ADD INDEX idx_shows_owner_user_id (owner_user_id)');
-            $pdo->exec('ALTER TABLE shows ADD INDEX idx_shows_concentration (concentration)');
-            $pdo->exec('ALTER TABLE inventory_categories ADD INDEX idx_inventory_categories_concentration (concentration)');
-            $pdo->exec('ALTER TABLE inventory_items ADD INDEX idx_inventory_items_concentration (concentration)');
+            if (!$indexExists('shows', 'idx_shows_owner_user_id')) {
+                $pdo->exec('ALTER TABLE shows ADD INDEX idx_shows_owner_user_id (owner_user_id)');
+            }
+            if (!$indexExists('shows', 'idx_shows_concentration')) {
+                $pdo->exec('ALTER TABLE shows ADD INDEX idx_shows_concentration (concentration)');
+            }
+            if (!$indexExists('inventory_categories', 'idx_inventory_categories_concentration')) {
+                $pdo->exec('ALTER TABLE inventory_categories ADD INDEX idx_inventory_categories_concentration (concentration)');
+            }
+            if (!$indexExists('inventory_items', 'idx_inventory_items_concentration')) {
+                $pdo->exec('ALTER TABLE inventory_items ADD INDEX idx_inventory_items_concentration (concentration)');
+            }
         },
     ],
 ];
