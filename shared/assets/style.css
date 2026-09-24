@@ -254,6 +254,8 @@ img { max-width: 100%; }
 .topbar-btn:hover { background: rgba(255,255,255,0.06); color: #e2e8f0; }
 .topbar-btn .material-symbols-outlined { font-size: 1rem; }
 
+.topbar-inline-form { margin: 0; }
+
 /* Push all page content below the topbar */
 .app { padding-top: 3.25rem; }
 .sidebar { top: 3.25rem; height: calc(100vh - 3.25rem); }

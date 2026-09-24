@@ -121,9 +121,12 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
         <a href="<?= h($profileUrl) ?>" class="topbar-btn" title="Profile" aria-label="Profile">
           <span class="material-symbols-outlined">person</span>
         </a>
-        <a href="<?= h($logoutUrl) ?>" class="topbar-btn" title="Logout" aria-label="Logout">
-          <span class="material-symbols-outlined">logout</span>
-        </a>
+        <form method="post" action="<?= h($logoutUrl) ?>" class="topbar-inline-form">
+          <?= csrf_input() ?>
+          <button type="submit" class="topbar-btn" title="Logout" aria-label="Logout">
+            <span class="material-symbols-outlined">logout</span>
+          </button>
+        </form>
       <?php endif; ?>
         <button id="theme-toggle" class="topbar-btn" title="Toggle theme" aria-label="Toggle theme">
           <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>

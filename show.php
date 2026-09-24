@@ -340,6 +340,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . url_for($showId ? ('show?show_id=' . $showId . '&tab=' . $tab) : 'show'));
         exit;
     }
+    if ($showId && !$show) {
+        http_response_code(404);
+        exit('Show not found.');
+    }
 
     $action = $_POST['action'] ?? '';
 
@@ -519,7 +523,8 @@ $currentRevision = null;
 $showOwners = show_owner_options();
 if ($mode === 'edit' && !empty($_GET['revision_id'])) {
     $currentRevision = find_revision((int) $_GET['revision_id']);
-    if (!$currentRevision || (int) $currentRevision['show_id'] !== (int) $showId) {
+    $revisionShow = $currentRevision ? find_show((int) ($currentRevision['show_id'] ?? 0)) : null;
+    if (!$currentRevision || !$revisionShow || (int) $currentRevision['show_id'] !== (int) $showId) {
         http_response_code(404);
         exit('Revision not found for this show.');
     }
