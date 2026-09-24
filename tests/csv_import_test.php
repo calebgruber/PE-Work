@@ -33,16 +33,16 @@ function assert_true(bool $condition, string $message): void
     }
 }
 
-function ensure_catalog_item(string $category, string $name, int $shopQuantity, string $unit = 'ea', string $note = '', string $description = ''): int
+function ensure_catalog_item(string $category, string $name, int $shopQuantity, string $unit = 'ea', string $note = '', string $description = '', string $concentration = 'lighting'): int
 {
-    $categoryResult = create_category($category);
+    $categoryResult = create_category($category, $concentration);
     if (!$categoryResult['ok'] && !str_contains(strtolower($categoryResult['message']), 'already exists')) {
         fwrite(STDERR, 'Failed creating test category: ' . $categoryResult['message'] . PHP_EOL);
         exit(1);
     }
 
     $itemResult = create_inventory_item([
-        'category_id' => category_id_for_name($category),
+        'category_id' => category_id_for_name($category, $concentration),
         'name' => $name,
         'shop_quantity' => $shopQuantity,
         'unit' => $unit,
@@ -54,8 +54,8 @@ function ensure_catalog_item(string $category, string $name, int $shopQuantity, 
         exit(1);
     }
 
-    $stmt = db()->prepare('SELECT id FROM inventory_items WHERE name = ? LIMIT 1');
-    $stmt->execute([$name]);
+    $stmt = db()->prepare('SELECT id FROM inventory_items WHERE name = ? AND concentration = ? LIMIT 1');
+    $stmt->execute([$name, $concentration]);
     return (int) $stmt->fetchColumn();
 }
 
@@ -252,10 +252,21 @@ $fixtureItemId = ensure_catalog_item('Fixtures', 'SolaFrame 3000', 12, 'ea', 'Pr
 $adapterItemId = ensure_catalog_item('Power', 'Stagepin to True1 Adapter', 20, 'ea', 'Adapter note', 'Manual rule pairing row');
 $lateAddedItemId = ensure_catalog_item('Cable', 'Late Added Feeder', 8, 'ea', 'Late note', 'Added after initial revision exists');
 $noteOnlyItemId = ensure_catalog_item('Accessories', 'Blue Clip Light', 4, 'ea', 'Workbox detail should stay hidden', 'Clip light note coverage');
+$soundMicItemId = ensure_catalog_item('Microphones', 'Wireless Vocal Mic', 6, 'ea', 'RF coordination note', 'Sound-only inventory item', 'sound');
 assert_true($fixtureItemId > 0, 'Expected test inventory item to exist for revision cloning.');
 assert_true($adapterItemId > 0, 'Expected adapter inventory item to exist for rule tests.');
 assert_true($lateAddedItemId > 0, 'Expected newly added inventory item to exist for current revisions.');
 assert_true($noteOnlyItemId > 0, 'Expected note-only inventory item to exist for notes-page coverage.');
+assert_true($soundMicItemId > 0, 'Expected sound-domain inventory item to exist for domain filtering tests.');
+$soundCatalog = fetch_inventory_catalog('sound');
+$soundCatalogNames = [];
+foreach ($soundCatalog as $soundCategory) {
+    foreach ($soundCategory['items'] as $soundItem) {
+        $soundCatalogNames[] = (string) ($soundItem['name'] ?? '');
+    }
+}
+assert_true(in_array('Wireless Vocal Mic', $soundCatalogNames, true), 'Expected sound-domain inventory catalog filtering to include sound items.');
+assert_true(!in_array('SolaFrame 3000', $soundCatalogNames, true), 'Expected sound-domain inventory catalog filtering to exclude lighting items.');
 $initialCatalog = catalog_for_revision($initialRevisionId);
 $lateItemFound = false;
 foreach ($initialCatalog as $category) {
@@ -459,7 +470,7 @@ assert_true(str_contains($exportHtml, '.cover-footer-logo {') && str_contains($e
 assert_true(str_contains($exportHtml, 'show-footer-logo.png'), 'Expected the cover page footer to use the show-level logo override.');
 assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
 assert_true(substr_count($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>') >= 2, 'Expected long revision summaries to spill onto as many additional pages as needed.');
-assert_true(str_contains($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading without the revision code.');
+assert_true(str_contains($exportHtml, '<p class="page-heading">LIGHTING EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading to include the show domain without the revision code.');
 assert_true(str_contains($exportHtml, 'Only lines with changed counts or explicit revision actions are listed here.'), 'Expected revision summary copy to explain the changed-lines filter.');
 assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="col-total">PREV\.<\/td>.*?<td class="col-total">TOTAL<\/td>.*?<td class="col-action">ACTION<\/td>.*?<td class="col-notes">NOTES<\/td>/s', $exportHtml), 'Expected revision summary to use previous total, total, action, and notes columns.');
 assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">SolaFrame 3000<\/td>.*?<td class="description-cell">Fixtures<\/td>.*?<td class="total-cell">8<\/td>.*?<span class="delta delta-positive">\(\+1\)<\/span>.*?<td class="action-cell">EXCHANGE<\/td>.*?Latest revision should clone from here\./s', $exportHtml), 'Expected revision summary to show category, previous total, total deltas, explicit action, and notes in separate columns.');
@@ -471,9 +482,9 @@ assert_true((bool) preg_match('/>\s*9\s*<span class="delta delta-positive">\(\+1
 assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
 assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => ''], '#BBBBBB') === 'background:#BBBBBB;', 'Expected export zebra striping to use the configured gray.');
 assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cover to remove the extra shop info box above the show title.');
-assert_true(substr_count($exportHtml, '<p class="page-heading">EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
+assert_true(substr_count($exportHtml, '<p class="page-heading">LIGHTING EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
 assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export to include later line items instead of stopping early.');
-assert_true((bool) preg_match('/<p class="page-heading">EQUIPMENT BREAKDOWN<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected equipment breakdown to include category header rows followed by repeated table headers.');
+assert_true((bool) preg_match('/<p class="page-heading">LIGHTING EQUIPMENT BREAKDOWN<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected equipment breakdown to include category header rows followed by repeated table headers.');
 assert_true(str_contains($exportHtml, '<tr class="category-gap-row"><td colspan="7"></td></tr>'), 'Expected export tables to include spacing rows between categories.');
 assert_true(substr_count($exportHtml, 'class="page-header-bar"') >= 3, 'Expected non-cover export pages to include the old top header block.');
 assert_true(str_contains($exportHtml, '<strong>Page</strong> 2 of '), 'Expected page headers to include page numbering on non-cover pages.');
@@ -682,6 +693,12 @@ assert_true(save_rule([
     'required_item_id' => 999999,
     'required_quantity' => 1,
 ])['ok'] === false, 'Expected nonexistent required items to be rejected.');
+assert_true(save_rule([
+    'trigger_item_id' => $fixtureItemId,
+    'trigger_quantity' => 1,
+    'required_item_id' => $soundMicItemId,
+    'required_quantity' => 1,
+])['ok'] === false, 'Expected cross-domain rules to be rejected.');
 $deactivateStmt = db()->prepare('UPDATE inventory_items SET is_active = 0 WHERE id = ?');
 $deactivateStmt->execute([$adapterItemId]);
 assert_true(save_rule([
@@ -697,6 +714,74 @@ $deleteRuleResult = delete_rule($ruleId);
 assert_true($deleteRuleResult['ok'] === true, 'Expected rule delete to succeed.');
 $ruleStmt->execute([$ruleId]);
 assert_true($ruleStmt->fetch() === false, 'Expected deleted rule to be removed from storage.');
+
+$bootstrapAdminResult = bootstrap_admin_user([
+    'display_name' => 'Admin Owner',
+    'email' => 'admin-owner@example.com',
+    'password' => 'strong-password',
+    'password_confirmation' => 'strong-password',
+    'concentration' => 'lighting',
+]);
+assert_true($bootstrapAdminResult['ok'] === true, 'Expected bootstrap admin creation to succeed in ownership tests.');
+$adminUser = current_user();
+$userInsert = db()->prepare('
+    INSERT INTO users (display_name, email, password_hash, role, concentration, must_change_password, avatar_seed, is_active, created_by_user_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 0, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+');
+$userInsert->execute([
+    'Sound User',
+    'sound-user@example.com',
+    password_hash('sound-password', PASSWORD_DEFAULT),
+    'user',
+    'sound',
+    'sound-user-seed',
+    (int) ($adminUser['id'] ?? 0),
+]);
+$soundUser = find_user_by_email('sound-user@example.com');
+assert_true(!empty($soundUser), 'Expected sound-domain user to be created for ownership tests.');
+
+$_SESSION['user_id'] = (int) $soundUser['id'];
+$soundShowResult = save_show_record([
+    'show_name' => 'Sound Shop Order',
+    'concentration' => 'sound',
+    'theatre_name' => 'Soundstage',
+    'shop_name' => 'Audio Shop',
+    'ld_name' => 'Audio LD',
+    'ld_email' => 'audio-ld@example.com',
+    'ld_phone' => '101-101-1010',
+    'assistant_ld_name' => 'Audio ALD',
+    'assistant_ld_email' => 'audio-ald@example.com',
+    'assistant_ld_phone' => '202-202-2020',
+    'production_electrician_name' => 'Audio PE',
+    'production_electrician_email' => 'audio-pe@example.com',
+    'production_electrician_phone' => '303-303-3030',
+    'shop_manager_name' => 'Audio SM',
+    'shop_manager_email' => 'audio-sm@example.com',
+    'shop_manager_phone' => '404-404-4040',
+    'assistant_shop_manager_name' => 'Audio ASM',
+    'assistant_shop_manager_email' => 'audio-asm@example.com',
+    'assistant_shop_manager_phone' => '505-505-5050',
+]);
+assert_true($soundShowResult['errors'] === [], 'Expected sound-domain show creation to succeed for a non-admin owner.');
+$soundShowId = (int) ($soundShowResult['show']['id'] ?? 0);
+assert_true($soundShowId > 0, 'Expected sound-domain show to be created.');
+assert_true((int) ($soundShowResult['show']['owner_user_id'] ?? 0) === (int) $soundUser['id'], 'Expected non-admin show saves to assign ownership to the current user.');
+$ownedShows = list_shows();
+assert_true(count($ownedShows) === 1 && ($ownedShows[0]['show_name'] ?? '') === 'Sound Shop Order', 'Expected non-admin show listing to return only the current user\'s shows.');
+$soundRevisionId = create_initial_revision($soundShowId);
+$soundRevisionCatalog = catalog_for_revision($soundRevisionId);
+$soundRevisionItems = [];
+foreach ($soundRevisionCatalog as $category) {
+    foreach ($category['items'] as $item) {
+        $soundRevisionItems[] = (string) ($item['name'] ?? '');
+    }
+}
+assert_true(in_array('Wireless Vocal Mic', $soundRevisionItems, true), 'Expected sound-domain revisions to include sound inventory.');
+assert_true(!in_array('SolaFrame 3000', $soundRevisionItems, true), 'Expected sound-domain revisions to exclude lighting inventory.');
+
+$_SESSION['user_id'] = (int) $adminUser['id'];
+$adminShows = list_shows();
+assert_true(count($adminShows) >= 2, 'Expected admins to see every show after ownership scoping is enabled.');
 
 $layoutDefaults = export_layout_settings();
 assert_true(array_key_exists('layout.organization_text', $layoutDefaults), 'Expected export layout defaults to include organization text.');

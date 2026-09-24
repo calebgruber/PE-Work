@@ -632,8 +632,8 @@ settings_assert($revisionListPageStatus === 0, 'Expected revisions page request 
 settings_assert(str_contains($revisionListPageHtml, 'revision-history-table'), 'Expected revisions page to render the table-based revision history.', $repoRoot, $process, $pipes, $testPaths);
 settings_assert(str_contains($revisionListPageHtml, '1.0') && str_contains($revisionListPageHtml, '1.1'), 'Expected revisions page to show the initial order and later revisions together.', $repoRoot, $process, $pipes, $testPaths);
 settings_assert($revisionEditPageStatus === 0, 'Expected revision edit page request to succeed.', $repoRoot, $process, $pipes, $testPaths);
-settings_assert(str_contains($revisionEditPageHtml, 'Revision History'), 'Expected revision edit page to include a revision history section.', $repoRoot, $process, $pipes, $testPaths);
-settings_assert(str_contains($revisionEditPageHtml, 'Every revision for this show stays visible here'), 'Expected revision edit page to explain the full revision trail while editing.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(!str_contains($revisionEditPageHtml, 'Revision History'), 'Expected revision edit page to remove the revision history section.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(!str_contains($revisionEditPageHtml, 'Every revision for this show stays visible here'), 'Expected revision edit page to remove the old revision-trail helper copy.', $repoRoot, $process, $pipes, $testPaths);
 $paperworkPagePath = tempnam(sys_get_temp_dir(), 'pew-paperwork-page-');
 $paperworkHeadersPath = tempnam(sys_get_temp_dir(), 'pew-paperwork-headers-');
 $paperworkResponsePath = tempnam(sys_get_temp_dir(), 'pew-paperwork-response-');
