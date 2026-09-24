@@ -409,7 +409,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete_revision' && $showId) {
-        if (!$show || !can_access_show($show, $currentUser)) {
+        if (!$show || !can_access_show($show, $currentUser) || !is_admin($currentUser)) {
             http_response_code(404);
             exit('Show not found.');
         }
@@ -841,7 +841,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
           </div>
 
           <div class="helper-text" style="margin-bottom:1rem;">All revisions stay in one table so you can scan the full sequence from the initial order through the latest revision.</div>
-          <?php render_revision_history_table((int) $showId, $revisions, null, true); ?>
+          <?php render_revision_history_table((int) $showId, $revisions, null, is_admin($currentUser)); ?>
         <?php endif; ?>
       <?php ui_card_close(); ?>
     <?php endif; ?>

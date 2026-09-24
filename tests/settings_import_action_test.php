@@ -13,7 +13,7 @@ require_once $repoRoot . '/shared/config.php';
 require_once $repoRoot . '/shared/db.php';
 require_once $repoRoot . '/shared/app.php';
 
-function settings_test_cleanup(string $repoRoot, $process, array $pipes, array $paths): void
+function settings_test_cleanup(string $repoRoot, $process, array $pipes, array $paths, bool $removeDb = true): void
 {
     foreach ($pipes as $pipe) {
         if (is_resource($pipe)) {
@@ -38,9 +38,11 @@ function settings_test_cleanup(string $repoRoot, $process, array $pipes, array $
             @unlink($path);
         }
     }
-    @unlink(DB_SQLITE_PATH);
-    @unlink(DB_SQLITE_PATH . '-wal');
-    @unlink(DB_SQLITE_PATH . '-shm');
+    if ($removeDb) {
+        @unlink(DB_SQLITE_PATH);
+        @unlink(DB_SQLITE_PATH . '-wal');
+        @unlink(DB_SQLITE_PATH . '-shm');
+    }
 }
 
 function settings_assert(bool $condition, string $message, string $repoRoot, $process, array $pipes, array $paths): void
@@ -52,7 +54,7 @@ function settings_assert(bool $condition, string $message, string $repoRoot, $pr
     }
 }
 
-function settings_start_server(string $repoRoot): array
+function settings_start_server(string $repoRoot, bool $disableAuthBypass = false): array
 {
     $descriptors = [
         0 => ['pipe', 'r'],
@@ -71,8 +73,9 @@ function settings_start_server(string $repoRoot): array
         $port = (int) substr(strrchr($serverAddress, ':'), 1);
         $baseUrl = 'http://127.0.0.1:' . $port;
         $command = sprintf(
-            'PE_WORK_SKIP_LOCAL_CONFIG=1 DB_DRIVER=sqlite DB_SQLITE_PATH=%s APP_BASE_URL=/ ALLOW_SQLITE_FOR_TESTS=1 ALLOW_LOCAL_UPLOADS_FOR_TESTS=1 php -S 127.0.0.1:%d router.php',
+            'PE_WORK_SKIP_LOCAL_CONFIG=1 DB_DRIVER=sqlite DB_SQLITE_PATH=%s APP_BASE_URL=/ ALLOW_SQLITE_FOR_TESTS=1 ALLOW_LOCAL_UPLOADS_FOR_TESTS=1 %s php -S 127.0.0.1:%d router.php',
             escapeshellarg($GLOBALS['testDbPath']),
+            $disableAuthBypass ? 'PE_WORK_DISABLE_TEST_AUTH_BYPASS=1' : '',
             $port
         );
         $process = proc_open($command, $descriptors, $pipes, $repoRoot);
@@ -142,6 +145,55 @@ save_rule([
     'required_quantity' => 1,
     'note' => 'Validation cable required',
 ]);
+
+$bootstrapAdminResult = bootstrap_admin_user([
+    'display_name' => 'Auth Admin',
+    'email' => 'auth-admin@example.com',
+    'password' => 'strong-password',
+    'password_confirmation' => 'strong-password',
+    'concentration' => 'lighting',
+]);
+settings_assert(($bootstrapAdminResult['ok'] ?? false) === true, 'Expected auth bootstrap admin creation to succeed.', $repoRoot, null, [], []);
+$authAdmin = current_user();
+$authUserInsert = db()->prepare('
+    INSERT INTO users (display_name, email, password_hash, role, concentration, must_change_password, avatar_seed, is_active, created_by_user_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 0, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+');
+$restrictedPassword = 'restricted-password';
+$authUserInsert->execute([
+    'Restricted User',
+    'restricted-user@example.com',
+    password_hash($restrictedPassword, PASSWORD_DEFAULT),
+    'user',
+    'sound',
+    'restricted-user-seed',
+    (int) ($authAdmin['id'] ?? 0),
+]);
+$_SESSION['user_id'] = (int) ($authAdmin['id'] ?? 0);
+$adminShowResult = save_show_record([
+    'show_name' => 'Admin Private Show',
+    'concentration' => 'lighting',
+    'theatre_name' => 'Private Theatre',
+    'shop_name' => 'Private Shop',
+    'ld_name' => 'Private LD',
+    'ld_email' => 'private-ld@example.com',
+    'ld_phone' => '600-600-6000',
+    'assistant_ld_name' => 'Private ALD',
+    'assistant_ld_email' => 'private-ald@example.com',
+    'assistant_ld_phone' => '700-700-7000',
+    'production_electrician_name' => 'Private PE',
+    'production_electrician_email' => 'private-pe@example.com',
+    'production_electrician_phone' => '800-800-8000',
+    'shop_manager_name' => 'Private SM',
+    'shop_manager_email' => 'private-sm@example.com',
+    'shop_manager_phone' => '900-900-9000',
+    'assistant_shop_manager_name' => 'Private ASM',
+    'assistant_shop_manager_email' => 'private-asm@example.com',
+    'assistant_shop_manager_phone' => '100-100-1000',
+]);
+$adminPrivateShowId = (int) ($adminShowResult['show']['id'] ?? 0);
+$adminPrivateRevisionId = $adminPrivateShowId > 0 ? create_initial_revision($adminPrivateShowId) : 0;
+settings_assert($adminShowResult['errors'] === [] && $adminPrivateShowId > 0 && $adminPrivateRevisionId > 0, 'Expected admin-owned show and revision to be available for auth access tests.', $repoRoot, null, [], []);
 
 $csvPath = tempnam(sys_get_temp_dir(), 'pew-settings-import-');
 file_put_contents($csvPath, "category,name,shop_quantity,unit,default_note,description\nFixtures,Import Action Item,7,ea,Imported via settings action,Action path\n");
@@ -678,5 +730,69 @@ settings_assert($showFooterValue === 'Show Footer Override', 'Expected show pape
 settings_assert($showPreparedByValue === 'Show Prep Person', 'Expected show paperwork settings to persist prepared-by overrides per show.', $repoRoot, $process, $pipes, $testPaths);
 settings_assert(str_contains($paperworkResponseHtml, 'Show paperwork settings saved.'), 'Expected show paperwork save flow to show a success flash.', $repoRoot, $process, $pipes, $testPaths);
 settings_assert(str_contains($paperworkResponseHtml, 'Show Paperwork Settings'), 'Expected show paperwork tab to render its dedicated settings card.', $repoRoot, $process, $pipes, $testPaths);
+
+[$authProcess, $authPipes, $authBaseUrl] = settings_start_server($repoRoot, true);
+$authPaths = [
+    tempnam(sys_get_temp_dir(), 'pew-auth-cookie-'),
+    tempnam(sys_get_temp_dir(), 'pew-auth-login-page-'),
+    tempnam(sys_get_temp_dir(), 'pew-auth-login-headers-'),
+    tempnam(sys_get_temp_dir(), 'pew-auth-login-response-'),
+    tempnam(sys_get_temp_dir(), 'pew-auth-show-headers-'),
+    tempnam(sys_get_temp_dir(), 'pew-auth-show-response-'),
+    tempnam(sys_get_temp_dir(), 'pew-auth-revision-headers-'),
+    tempnam(sys_get_temp_dir(), 'pew-auth-revision-response-'),
+];
+[$authCookieJar, $authLoginPagePath, $authLoginHeadersPath, $authLoginResponsePath, $authShowHeadersPath, $authShowResponsePath, $authRevisionHeadersPath, $authRevisionResponsePath] = $authPaths;
+settings_assert(is_resource($authProcess) && is_string($authBaseUrl) && $authBaseUrl !== '', 'Expected auth-focused PHP server to start.', $repoRoot, $process, $pipes, array_merge($testPaths, $authPaths));
+exec(sprintf(
+    "curl -fsS -o %s -c %s -b %s %s",
+    escapeshellarg($authLoginPagePath),
+    escapeshellarg($authCookieJar),
+    escapeshellarg($authCookieJar),
+    escapeshellarg($authBaseUrl . '/login')
+), $authLoginPageOutput, $authLoginPageStatus);
+$authLoginPageHtml = is_file($authLoginPagePath) ? file_get_contents($authLoginPagePath) : '';
+preg_match('/name=\"csrf_token\" value=\"([^\"]+)\"/', $authLoginPageHtml, $authLoginTokenMatch);
+$authLoginToken = html_entity_decode($authLoginTokenMatch[1] ?? '', ENT_QUOTES, 'UTF-8');
+exec(sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s --data-urlencode %s --data-urlencode %s --data-urlencode %s --data-urlencode %s %s",
+    escapeshellarg($authLoginResponsePath),
+    escapeshellarg($authLoginHeadersPath),
+    escapeshellarg($authCookieJar),
+    escapeshellarg($authCookieJar),
+    escapeshellarg('csrf_token=' . $authLoginToken),
+    escapeshellarg('return_to=/'),
+    escapeshellarg('email=restricted-user@example.com'),
+    escapeshellarg('password=' . $restrictedPassword),
+    escapeshellarg($authBaseUrl . '/login')
+), $authLoginOutput, $authLoginStatus);
+settings_assert($authLoginPageStatus === 0 && $authLoginToken !== '', 'Expected auth login page to provide a CSRF token.', $repoRoot, $process, $pipes, array_merge($testPaths, $authPaths));
+settings_assert($authLoginStatus === 0, 'Expected restricted-user login request to succeed.', $repoRoot, $process, $pipes, array_merge($testPaths, $authPaths));
+exec(sprintf(
+    "curl -isS -o %s -D %s -c %s -b %s %s",
+    escapeshellarg($authShowResponsePath),
+    escapeshellarg($authShowHeadersPath),
+    escapeshellarg($authCookieJar),
+    escapeshellarg($authCookieJar),
+    escapeshellarg($authBaseUrl . '/show?show_id=' . $adminPrivateShowId)
+), $authShowOutput, $authShowStatus);
+exec(sprintf(
+    "curl -isS -o %s -D %s -c %s -b %s %s",
+    escapeshellarg($authRevisionResponsePath),
+    escapeshellarg($authRevisionHeadersPath),
+    escapeshellarg($authCookieJar),
+    escapeshellarg($authCookieJar),
+    escapeshellarg($authBaseUrl . '/show?show_id=' . $adminPrivateShowId . '&mode=edit&tab=revisions&revision_id=' . $adminPrivateRevisionId)
+), $authRevisionOutput, $authRevisionStatus);
+$authShowHeaders = is_file($authShowHeadersPath) ? file_get_contents($authShowHeadersPath) : '';
+$authShowBody = is_file($authShowResponsePath) ? file_get_contents($authShowResponsePath) : '';
+$authRevisionHeaders = is_file($authRevisionHeadersPath) ? file_get_contents($authRevisionHeadersPath) : '';
+$authRevisionBody = is_file($authRevisionResponsePath) ? file_get_contents($authRevisionResponsePath) : '';
+settings_assert($authShowStatus === 0, 'Expected unauthorized show request to complete.', $repoRoot, $process, $pipes, array_merge($testPaths, $authPaths));
+settings_assert(str_contains($authShowHeaders, '404 Not Found') && str_contains($authShowBody, 'Show not found.'), 'Expected users without ownership to receive a 404 for restricted shows.', $repoRoot, $process, $pipes, array_merge($testPaths, $authPaths));
+settings_assert($authRevisionStatus === 0, 'Expected unauthorized revision request to complete.', $repoRoot, $process, $pipes, array_merge($testPaths, $authPaths));
+settings_assert(str_contains($authRevisionHeaders, '404 Not Found') && str_contains($authRevisionBody, 'Show not found.'), 'Expected users without ownership to receive a 404 for restricted revision editors.', $repoRoot, $process, $pipes, array_merge($testPaths, $authPaths));
+settings_test_cleanup($repoRoot, $authProcess, $authPipes, $authPaths, false);
+
 settings_test_cleanup($repoRoot, $process, $pipes, $testPaths);
 echo "settings import action test passed\n";

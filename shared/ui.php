@@ -121,7 +121,7 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
         <a href="<?= h($profileUrl) ?>" class="topbar-btn" title="Profile" aria-label="Profile">
           <span class="material-symbols-outlined">person</span>
         </a>
-        <form method="post" action="<?= h($logoutUrl) ?>" class="topbar-inline-form">
+        <form method="post" action="<?= h($logoutUrl) ?>" class="topbar-inline-form" data-start-loader>
           <?= csrf_input() ?>
           <button type="submit" class="topbar-btn" title="Logout" aria-label="Logout">
             <span class="material-symbols-outlined">logout</span>
