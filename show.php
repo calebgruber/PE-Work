@@ -473,7 +473,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $revisionOverrideItems = revision_request_items($_POST);
-        save_revision_lines($revisionId, $revisionOverrideItems);
+        try {
+            save_revision_lines($revisionId, $revisionOverrideItems);
+        } catch (Throwable $e) {
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode([
+                'ok' => false,
+                'warnings' => [['type' => 'rule', 'message' => 'Unable to autosave this revision right now.']],
+            ]);
+            exit;
+        }
 
         header('Content-Type: application/json');
         echo json_encode([

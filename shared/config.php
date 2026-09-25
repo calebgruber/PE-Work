@@ -88,7 +88,16 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
         'samesite' => 'Lax',
     ];
     $siteHost = strtolower((string) parse_url(APP_SITE_URL, PHP_URL_HOST));
-    if ($siteHost !== '' && filter_var($siteHost, FILTER_VALIDATE_IP) === false && $siteHost !== 'localhost') {
+    $requestHost = strtolower(trim((string) ($_SERVER['HTTP_HOST'] ?? '')));
+    if (str_contains($requestHost, ':')) {
+        $requestHost = (string) preg_replace('/:\d+$/', '', $requestHost);
+    }
+    if (
+        $siteHost !== ''
+        && $siteHost === $requestHost
+        && filter_var($siteHost, FILTER_VALIDATE_IP) === false
+        && $siteHost !== 'localhost'
+    ) {
         $cookieParams['domain'] = $siteHost;
     }
     session_set_cookie_params($cookieParams);
