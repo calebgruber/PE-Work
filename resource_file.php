@@ -87,3 +87,4 @@ $asciiFilename = preg_replace('/[^A-Za-z0-9.\-_ ]/', '_', $filename) ?: 'resourc
 $disposition = isset($_GET['download']) && $_GET['download'] === '1' ? 'attachment' : 'inline';
 header('Content-Disposition: ' . $disposition . '; filename="' . str_replace('"', '', $asciiFilename) . '"; filename*=UTF-8\'\'' . rawurlencode($filename));
 readfile($path);
+exit;

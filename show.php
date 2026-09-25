@@ -448,7 +448,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
-        if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
+        $revisionShow = $revision ? find_show_unrestricted((int) $revision['show_id']) : null;
+        if (!$revision || (int) $revision['show_id'] !== (int) $showId || !$revisionShow || !can_access_show($revisionShow, $currentUser)) {
             revision_json_not_found();
         }
 
@@ -465,7 +466,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
-        if (!$revision || (int) $revision['show_id'] !== (int) $showId) {
+        $revisionShow = $revision ? find_show_unrestricted((int) $revision['show_id']) : null;
+        if (!$revision || (int) $revision['show_id'] !== (int) $showId || !$revisionShow || !can_access_show($revisionShow, $currentUser)) {
             revision_json_not_found(true);
         }
 

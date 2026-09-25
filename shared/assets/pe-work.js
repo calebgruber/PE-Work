@@ -76,10 +76,12 @@
     let validationAbortController = null;
     let autosaveTimer = null;
     let latestAutosaveRun = 0;
-    let autosaveAbortController = null;
+    let latestRevisionVersion = 0;
     let hasPendingAutosave = false;
     let hasDirtyRevisionChanges = false;
     let pendingAutosaveRun = 0;
+    let autosaveInFlight = false;
+    let autosaveQueued = false;
     let manualSaveInFlight = false;
     let allowNativeSubmit = false;
 
@@ -205,13 +207,15 @@
 
     function runAutosave() {
       if (typeof window.fetch !== 'function') return;
-      if (autosaveAbortController) {
-        autosaveAbortController.abort();
+      if (autosaveInFlight) {
+        autosaveQueued = true;
+        return;
       }
-      autosaveAbortController = new AbortController();
-      const abortController = autosaveAbortController;
       const formData = buildRevisionFormData('autosave_revision');
       const autosaveRun = ++latestAutosaveRun;
+      const revisionVersion = latestRevisionVersion;
+      autosaveInFlight = true;
+      autosaveQueued = false;
       hasPendingAutosave = true;
       pendingAutosaveRun = autosaveRun;
       renderAutosaveStatus('Saving changes…', 'saving');
@@ -222,8 +226,7 @@
         headers: {
           'X-Requested-With': 'XMLHttpRequest'
         },
-        body: formData,
-        signal: abortController.signal
+        body: formData
       })
         .then(function (response) {
           const contentType = (response.headers.get('content-type') || '').toLowerCase();
@@ -242,7 +245,7 @@
           });
         })
         .then(function (payload) {
-          if (autosaveRun !== latestAutosaveRun) {
+          if (autosaveRun !== latestAutosaveRun || revisionVersion !== latestRevisionVersion || autosaveQueued) {
             return;
           }
           if (pendingAutosaveRun === autosaveRun) {
@@ -255,10 +258,10 @@
           renderAutosaveStatus('All changes saved.', 'saved');
         })
         .catch(function (error) {
-          if (abortController.signal.aborted) {
+          if (autosaveRun !== latestAutosaveRun) {
             return;
           }
-          if (autosaveRun !== latestAutosaveRun) {
+          if (revisionVersion !== latestRevisionVersion || autosaveQueued) {
             return;
           }
           if (pendingAutosaveRun === autosaveRun) {
@@ -267,12 +270,21 @@
           }
           hasDirtyRevisionChanges = true;
           renderAutosaveStatus(error?.message || 'Autosave failed. Use Save Changes.', 'error');
+        })
+        .finally(function () {
+          autosaveInFlight = false;
+          if (revisionVersion !== latestRevisionVersion || autosaveQueued) {
+            autosaveQueued = false;
+            window.setTimeout(runAutosave, 0);
+          }
         });
     }
 
     function scheduleAutosave() {
+      latestRevisionVersion += 1;
       hasPendingAutosave = true;
       hasDirtyRevisionChanges = true;
+      autosaveQueued = autosaveInFlight;
       renderAutosaveStatus('Unsaved changes…', 'saving');
       if (autosaveTimer) {
         window.clearTimeout(autosaveTimer);
@@ -348,9 +360,6 @@
       if (autosaveTimer) {
         window.clearTimeout(autosaveTimer);
         autosaveTimer = null;
-      }
-      if (autosaveAbortController) {
-        autosaveAbortController.abort();
       }
       event.preventDefault();
       manualSaveInFlight = true;

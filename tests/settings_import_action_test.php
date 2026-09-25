@@ -346,10 +346,9 @@ $freshDb = new PDO('sqlite:' . $testDbPath, null, null, [
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
 ]);
 $resourceFolder = $freshDb->query("SELECT id, parent_id FROM resource_folders WHERE name = 'Manuals' ORDER BY id DESC LIMIT 1")->fetch();
-if (!$resourceFolder || $resourceFolder['parent_id'] !== null) {
-    throw new RuntimeException('Root resource folder was not created at the top level.');
-}
-$resourceFolderId = (int) $resourceFolder['id'];
+$resourceFolderValid = $resourceFolder && $resourceFolder['parent_id'] === null;
+settings_assert($resourceFolderValid, 'Expected root resource folder to be created at the top level.', $repoRoot, $process, $pipes, $testPaths);
+$resourceFolderId = (int) ($resourceFolder['id'] ?? 0);
 $createSubfolderHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-subfolder-headers-');
 $createSubfolderResponsePath = tempnam(sys_get_temp_dir(), 'pew-resource-subfolder-response-');
 $testPaths[] = $createSubfolderHeadersPath;
@@ -371,10 +370,9 @@ $freshDb = new PDO('sqlite:' . $testDbPath, null, null, [
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
 ]);
 $resourceSubfolder = $freshDb->query("SELECT id, parent_id FROM resource_folders WHERE name = 'Drafts' AND parent_id = " . $resourceFolderId . " ORDER BY id DESC LIMIT 1")->fetch();
-if (!$resourceSubfolder || (int) $resourceSubfolder['parent_id'] !== $resourceFolderId) {
-    throw new RuntimeException('Resource subfolder was not created under the expected parent folder.');
-}
-$resourceSubfolderId = (int) $resourceSubfolder['id'];
+$resourceSubfolderValid = $resourceSubfolder && (int) $resourceSubfolder['parent_id'] === $resourceFolderId;
+settings_assert($resourceSubfolderValid, 'Expected resource subfolder to be created under the selected parent folder.', $repoRoot, $process, $pipes, $testPaths);
+$resourceSubfolderId = (int) ($resourceSubfolder['id'] ?? 0);
 $resourceCommand = sprintf(
     "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F %s -F 'action=upload_resource' -F 'resource_title=Shop Resource' -F 'resource_pdf=@%s;type=application/pdf;filename=resource.pdf' %s",
     escapeshellarg($resourceResponsePath),
