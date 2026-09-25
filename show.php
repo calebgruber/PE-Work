@@ -13,7 +13,7 @@ if (!schema_ready() || !auth_tables_ready()) {
 require_login();
 $currentUser = current_user();
 
-function revision_json_not_found(bool $includeOk = false): void
+function revision_json_not_found(): void
 {
     http_response_code(404);
     header('Content-Type: application/json');
@@ -464,13 +464,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'autosave_revision' && !empty($_POST['revision_id'])) {
         if (!$show || !can_access_show($show, $currentUser)) {
-            revision_json_not_found(true);
+            revision_json_not_found();
         }
         $revisionId = (int) $_POST['revision_id'];
         $revision = find_revision($revisionId);
         $revisionShow = $revision ? find_show_unrestricted((int) $revision['show_id']) : null;
         if (!$revision || (int) $revision['show_id'] !== (int) $showId || !$revisionShow || !can_access_show($revisionShow, $currentUser)) {
-            revision_json_not_found(true);
+            revision_json_not_found();
         }
 
         $revisionOverrideItems = revision_request_items($_POST);
@@ -498,7 +498,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_revision' && !empty($_POST['revision_id'])) {
         if (!$show || !can_access_show($show, $currentUser)) {
             if (is_ajax_request()) {
-                revision_json_not_found(true);
+                revision_json_not_found();
             }
             http_response_code(404);
             exit('Revision not found for this show.');
@@ -508,7 +508,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $revisionShow = $revision ? find_show_unrestricted((int) $revision['show_id']) : null;
         if (!$revision || (int) $revision['show_id'] !== (int) $showId || !$revisionShow || !can_access_show($revisionShow, $currentUser)) {
             if (is_ajax_request()) {
-                revision_json_not_found(true);
+                revision_json_not_found();
             }
             http_response_code(404);
             exit('Revision not found for this show.');
@@ -715,7 +715,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
                           <strong><?= h($item['name']) ?></strong>
                           <?php if (!empty($item['description'])): ?><div class="muted"><?= h($item['description']) ?></div><?php endif; ?>
                           <?php if (!empty($item['default_note'])): ?>
-                          <button type="button" class="icon-link" data-note-trigger data-note-title="<?= h($item['name']) ?> note" data-note-body="<?= h($item['default_note']) ?>">
+                          <button type="button" class="icon-link" data-note-trigger data-note-title="<?= h($item['name']) ?> note" data-note-body="<?= h($item['default_note']) ?>" aria-label="View note for <?= h($item['name']) ?>">
                             <span class="material-symbols-outlined">info</span>
                           </button>
                           <?php endif; ?>

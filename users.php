@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $inviteInput['email'] = trim((string) ($_POST['email'] ?? ''));
         $inviteInput['role'] = (string) ($_POST['role'] ?? 'user');
         $inviteInput['concentration'] = (string) ($_POST['concentration'] ?? 'lighting');
-        $result = create_user_invite($_POST, $user);
+        $result = create_user_invite($inviteInput, $user);
         if (!($result['ok'] ?? false)) {
             $error = (string) ($result['message'] ?? 'Unable to create user.');
         } else {
