@@ -426,7 +426,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit('Show not found.');
         }
         $revision = find_revision((int) ($_POST['revision_id'] ?? 0));
-        $revisionShow = $revision ? find_show((int) $revision['show_id']) : null;
+        $revisionShow = $revision ? find_show_unrestricted((int) $revision['show_id']) : null;
         if (
             !$revision
             || (int) $revision['show_id'] !== (int) $showId

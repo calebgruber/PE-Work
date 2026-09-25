@@ -70,7 +70,15 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
         || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443);
     if (!$httpsEnabled && TRUST_PROXY_HEADERS) {
         $forwardedProto = strtolower(trim((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
-        $httpsEnabled = $forwardedProto !== '' && in_array(explode(',', $forwardedProto)[0], ['https', 'wss'], true);
+        if ($forwardedProto !== '') {
+            $httpsEnabled = in_array(trim(explode(',', $forwardedProto)[0]), ['https', 'wss'], true);
+        }
+    }
+    if (!$httpsEnabled && TRUST_PROXY_HEADERS) {
+        $forwardedHeader = (string) ($_SERVER['HTTP_FORWARDED'] ?? '');
+        if (preg_match('/(?:^|[,;\\s])proto=("?)(https|wss)\\1(?:[,;\\s]|$)/i', $forwardedHeader) === 1) {
+            $httpsEnabled = true;
+        }
     }
     $cookiePath = APP_BASE_URL === '' || APP_BASE_URL === '/' ? '/' : rtrim(APP_BASE_URL, '/') . '/';
     session_set_cookie_params([

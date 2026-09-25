@@ -1,7 +1,7 @@
 <?php
 
-$path = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
-$segments = array_values(array_filter(explode('/', $path), static fn ($segment) => $segment !== ''));
+$requestPath = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
+$segments = array_values(array_filter(explode('/', $requestPath), static fn ($segment) => $segment !== ''));
 $publicAssetPrefixes = ['/shared/assets/'];
 $publicPhpEntrypoints = [
     '/export.php',
@@ -39,7 +39,7 @@ if ($normalizedPath === '//') {
     $normalizedPath = '/';
 }
 $path = $normalizedPath === '' ? '/' : $normalizedPath;
-$fullPath = __DIR__ . $path;
+$fullPath = __DIR__ . $requestPath;
 
 if (preg_match('#^/(db|storage|tests)(/|$)#', $path) || (str_starts_with($path, '/shared/') && !str_starts_with($path, '/shared/assets/'))) {
     http_response_code(404);
@@ -47,14 +47,14 @@ if (preg_match('#^/(db|storage|tests)(/|$)#', $path) || (str_starts_with($path, 
     return true;
 }
 
-if ($path !== '/' && file_exists($fullPath) && !is_dir($fullPath)) {
+if ($requestPath !== '/' && file_exists($fullPath) && !is_dir($fullPath)) {
     foreach ($publicAssetPrefixes as $prefix) {
-        if (str_starts_with($path, $prefix)) {
+        if (str_starts_with($requestPath, $prefix)) {
             return false;
         }
     }
 
-    if (str_ends_with($path, '.php') && in_array($path, $publicPhpEntrypoints, true)) {
+    if (str_ends_with($requestPath, '.php') && in_array($requestPath, $publicPhpEntrypoints, true)) {
         require $fullPath;
         return true;
     }
