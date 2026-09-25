@@ -42,8 +42,6 @@
   width: 100%;
   padding-left: 1rem;
   padding-right: 1rem;
-  padding-top: 1rem;
-  padding-bottom: 1.5rem;
 }
 
 .topbar {
@@ -58,7 +56,6 @@
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(18px);
   border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow: 0 1px 0 rgba(148, 163, 184, 0.08);
 }
 
 [data-theme="dark"] .topbar {
@@ -108,30 +105,13 @@
 }
 
 .brand-logo-image {
+  display: block;
+  max-height: 2rem;
   width: auto;
-  height: 2rem;
-  max-width: 10rem;
-  object-fit: contain;
-}
-
-.auth-brand-logo {
-  width: auto;
-  height: 3rem;
-  max-width: 14rem;
-  object-fit: contain;
-}
-
-.brand-settings-logo {
-  width: auto;
-  height: 3rem;
-  max-width: 18rem;
-  object-fit: contain;
 }
 
 .topbar-app {
   color: var(--text);
-  font-size: 0.95rem;
-  letter-spacing: -0.02em;
 }
 
 .topbar-user {
@@ -161,10 +141,6 @@
 
 .topbar-btn:hover {
   color: var(--text);
-}
-
-.topbar-shell {
-  gap: 1rem;
 }
 
 .show-summary {
@@ -246,6 +222,21 @@
   background: var(--surface-raised);
   font-weight: 700;
   color: var(--text);
+}
+
+.auth-brand-logo {
+  display: block;
+  max-width: min(100%, 240px);
+  max-height: 5rem;
+  width: auto;
+  margin: 0 auto;
+}
+
+.brand-settings-logo {
+  display: block;
+  max-width: min(100%, 260px);
+  max-height: 6rem;
+  width: auto;
 }
 
 .compact-input {

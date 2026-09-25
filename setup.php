@@ -62,7 +62,7 @@ $brandLogo = app_logo_markup('auth-brand-logo', $brandName . ' logo');
   <title>Setup | <?= h($brandName) ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.5.1/dist/css/tabler.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
   <link rel="stylesheet" href="<?= h(asset_url('shared/assets/style.css')) ?>">
@@ -72,7 +72,7 @@ $brandLogo = app_logo_markup('auth-brand-logo', $brandName . ' logo');
   </script>
 </head>
 <body class="tabler-shell">
-<div class="login-page page page-center">
+<div class="login-page">
   <div class="container-xl auth-shell auth-shell-wide">
     <section class="auth-intro">
       <div class="auth-intro-badge">Setup &amp; migrations</div>
@@ -106,11 +106,13 @@ $brandLogo = app_logo_markup('auth-brand-logo', $brandName . ' logo');
       <div class="card login-card login-card-wide">
         <div class="card-body">
           <div class="login-header">
+            <?php if ($brandLogo === ''): ?>
             <span class="material-symbols-outlined logo-icon">construction</span>
+            <?php endif; ?>
             <?php if ($brandLogo !== ''): ?>
             <div class="mb-3"><?= $brandLogo ?></div>
             <?php endif; ?>
-            <h1><?= h($brandName) ?> Setup</h1>
+            <h1><?= $brandLogo !== '' ? 'Setup' : (h($brandName) . ' Setup') ?></h1>
             <p>Apply migrations, keep local config intact, and bootstrap the first admin account.</p>
           </div>
           <div class="login-body">
