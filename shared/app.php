@@ -17,14 +17,47 @@ function app_logo_svg_path(): string
     return sanitize_local_asset_path(fetch_setting('app.logo_svg_path', '')) ?? '';
 }
 
-function app_logo_markup(string $class = 'app-logo-image', string $alt = ''): string
+function app_logo_uploaded_name(): string
 {
-    $path = app_logo_svg_path();
-    if ($path === '') {
+    $value = trim((string) fetch_setting('app.logo_upload_name', ''));
+    return preg_match('/^[A-Za-z0-9._-]+$/', $value) ? $value : '';
+}
+
+function app_logo_uploaded_mime_type(): string
+{
+    return trim((string) fetch_setting('app.logo_upload_mime_type', ''));
+}
+
+function app_logo_uploaded_file_path(): string
+{
+    $storedName = app_logo_uploaded_name();
+    if ($storedName === '') {
         return '';
     }
 
-    return '<img src="' . h(asset_url($path)) . '" alt="' . h($alt) . '" class="' . h($class) . '">';
+    $path = upload_dir('branding') . '/' . $storedName;
+    return is_file($path) ? $path : '';
+}
+
+function app_logo_url(): string
+{
+    $uploadedPath = app_logo_uploaded_file_path();
+    if ($uploadedPath !== '') {
+        return url_for('branding_logo') . '?v=' . rawurlencode((string) (@filemtime($uploadedPath) ?: time()));
+    }
+
+    $path = app_logo_svg_path();
+    return $path !== '' ? asset_url($path) : '';
+}
+
+function app_logo_markup(string $class = 'app-logo-image', string $alt = ''): string
+{
+    $logoUrl = app_logo_url();
+    if ($logoUrl === '') {
+        return '';
+    }
+
+    return '<img src="' . h($logoUrl) . '" alt="' . h($alt) . '" class="' . h($class) . '">';
 }
 
 function fetch_show_settings_by_prefix(int $showId, string $prefix): array
@@ -2489,6 +2522,12 @@ function is_allowed_image_mime_type(string $mimeType): bool
     return in_array($mimeType, ['image/png', 'image/jpeg', 'image/gif', 'image/webp'], true);
 }
 
+function is_allowed_branding_logo_mime_type(string $mimeType): bool
+{
+    return is_allowed_image_mime_type($mimeType)
+        || in_array($mimeType, ['image/svg+xml', 'text/plain', 'text/xml', 'application/xml'], true);
+}
+
 function resource_extension_mime_map(): array
 {
     return [
@@ -2498,6 +2537,18 @@ function resource_extension_mime_map(): array
         'jpeg' => ['image/jpeg'],
         'gif' => ['image/gif'],
         'webp' => ['image/webp'],
+    ];
+}
+
+function branding_logo_extension_mime_map(): array
+{
+    return [
+        'png' => ['image/png'],
+        'jpg' => ['image/jpeg'],
+        'jpeg' => ['image/jpeg'],
+        'gif' => ['image/gif'],
+        'webp' => ['image/webp'],
+        'svg' => ['image/svg+xml', 'text/plain', 'text/xml', 'application/xml'],
     ];
 }
 
@@ -2882,6 +2933,99 @@ function store_resource_upload(array $file, string $title = '', ?int $folderId =
     return ['ok' => true, 'message' => 'Resource uploaded.'];
 }
 
+function branding_logo_file_is_valid(string $path, string $mimeType, string $extension): bool
+{
+    $extension = strtolower($extension);
+    if ($extension === 'svg') {
+        if ($mimeType !== '' && !is_allowed_branding_logo_mime_type($mimeType)) {
+            return false;
+        }
+        $contents = @file_get_contents($path, false, null, 0, 65536);
+        return is_string($contents) && preg_match('/<svg\b/i', $contents) === 1;
+    }
+
+    if ($extension === '' || !array_key_exists($extension, branding_logo_extension_mime_map())) {
+        return false;
+    }
+
+    if ($mimeType !== '' && !is_allowed_image_mime_type($mimeType)) {
+        return false;
+    }
+
+    $imageInfo = @getimagesize($path);
+    if (!is_array($imageInfo) || empty($imageInfo[0]) || empty($imageInfo[1])) {
+        return false;
+    }
+
+    $imageMime = strtolower((string) ($imageInfo['mime'] ?? ''));
+    return $imageMime !== '' && is_allowed_image_mime_type($imageMime);
+}
+
+function remove_branding_logo_upload(): void
+{
+    $currentPath = app_logo_uploaded_file_path();
+    if ($currentPath !== '' && is_file($currentPath)) {
+        @unlink($currentPath);
+    }
+
+    save_setting('app.logo_upload_name', '');
+    save_setting('app.logo_upload_mime_type', '');
+}
+
+function store_branding_logo_upload(array $file): array
+{
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || empty($file['tmp_name'])) {
+        return ['ok' => false, 'message' => 'Choose an image or SVG logo to upload.'];
+    }
+
+    $isUploadedFile = is_trusted_uploaded_file((string) $file['tmp_name']);
+    if (!$isUploadedFile) {
+        return ['ok' => false, 'message' => 'Choose a valid uploaded logo file.'];
+    }
+    $allowLocalTestUpload = !is_uploaded_file((string) $file['tmp_name']) && $isUploadedFile;
+
+    $originalName = (string) ($file['name'] ?? 'logo.svg');
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $mimeType = detected_upload_mime_type((string) $file['tmp_name']);
+    if (!branding_logo_file_is_valid((string) $file['tmp_name'], $mimeType, $extension)) {
+        return ['ok' => false, 'message' => 'Only SVG, PNG, JPG, GIF, and WEBP logo files are supported.'];
+    }
+
+    $mimeOptions = branding_logo_extension_mime_map()[$extension] ?? [];
+    $normalizedMimeType = $mimeType !== '' ? $mimeType : ($mimeOptions[0] ?? 'application/octet-stream');
+    if ($extension === 'svg') {
+        $normalizedMimeType = 'image/svg+xml';
+    }
+
+    $storedName = date('YmdHis') . '-' . upload_random_suffix() . '.' . $extension;
+    $destination = upload_dir('branding') . '/' . $storedName;
+
+    if (!move_uploaded_file($file['tmp_name'], $destination)) {
+        $tmpPath = (string) $file['tmp_name'];
+        $moved = false;
+        if ($allowLocalTestUpload && is_file($tmpPath)) {
+            $moved = @rename($tmpPath, $destination);
+            if (!$moved && @copy($tmpPath, $destination)) {
+                $moved = true;
+                @unlink($tmpPath);
+            }
+        }
+        if (!$moved) {
+            return ['ok' => false, 'message' => 'Unable to store the uploaded logo.'];
+        }
+    }
+
+    $currentPath = app_logo_uploaded_file_path();
+    if ($currentPath !== '' && is_file($currentPath)) {
+        @unlink($currentPath);
+    }
+
+    save_setting('app.logo_upload_name', $storedName);
+    save_setting('app.logo_upload_mime_type', $normalizedMimeType);
+
+    return ['ok' => true, 'message' => 'Logo uploaded.'];
+}
+
 function move_resource_to_folder(int $resourceId, ?int $folderId): array
 {
     $resource = find_resource($resourceId);
@@ -3009,6 +3153,8 @@ function branding_settings_defaults(): array
     return [
         'app.name' => APP_NAME,
         'app.logo_svg_path' => '',
+        'app.logo_upload_name' => '',
+        'app.logo_upload_mime_type' => '',
     ];
 }
 
@@ -3017,13 +3163,27 @@ function branding_settings(): array
     return array_merge(branding_settings_defaults(), fetch_settings_by_prefix('app.'));
 }
 
-function save_branding_settings(array $input): void
+function save_branding_settings(array $input, array $files = []): array
 {
     $name = trim((string) ($input['app_name'] ?? APP_NAME));
     $logoPath = sanitize_local_asset_path((string) ($input['app_logo_svg_path'] ?? '')) ?? '';
 
     save_setting('app.name', $name !== '' ? $name : APP_NAME);
     save_setting('app.logo_svg_path', $logoPath);
+
+    if (($input['remove_uploaded_logo'] ?? '') === '1') {
+        remove_branding_logo_upload();
+    }
+
+    $logoUpload = $files['app_logo_upload'] ?? null;
+    if (is_array($logoUpload) && (int) ($logoUpload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+        $uploadResult = store_branding_logo_upload($logoUpload);
+        if (!($uploadResult['ok'] ?? false)) {
+            return $uploadResult;
+        }
+    }
+
+    return ['ok' => true, 'message' => 'Branding settings saved.'];
 }
 
 function export_layout_defaults(): array

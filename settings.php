@@ -62,8 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($action === 'save_branding') {
-            save_branding_settings($_POST);
-            flash('success', 'Branding settings saved.');
+            $result = save_branding_settings($_POST, $_FILES);
+            flash(($result['ok'] ?? false) ? 'success' : 'warning', (string) ($result['message'] ?? 'Unable to save branding settings.'));
             header('Location: ' . url_for('settings?tab=branding'));
             exit;
         }
@@ -248,7 +248,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
 
   <?php if ($tab === 'branding'): ?>
     <?php ui_card_open('branding_watermark', 'Branding'); ?>
-      <form method="post" class="stack">
+      <form method="post" enctype="multipart/form-data" class="stack">
         <?= csrf_input() ?>
         <input type="hidden" name="action" value="save_branding">
         <div class="card-grid">
@@ -258,12 +258,23 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
             <div class="helper-text">This name appears in the navbar, auth screens, browser titles, and invite emails.</div>
           </div>
           <div class="form-group">
-            <label for="app_logo_svg_path">SVG Logo Path</label>
+            <label for="app_logo_svg_path">Logo Asset Path</label>
             <input class="form-control" id="app_logo_svg_path" name="app_logo_svg_path" placeholder="images/backline-logo.svg" value="<?= h($branding['app.logo_svg_path'] ?? '') ?>">
-            <div class="helper-text">Use a local SVG path inside the cPanel directory so it can render in the navbar and auth screens.</div>
+            <div class="helper-text">Optional fallback path inside the cPanel directory if you do not upload a logo here.</div>
+          </div>
+          <div class="form-group">
+            <label for="app_logo_upload">Upload Logo Image or SVG</label>
+            <input class="form-control" type="file" id="app_logo_upload" name="app_logo_upload" accept=".svg,image/svg+xml,image/png,image/jpeg,image/gif,image/webp">
+            <div class="helper-text">Uploads are saved by the app and used ahead of the manual logo path.</div>
+            <?php if (!empty($branding['app.logo_upload_name'])): ?>
+            <label class="form-check mt-2">
+              <input class="form-check-input" type="checkbox" name="remove_uploaded_logo" value="1">
+              <span class="form-check-label">Remove uploaded logo and fall back to the logo path field</span>
+            </label>
+            <?php endif; ?>
           </div>
         </div>
-        <?php if (!empty($branding['app.logo_svg_path'])): ?>
+        <?php if (app_logo_url() !== ''): ?>
         <div class="summary-block">
           <strong>Logo Preview</strong>
           <div class="mt-3">

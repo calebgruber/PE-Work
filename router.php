@@ -5,6 +5,7 @@ $segments = array_values(array_filter(explode('/', $requestPath), static fn ($se
 $publicAssetPrefixes = ['/shared/assets/'];
 $publicAssetExtensions = ['css', 'gif', 'ico', 'jpeg', 'jpg', 'js', 'png', 'svg', 'webp', 'woff', 'woff2'];
 $publicPhpEntrypoints = [
+    '/branding_logo.php',
     '/export.php',
     '/index.php',
     '/login.php',
@@ -18,6 +19,7 @@ $publicPhpEntrypoints = [
 ];
 $publicRoutes = [
     '/',
+    '/branding_logo',
     '/export',
     '/login',
     '/logout',

@@ -561,6 +561,53 @@ settings_assert(str_contains($badResourceHeaders, 'Location: /settings?tab=resou
 settings_assert($badStoredName === false, 'Expected invalid resource upload to avoid persisting a resource row.', $repoRoot, $process, $pipes, $testPaths);
 settings_assert(str_contains($badResourceBody, 'Only PDF and image resources are supported.'), 'Expected redirected resources page to show the unsupported-file warning.', $repoRoot, $process, $pipes, $testPaths);
 
+$brandingLogoUploadPath = tempnam(sys_get_temp_dir(), 'pew-branding-logo-');
+$brandingHeadersPath = tempnam(sys_get_temp_dir(), 'pew-branding-headers-');
+$brandingResponsePath = tempnam(sys_get_temp_dir(), 'pew-branding-response-');
+$brandingFetchHeadersPath = tempnam(sys_get_temp_dir(), 'pew-branding-fetch-headers-');
+$brandingFetchPath = tempnam(sys_get_temp_dir(), 'pew-branding-fetch-');
+file_put_contents($brandingLogoUploadPath, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="4" fill="#111827"/><text x="12" y="16" text-anchor="middle" font-size="10" fill="#ffffff">B</text></svg>');
+$testPaths[] = $brandingLogoUploadPath;
+$testPaths[] = $brandingHeadersPath;
+$testPaths[] = $brandingResponsePath;
+$testPaths[] = $brandingFetchHeadersPath;
+$testPaths[] = $brandingFetchPath;
+$brandingCommand = sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F 'action=save_branding' -F 'app_name=Backline' -F 'app_logo_svg_path=' -F 'app_logo_upload=@%s;type=image/svg+xml;filename=logo.svg' %s",
+    escapeshellarg($brandingResponsePath),
+    escapeshellarg($brandingHeadersPath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg('csrf_token=' . $csrfToken),
+    escapeshellarg($brandingLogoUploadPath),
+    escapeshellarg($baseUrl . '/settings?tab=branding')
+);
+exec($brandingCommand, $brandingOutput, $brandingStatus);
+$brandingHeaders = is_file($brandingHeadersPath) ? file_get_contents($brandingHeadersPath) : '';
+$brandingBody = is_file($brandingResponsePath) ? file_get_contents($brandingResponsePath) : '';
+$brandingLogoStoredName = (string) fetch_setting('app.logo_upload_name', '');
+$brandingLogoMimeType = (string) fetch_setting('app.logo_upload_mime_type', '');
+if ($brandingLogoStoredName !== '') {
+    $testPaths[] = upload_dir('branding') . '/' . $brandingLogoStoredName;
+}
+exec(sprintf(
+    "curl -fsS -o %s -D %s %s",
+    escapeshellarg($brandingFetchPath),
+    escapeshellarg($brandingFetchHeadersPath),
+    escapeshellarg($baseUrl . '/branding_logo')
+), $brandingFetchOutput, $brandingFetchStatus);
+$brandingFetchHeaders = is_file($brandingFetchHeadersPath) ? file_get_contents($brandingFetchHeadersPath) : '';
+$brandingFetchBody = is_file($brandingFetchPath) ? file_get_contents($brandingFetchPath) : '';
+
+settings_assert($brandingStatus === 0, 'Expected branding logo upload request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($brandingHeaders, 'Location: /settings?tab=branding'), 'Expected branding save action to redirect back to the branding tab.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($brandingLogoStoredName !== '', 'Expected branding save action to persist the uploaded logo filename.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($brandingLogoMimeType === 'image/svg+xml', 'Expected branding logo upload to persist the SVG mime type.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($brandingBody, 'Branding settings saved.'), 'Expected redirected branding page to show the branding success message.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($brandingFetchStatus === 0, 'Expected branding logo route to stream the uploaded logo.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($brandingFetchHeaders, 'Content-Type: image/svg+xml'), 'Expected branding logo route to return SVG content.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($brandingFetchBody, '<svg'), 'Expected branding logo route to stream the uploaded SVG.', $repoRoot, $process, $pipes, $testPaths);
+
 $validationPagePath = tempnam(sys_get_temp_dir(), 'pew-validation-page-');
 $validationHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-headers-');
 $validationResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-response-');
