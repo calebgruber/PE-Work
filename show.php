@@ -422,7 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete_revision' && $showId) {
-        if (!$show || !can_access_show($show, $currentUser) || !is_admin($currentUser)) {
+        if (!$show || !can_access_show($show, $currentUser)) {
             http_response_code(404);
             exit('Show not found.');
         }
