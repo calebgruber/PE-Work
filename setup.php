@@ -13,6 +13,21 @@ $bootstrapInput = [
     'concentration' => 'lighting',
 ];
 
+$dbReady = schema_ready();
+$needsBootstrap = $dbReady && auth_tables_ready() && user_bootstrap_required();
+$usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
+$currentUser = current_user();
+
+if ($usersReady && !is_admin($currentUser)) {
+    if (!empty($currentUser)) {
+        http_response_code(403);
+        exit('Admin access required.');
+    }
+
+    header('Location: ' . url_for('login'));
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
         http_response_code(403);
@@ -36,10 +51,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $logs = run_pending_migrations();
     }
 }
-
-$dbReady = schema_ready();
-$needsBootstrap = $dbReady && auth_tables_ready() && user_bootstrap_required();
-$usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
 $brandName = app_display_name();
 $brandLogo = app_logo_markup('auth-brand-logo', $brandName . ' logo');
 ?>

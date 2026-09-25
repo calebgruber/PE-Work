@@ -61,12 +61,17 @@ defined('SESSION_NAME') || define('SESSION_NAME', 'pe_work_session');
 defined('APP_SECRET') || define('APP_SECRET', app_secret_value());
 defined('ALLOW_SQLITE_FOR_TESTS') || define('ALLOW_SQLITE_FOR_TESTS', filter_var(getenv('ALLOW_SQLITE_FOR_TESTS') ?: false, FILTER_VALIDATE_BOOL));
 defined('ALLOW_LOCAL_UPLOADS_FOR_TESTS') || define('ALLOW_LOCAL_UPLOADS_FOR_TESTS', filter_var(getenv('ALLOW_LOCAL_UPLOADS_FOR_TESTS') ?: false, FILTER_VALIDATE_BOOL));
+defined('TRUST_PROXY_HEADERS') || define('TRUST_PROXY_HEADERS', filter_var(getenv('TRUST_PROXY_HEADERS') ?: false, FILTER_VALIDATE_BOOL));
 
 date_default_timezone_set(APP_TIMEZONE);
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     $httpsEnabled = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (isset($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443);
+    if (!$httpsEnabled && TRUST_PROXY_HEADERS) {
+        $forwardedProto = strtolower(trim((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
+        $httpsEnabled = $forwardedProto !== '' && in_array(explode(',', $forwardedProto)[0], ['https', 'wss'], true);
+    }
     $cookiePath = APP_BASE_URL === '' || APP_BASE_URL === '/' ? '/' : rtrim(APP_BASE_URL, '/') . '/';
     session_set_cookie_params([
         'path' => $cookiePath,

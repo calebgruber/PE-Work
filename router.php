@@ -2,6 +2,31 @@
 
 $path = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
 $segments = array_values(array_filter(explode('/', $path), static fn ($segment) => $segment !== ''));
+$publicAssetPrefixes = ['/shared/assets/'];
+$publicPhpEntrypoints = [
+    '/export.php',
+    '/index.php',
+    '/login.php',
+    '/logout.php',
+    '/profile.php',
+    '/resource_file.php',
+    '/settings.php',
+    '/setup.php',
+    '/show.php',
+    '/users.php',
+];
+$publicRoutes = [
+    '/',
+    '/export',
+    '/login',
+    '/logout',
+    '/profile',
+    '/resource_file',
+    '/settings',
+    '/setup',
+    '/show',
+    '/users',
+];
 foreach ($segments as $segment) {
     if ($segment === '.' || $segment === '..') {
         http_response_code(404);
@@ -15,9 +40,8 @@ if ($normalizedPath === '//') {
 }
 $path = $normalizedPath === '' ? '/' : $normalizedPath;
 $fullPath = __DIR__ . $path;
-$publicAssetPrefixes = ['/shared/assets/'];
 
-if (preg_match('#^/(db|storage)(/|$)#', $path)) {
+if (preg_match('#^/(db|storage|tests)(/|$)#', $path) || (str_starts_with($path, '/shared/') && !str_starts_with($path, '/shared/assets/'))) {
     http_response_code(404);
     echo 'Not Found';
     return true;
@@ -30,7 +54,7 @@ if ($path !== '/' && file_exists($fullPath) && !is_dir($fullPath)) {
         }
     }
 
-    if (str_ends_with($path, '.php')) {
+    if (str_ends_with($path, '.php') && in_array($path, $publicPhpEntrypoints, true)) {
         require $fullPath;
         return true;
     }
@@ -46,7 +70,7 @@ if ($path === '/') {
 }
 
 $phpTarget = __DIR__ . $path . '.php';
-if (file_exists($phpTarget)) {
+if (in_array($path, $publicRoutes, true) && file_exists($phpTarget)) {
     require $phpTarget;
     return true;
 }
