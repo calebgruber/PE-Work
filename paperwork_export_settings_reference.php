@@ -506,6 +506,8 @@ return [
         ],
     ],
 
+    'companion_template_file' => 'paperwork_export_template_reference.php',
+
     'paperwork_sections' => [
         'general' => 'Global paperwork text and export toggles.',
         'cover' => 'Cover-page spacing and footer identity fields.',
