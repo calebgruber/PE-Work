@@ -345,7 +345,11 @@ $freshDb = new PDO('sqlite:' . $testDbPath, null, null, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
 ]);
-$resourceFolderId = (int) $freshDb->query("SELECT id FROM resource_folders WHERE name = 'Manuals' ORDER BY id DESC LIMIT 1")->fetchColumn();
+$resourceFolder = $freshDb->query("SELECT id, parent_id FROM resource_folders WHERE name = 'Manuals' ORDER BY id DESC LIMIT 1")->fetch();
+if (!$resourceFolder || $resourceFolder['parent_id'] !== null) {
+    throw new RuntimeException('Root resource folder was not created at the top level.');
+}
+$resourceFolderId = (int) $resourceFolder['id'];
 $createSubfolderHeadersPath = tempnam(sys_get_temp_dir(), 'pew-resource-subfolder-headers-');
 $createSubfolderResponsePath = tempnam(sys_get_temp_dir(), 'pew-resource-subfolder-response-');
 $testPaths[] = $createSubfolderHeadersPath;
@@ -366,7 +370,11 @@ $freshDb = new PDO('sqlite:' . $testDbPath, null, null, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
 ]);
-$resourceSubfolderId = (int) $freshDb->query("SELECT id FROM resource_folders WHERE name = 'Drafts' AND parent_id = " . $resourceFolderId . " ORDER BY id DESC LIMIT 1")->fetchColumn();
+$resourceSubfolder = $freshDb->query("SELECT id, parent_id FROM resource_folders WHERE name = 'Drafts' AND parent_id = " . $resourceFolderId . " ORDER BY id DESC LIMIT 1")->fetch();
+if (!$resourceSubfolder || (int) $resourceSubfolder['parent_id'] !== $resourceFolderId) {
+    throw new RuntimeException('Resource subfolder was not created under the expected parent folder.');
+}
+$resourceSubfolderId = (int) $resourceSubfolder['id'];
 $resourceCommand = sprintf(
     "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F %s -F 'action=upload_resource' -F 'resource_title=Shop Resource' -F 'resource_pdf=@%s;type=application/pdf;filename=resource.pdf' %s",
     escapeshellarg($resourceResponsePath),
