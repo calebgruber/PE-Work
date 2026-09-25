@@ -17,10 +17,11 @@ function revision_json_not_found(bool $includeOk = false): void
 {
     http_response_code(404);
     header('Content-Type: application/json');
-    $payload = ['warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']]];
-    if ($includeOk) {
-        $payload['ok'] = false;
-    }
+    $payload = [
+        'ok' => false,
+        'error' => 'Revision not found for this show.',
+        'warnings' => [['type' => 'rule', 'message' => 'Revision not found for this show.']],
+    ];
     echo json_encode($payload);
     exit;
 }
