@@ -615,6 +615,34 @@ settings_assert($brandingFetchStatus === 0, 'Expected branding logo route to str
 settings_assert(str_contains($brandingFetchHeaders, 'Content-Type: image/svg+xml'), 'Expected branding logo route to return SVG content.', $repoRoot, $process, $pipes, $testPaths);
 settings_assert(str_contains($brandingFetchBody, '<svg'), 'Expected branding logo route to stream the uploaded SVG.', $repoRoot, $process, $pipes, $testPaths);
 
+$badBrandingPath = tempnam(sys_get_temp_dir(), 'pew-branding-bad-');
+$badBrandingHeadersPath = tempnam(sys_get_temp_dir(), 'pew-branding-bad-headers-');
+$badBrandingResponsePath = tempnam(sys_get_temp_dir(), 'pew-branding-bad-response-');
+file_put_contents($badBrandingPath, 'not an image');
+$testPaths[] = $badBrandingPath;
+$testPaths[] = $badBrandingHeadersPath;
+$testPaths[] = $badBrandingResponsePath;
+$badBrandingCommand = sprintf(
+    "curl -isS -o %s -D %s -L -c %s -b %s -F %s -F 'action=save_branding' -F 'app_name=Backline' -F 'app_logo_svg_path=' -F 'app_logo_upload=@%s;type=text/plain;filename=logo.txt' %s",
+    escapeshellarg($badBrandingResponsePath),
+    escapeshellarg($badBrandingHeadersPath),
+    escapeshellarg($cookieJar),
+    escapeshellarg($cookieJar),
+    escapeshellarg('csrf_token=' . $csrfToken),
+    escapeshellarg($badBrandingPath),
+    escapeshellarg($baseUrl . '/settings?tab=branding')
+);
+exec($badBrandingCommand, $badBrandingOutput, $badBrandingStatus);
+$badBrandingHeaders = is_file($badBrandingHeadersPath) ? file_get_contents($badBrandingHeadersPath) : '';
+$badBrandingBody = is_file($badBrandingResponsePath) ? file_get_contents($badBrandingResponsePath) : '';
+$brandingSettingStmt->execute(['app.logo_upload_name']);
+$brandingLogoStoredNameAfterBadUpload = (string) ($brandingSettingStmt->fetchColumn() ?: '');
+
+settings_assert($badBrandingStatus === 0, 'Expected invalid branding logo upload request to succeed.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($badBrandingHeaders, 'Location: /settings?tab=branding'), 'Expected invalid branding save action to redirect back to the branding tab.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert($brandingLogoStoredNameAfterBadUpload === $brandingLogoStoredName, 'Expected invalid branding logo upload to leave the saved logo unchanged.', $repoRoot, $process, $pipes, $testPaths);
+settings_assert(str_contains($badBrandingBody, 'Only SVG, PNG, JPG, GIF, and WEBP logo files are supported.'), 'Expected invalid branding upload to show the unsupported-file warning.', $repoRoot, $process, $pipes, $testPaths);
+
 $validationPagePath = tempnam(sys_get_temp_dir(), 'pew-validation-page-');
 $validationHeadersPath = tempnam(sys_get_temp_dir(), 'pew-validation-headers-');
 $validationResponsePath = tempnam(sys_get_temp_dir(), 'pew-validation-response-');
