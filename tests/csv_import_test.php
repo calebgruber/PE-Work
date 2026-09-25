@@ -1,0 +1,960 @@
+<?php
+
+$repoRoot = dirname(__DIR__);
+putenv('PE_WORK_SKIP_LOCAL_CONFIG=1');
+define('DB_DRIVER', 'sqlite');
+define('DB_SQLITE_PATH', '/tmp/pe-work-test-' . uniqid('', true) . '.sqlite');
+define('ALLOW_SQLITE_FOR_TESTS', true);
+
+require_once __DIR__ . '/../shared/config.php';
+require_once __DIR__ . '/../shared/db.php';
+require_once __DIR__ . '/../shared/app.php';
+
+function csv_test_cleanup(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    @unlink(DB_SQLITE_PATH);
+    @unlink(DB_SQLITE_PATH . '-wal');
+    @unlink(DB_SQLITE_PATH . '-shm');
+}
+
+register_shutdown_function('csv_test_cleanup');
+
+function assert_true(bool $condition, string $message): void
+{
+    if (!$condition) {
+        fwrite(STDERR, $message . PHP_EOL);
+        exit(1);
+    }
+}
+
+function ensure_catalog_item(string $category, string $name, int $shopQuantity, string $unit = 'ea', string $note = '', string $description = '', string $concentration = 'lighting'): int
+{
+    $categoryResult = create_category($category, $concentration);
+    if (!$categoryResult['ok'] && !str_contains(strtolower($categoryResult['message']), 'already exists')) {
+        fwrite(STDERR, 'Failed creating test category: ' . $categoryResult['message'] . PHP_EOL);
+        exit(1);
+    }
+
+    $itemResult = create_inventory_item([
+        'category_id' => category_id_for_name($category, $concentration),
+        'name' => $name,
+        'shop_quantity' => $shopQuantity,
+        'unit' => $unit,
+        'default_note' => $note,
+        'description' => $description,
+    ]);
+    if (!$itemResult['ok'] && !str_contains(strtolower($itemResult['message']), 'already has an item')) {
+        fwrite(STDERR, 'Failed creating test item: ' . $itemResult['message'] . PHP_EOL);
+        exit(1);
+    }
+
+    $stmt = db()->prepare('SELECT id FROM inventory_items WHERE name = ? AND concentration = ? LIMIT 1');
+    $stmt->execute([$name, $concentration]);
+    return (int) $stmt->fetchColumn();
+}
+
+run_pending_migrations();
+assert_true((int) db()->query('SELECT COUNT(*) FROM inventory_items')->fetchColumn() === 0, 'Expected fresh migrations to leave inventory empty.');
+$manualsFolder = create_resource_folder('Manuals');
+$archiveFolder = create_resource_folder('Archive');
+$manualsFolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Manuals' AND parent_id IS NULL ORDER BY id DESC LIMIT 1")->fetchColumn();
+$archiveFolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Archive' AND parent_id IS NULL ORDER BY id DESC LIMIT 1")->fetchColumn();
+$draftsUnderManuals = create_resource_folder('Drafts', $manualsFolderId);
+$draftsUnderArchive = create_resource_folder('Drafts', $archiveFolderId);
+$duplicateDraftsUnderManuals = create_resource_folder('Drafts', $manualsFolderId);
+assert_true(($manualsFolder['ok'] ?? false) === true && ($archiveFolder['ok'] ?? false) === true, 'Expected root resource folders to be created.');
+assert_true($manualsFolderId > 0 && $archiveFolderId > 0, 'Expected root resource folder ids to be queryable.');
+assert_true(($draftsUnderManuals['ok'] ?? false) === true, 'Expected a subfolder to be creatable under the first parent.');
+assert_true(($draftsUnderArchive['ok'] ?? false) === true, 'Expected matching subfolder names to be allowed under different parents.');
+assert_true(($duplicateDraftsUnderManuals['ok'] ?? true) === false, 'Expected matching subfolder names under the same parent to be rejected.');
+assert_true((int) db()->query("SELECT COUNT(*) FROM resource_folders WHERE name = 'Drafts'")->fetchColumn() === 2, 'Expected sibling uniqueness to allow the same folder name in two separate branches.');
+
+$orderingCategory = create_category('Ordering');
+assert_true($orderingCategory['ok'] === true, 'Expected ordering category creation to succeed.');
+$orderingCategoryId = category_id_for_name('Ordering');
+$sortItemResult = create_inventory_item([
+    'category_id' => $orderingCategoryId,
+    'name' => 'Second Item',
+    'sort_order' => 20,
+    'shop_quantity' => 1,
+    'unit' => 'ea',
+]);
+assert_true($sortItemResult['ok'] === true, 'Expected sorted inventory item creation to succeed.');
+$moveCategoryResult = create_category('Moved Tools');
+assert_true($moveCategoryResult['ok'] === true, 'Expected moved-tools category creation to succeed.');
+$movedToolsCategoryId = category_id_for_name('Moved Tools');
+$pipeWrenchResult = create_inventory_item([
+    'category_id' => $orderingCategoryId,
+    'name' => 'Pipe Wrench',
+    'sort_order' => 30,
+    'shop_quantity' => 2,
+    'unit' => 'ea',
+    'description' => 'Tool move test',
+]);
+assert_true($pipeWrenchResult['ok'] === true, 'Expected pipe wrench item creation to succeed.');
+$pipeWrenchId = (int) db()->query("SELECT id FROM inventory_items WHERE name = 'Pipe Wrench' ORDER BY id DESC LIMIT 1")->fetchColumn();
+$spacerItemResult = create_inventory_item([
+    'category_id' => $orderingCategoryId,
+    'name' => 'Spacer Break',
+    'sort_order' => 10,
+    'shop_quantity' => 0,
+    'unit' => '',
+    'is_spacer' => 1,
+    'description' => 'Act break',
+]);
+assert_true($spacerItemResult['ok'] === true, 'Expected spacer inventory item creation to succeed.');
+$orderingCatalog = fetch_inventory_catalog();
+$orderingItems = [];
+foreach ($orderingCatalog as $category) {
+    if (($category['name'] ?? '') === 'Ordering') {
+        $orderingItems = $category['items'];
+        break;
+    }
+}
+assert_true(count($orderingItems) === 3, 'Expected ordering category to include all ordering test inventory items before moving one.');
+assert_true(($orderingItems[0]['name'] ?? '') === 'Spacer Break', 'Expected lower sort order item to render first.');
+assert_true((int) ($orderingItems[0]['is_spacer'] ?? 0) === 1, 'Expected spacer item flag to persist.');
+$orderingSpacerId = (int) ($orderingItems[0]['id'] ?? 0);
+save_inventory_batch([
+    $pipeWrenchId => [
+        'category_id' => $movedToolsCategoryId,
+        'shop_quantity' => 2,
+        'unit' => 'ea',
+        'default_note' => '',
+        'description' => 'Tool move test',
+        'sort_order' => 1,
+        'is_spacer' => 0,
+    ],
+]);
+$pipeWrenchCategoryId = (int) db()->query('SELECT category_id FROM inventory_items WHERE id = ' . $pipeWrenchId)->fetchColumn();
+assert_true($pipeWrenchCategoryId === $movedToolsCategoryId, 'Expected inventory batch saves to persist category changes.');
+
+$validCsv = tempnam(sys_get_temp_dir(), 'pew-valid-');
+file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nFixtures,Source Four,10,ea,Ellipsoidal,Test import\n");
+$validResult = import_inventory_csv($validCsv);
+assert_true($validResult['ok'] === true, 'Expected valid CSV import to succeed.');
+assert_true(str_contains($validResult['message'], 'created'), 'Expected valid CSV import to report created rows.');
+
+$stmt = db()->prepare('SELECT shop_quantity FROM inventory_items WHERE name = ?');
+$stmt->execute(['Source Four']);
+assert_true((int) $stmt->fetchColumn() === 10, 'Expected imported item quantity to be stored.');
+
+file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nFixtures,Source Four,12,ea,Updated note,Updated import\n");
+$updateResult = import_inventory_csv($validCsv);
+assert_true($updateResult['ok'] === true, 'Expected second valid CSV import to succeed.');
+$stmt->execute(['Source Four']);
+assert_true((int) $stmt->fetchColumn() === 12, 'Expected repeated import to update the existing item.');
+
+file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nControl,Source Four,15,ea,Moved category,Updated import\n");
+$moveResult = import_inventory_csv($validCsv);
+assert_true($moveResult['ok'] === true, 'Expected moved-category CSV import to succeed.');
+$movedCategoryStmt = db()->prepare('SELECT c.name AS category_name FROM inventory_items i LEFT JOIN inventory_categories c ON c.id = i.category_id WHERE i.name = ? LIMIT 1');
+$movedCategoryStmt->execute(['Source Four']);
+assert_true(($movedCategoryStmt->fetchColumn() ?? '') === 'Control', 'Expected moved-category CSV import to update the existing item category.');
+assert_true((int) db()->query("SELECT COUNT(*) FROM inventory_items WHERE name = 'Source Four'")->fetchColumn() === 1, 'Expected moved-category CSV import to avoid creating duplicates.');
+
+file_put_contents($validCsv, "category,name,shop_quantity,unit,default_note,description\nMoved Ordering,Second Item,2,ea,,\n");
+$orderingMoveResult = import_inventory_csv($validCsv);
+assert_true($orderingMoveResult['ok'] === true, 'Expected category move import for ordered items to succeed.');
+$orderingSpacerSortOrder = (int) db()->query("SELECT sort_order FROM inventory_items WHERE name = 'Spacer Break'")->fetchColumn();
+assert_true($orderingSpacerSortOrder === 1, 'Expected moving an ordered item out of a category to normalize the remaining sort order.');
+
+$dynamicCsv = tempnam(sys_get_temp_dir(), 'pew-dynamic-');
+file_put_contents($dynamicCsv, "category,name,shop_quantity,unit,default_note,description\nPracticals,Lamp Cart,3,ea,Practical carts,Dynamic category import\n");
+$dynamicResult = import_inventory_csv($dynamicCsv);
+assert_true($dynamicResult['ok'] === true, 'Expected dynamic category import to succeed.');
+$stmt->execute(['Lamp Cart']);
+assert_true((int) $stmt->fetchColumn() === 3, 'Expected dynamic-category item to be inserted.');
+
+file_put_contents($dynamicCsv, "category,name,shop_quantity,unit,default_note,description\nPracticals,Lamp Cart,4,ea,Practical carts,Dynamic category reimport\n");
+$dynamicUpdateResult = import_inventory_csv($dynamicCsv);
+assert_true($dynamicUpdateResult['ok'] === true, 'Expected dynamic category reimport to succeed.');
+$stmt->execute(['Lamp Cart']);
+assert_true((int) $stmt->fetchColumn() === 4, 'Expected dynamic-category item to update on reimport.');
+
+$excelCsv = tempnam(sys_get_temp_dir(), 'pew-excel-');
+file_put_contents($excelCsv, "\xEF\xBB\xBFcategory,name,shop_quantity,unit,default_note,description\nFIXTURES,HES Solaframe Theatre,12,ea,,\nFIXTURES,GLP Impression S350 Wash,10,ea,,\nFIXTURES,GLP Impression Wash One,6,ea,,\nFIXTURES,GLP Impression Spot One,6,ea,,\n");
+$excelResult = import_inventory_csv($excelCsv);
+assert_true($excelResult['ok'] === true, 'Expected Excel-style CSV import with BOM and uppercase categories to succeed.');
+
+$stmt->execute(['HES Solaframe Theatre']);
+assert_true((int) $stmt->fetchColumn() === 12, 'Expected Excel-style CSV import to store HES Solaframe Theatre quantity.');
+$stmt->execute(['GLP Impression S350 Wash']);
+assert_true((int) $stmt->fetchColumn() === 10, 'Expected Excel-style CSV import to store GLP Impression S350 Wash quantity.');
+
+$fixtureCategoryCount = (int) db()->query("SELECT COUNT(*) FROM inventory_categories WHERE LOWER(name) = 'fixtures'")->fetchColumn();
+assert_true($fixtureCategoryCount === 1, 'Expected uppercase spreadsheet categories to reuse the existing Fixtures category.');
+
+$utf16Csv = tempnam(sys_get_temp_dir(), 'pew-utf16-');
+$utf16Contents = "category,name,shop_quantity,unit,default_note,description\r\nFIXTURES,HES Solaframe Theatre,12,ea,.,.\r\n";
+$utf16Encoded = "\xFF\xFE" . iconv('UTF-8', 'UTF-16LE//IGNORE', $utf16Contents);
+file_put_contents($utf16Csv, $utf16Encoded);
+$utf16Result = import_inventory_csv($utf16Csv);
+assert_true($utf16Result['ok'] === true, 'Expected UTF-16 Excel-style CSV import to succeed.');
+
+$utf16Stmt = db()->prepare('SELECT unit, default_note, description FROM inventory_items WHERE name = ?');
+$utf16Stmt->execute(['HES Solaframe Theatre']);
+$utf16Item = $utf16Stmt->fetch() ?: [];
+assert_true(($utf16Item['unit'] ?? '') === 'ea', 'Expected UTF-16 Excel-style CSV import to preserve unit values.');
+assert_true(($utf16Item['default_note'] ?? '') === '', 'Expected dot placeholders to import as blank notes.');
+assert_true(($utf16Item['description'] ?? '') === '', 'Expected dot placeholders to import as blank descriptions.');
+
+$pastedCsv = "category,name,shop_quantity,unit,default_note,description\nFIXTURES,HES Solaframe Theatre,12,ea,.,.\nFIXTURES,GLP Impression S350 Wash,10,ea,.,.\n";
+$pastedResult = import_inventory_csv_text($pastedCsv);
+assert_true($pastedResult['ok'] === true, 'Expected pasted CSV rows to import successfully.');
+
+$quotedPaste = "category,name,shop_quantity,unit,default_note,description\nAccessories,\"Workbox, Large\",2,ea,\"Contains gels, tape\",.\n";
+$quotedPasteResult = import_inventory_csv_text($quotedPaste);
+assert_true($quotedPasteResult['ok'] === true, 'Expected pasted quoted CSV rows to import successfully.');
+$stmt->execute(['Workbox, Large']);
+assert_true((int) $stmt->fetchColumn() === 2, 'Expected pasted quoted CSV row to store the item quantity.');
+
+$showResult = save_show_record([
+    'show_name' => 'Revision Clone Test',
+    'theatre_name' => 'Mainstage',
+    'theatre_address' => '123 Theatre Way',
+    'shop_name' => 'Shop',
+    'ld_name' => 'LD',
+    'ld_email' => 'ld@example.com',
+    'ld_phone' => '111-111-1111',
+    'assistant_ld_name' => 'ALD',
+    'assistant_ld_email' => 'ald@example.com',
+    'assistant_ld_phone' => '222-222-2222',
+    'production_electrician_name' => 'PE',
+    'production_electrician_email' => 'pe@example.com',
+    'production_electrician_phone' => '333-333-3333',
+    'shop_manager_name' => 'SM',
+    'shop_manager_email' => 'sm@example.com',
+    'shop_manager_phone' => '444-444-4444',
+    'assistant_shop_manager_name' => 'ASM',
+    'assistant_shop_manager_email' => 'asm@example.com',
+    'assistant_shop_manager_phone' => '555-555-5555',
+    'pull_date' => '2026-09-20',
+    'return_date' => '2026-10-03',
+    'strike_date' => '2026-10-04',
+    'opening_date' => '2026-09-25',
+    'show_notes' => "Crew note one\nCrew note two",
+]);
+assert_true($showResult['errors'] === [], 'Expected valid show save to succeed for revision cloning.');
+$showId = (int) ($showResult['show']['id'] ?? 0);
+assert_true($showId > 0, 'Expected saved show to have an id.');
+
+$initialRevisionId = create_initial_revision($showId);
+$initialRevision = find_revision($initialRevisionId);
+assert_true(($initialRevision['revision_code'] ?? '') === '1.0', 'Expected initial revision code to be 1.0.');
+$fixtureItemId = ensure_catalog_item('Fixtures', 'SolaFrame 3000', 12, 'ea', 'Profile moving light', 'Manual test fixture row');
+$adapterItemId = ensure_catalog_item('Power', 'Stagepin to True1 Adapter', 20, 'ea', 'Adapter note', 'Manual rule pairing row');
+$lateAddedItemId = ensure_catalog_item('Cable', 'Late Added Feeder', 8, 'ea', 'Late note', 'Added after initial revision exists');
+$noteOnlyItemId = ensure_catalog_item('Accessories', 'Blue Clip Light', 4, 'ea', 'Workbox detail should stay hidden', 'Clip light note coverage');
+$soundMicItemId = ensure_catalog_item('Microphones', 'Wireless Vocal Mic', 6, 'ea', 'RF coordination note', 'Sound-only inventory item', 'sound');
+assert_true($fixtureItemId > 0, 'Expected test inventory item to exist for revision cloning.');
+assert_true($adapterItemId > 0, 'Expected adapter inventory item to exist for rule tests.');
+assert_true($lateAddedItemId > 0, 'Expected newly added inventory item to exist for current revisions.');
+assert_true($noteOnlyItemId > 0, 'Expected note-only inventory item to exist for notes-page coverage.');
+assert_true($soundMicItemId > 0, 'Expected sound-domain inventory item to exist for domain filtering tests.');
+$soundCatalog = fetch_inventory_catalog('sound');
+$soundCatalogNames = [];
+foreach ($soundCatalog as $soundCategory) {
+    foreach ($soundCategory['items'] as $soundItem) {
+        $soundCatalogNames[] = (string) ($soundItem['name'] ?? '');
+    }
+}
+assert_true(in_array('Wireless Vocal Mic', $soundCatalogNames, true), 'Expected sound-domain inventory catalog filtering to include sound items.');
+assert_true(!in_array('SolaFrame 3000', $soundCatalogNames, true), 'Expected sound-domain inventory catalog filtering to exclude lighting items.');
+$initialCatalog = catalog_for_revision($initialRevisionId);
+$lateItemFound = false;
+foreach ($initialCatalog as $category) {
+    foreach ($category['items'] as $item) {
+        if ((int) ($item['id'] ?? 0) !== $lateAddedItemId) {
+            continue;
+        }
+        $lateItemFound = true;
+        assert_true((int) ($item['line']['total_quantity'] ?? -1) === 0, 'Expected newly added inventory item to appear in existing revisions with a blank line.');
+    }
+}
+assert_true($lateItemFound, 'Expected newly added inventory item to appear in the existing revision catalog.');
+
+save_revision_lines($initialRevisionId, [
+    $fixtureItemId => [
+        'rent_quantity' => 6,
+        'spare_quantity' => 2,
+        'action' => 'add',
+        'line_note' => 'Clone this into the next revision.',
+        'pickup_date' => '2026-10-01',
+        'return_date' => '2026-10-15',
+    ],
+    $orderingSpacerId => [
+        'rent_quantity' => 9,
+        'spare_quantity' => 0,
+        'action' => 'add',
+    ],
+    $lateAddedItemId => [
+        'rent_quantity' => 2,
+        'spare_quantity' => 1,
+        'action' => 'add',
+        'line_note' => 'Late-added inventory should save into the order.',
+    ],
+    $noteOnlyItemId => [
+        'rent_quantity' => 0,
+        'spare_quantity' => 0,
+        'action' => 'note',
+        'line_note' => 'Blue clip light line note should print on notes page.',
+    ],
+]);
+$lateLineStmt = db()->prepare('SELECT rent_quantity, spare_quantity, total_quantity, line_note FROM revision_items WHERE revision_id = ? AND inventory_item_id = ?');
+$lateLineStmt->execute([$initialRevisionId, $lateAddedItemId]);
+$lateSavedLine = $lateLineStmt->fetch() ?: [];
+assert_true((int) ($lateSavedLine['total_quantity'] ?? 0) === 3, 'Expected newly added inventory items to save into existing shop orders.');
+assert_true(($lateSavedLine['line_note'] ?? '') === 'Late-added inventory should save into the order.', 'Expected newly added inventory item notes to persist.');
+
+$nextRevisionId = create_next_revision($showId);
+$nextRevision = find_revision($nextRevisionId);
+assert_true(($nextRevision['revision_code'] ?? '') === '1.1', 'Expected next revision code to increment to 1.1.');
+db()->prepare('UPDATE show_revisions SET revision_date = ? WHERE id = ?')->execute(['2026-09-01', $initialRevisionId]);
+db()->prepare('UPDATE show_revisions SET revision_date = ? WHERE id = ?')->execute(['2026-09-15', $nextRevisionId]);
+save_export_layout([
+    'header_text' => 'Production Electrician Shop Order',
+    'organization_text' => '',
+    'footer_text' => 'Prepared in Backline',
+    'export_notes' => "Default note one\nDefault note two",
+    'cover_show_title' => '1',
+    'show_page_numbers' => '1',
+    'show_revision_summary' => '1',
+    'cover_title_revision_spacing' => '0.73',
+    'cover_notes_spacing' => '1.234',
+    'cover_footer_logo_url' => 'images/footer-logo.png',
+    'cover_prepared_by_name' => 'Caleb Tester',
+    'equipment_table_width' => '100',
+    'equipment_min_rows_per_page' => '0',
+    'equipment_max_rows_per_page' => '0',
+    'revision_summary_table_width' => '91.5',
+    'revision_summary_min_rows_per_page' => '0',
+    'revision_summary_max_rows_per_page' => '12',
+    'revision_summary_col_line' => '3.5',
+    'revision_summary_col_item' => '38.5',
+    'revision_summary_col_description' => '30.5',
+    'revision_summary_col_previous_total' => '6.5',
+    'revision_summary_col_total' => '7.5',
+    'revision_summary_col_action' => '8.5',
+    'revision_summary_col_notes' => '11.5',
+    'equipment_zebra_gray' => '#BBBBBB',
+    'equipment_row_padding' => '0.016',
+    'equipment_header_row_padding' => '0.280',
+    'equipment_category_row_padding' => '0.360',
+    'equipment_category_gap' => '0.222',
+    'equipment_header_fill' => '#ABCDEF',
+    'equipment_category_fill' => '#FEDCBA',
+    'equipment_font_size' => '7.35',
+    'equipment_line_height' => '1.1',
+    'equipment_col_line' => '2.5',
+    'equipment_col_item' => '45',
+    'equipment_col_description' => '23',
+    'equipment_col_used' => '5',
+    'equipment_col_spare' => '5',
+    'equipment_col_total' => '6',
+    'equipment_col_notes' => '12',
+    'equipment_font_line' => '5.75',
+    'equipment_font_item' => '8.25',
+    'equipment_font_description' => '6.6',
+    'equipment_font_used' => '7.1',
+    'equipment_font_spare' => '7.2',
+    'equipment_font_total' => '7.8',
+    'equipment_font_action' => '8.6',
+    'equipment_font_notes' => '6.4',
+]);
+save_show_export_layout($showId, [
+    'export_notes' => "Show note override one\nShow note override two",
+    'cover_notes_spacing' => '0.456',
+    'cover_footer_logo_url' => 'images/show-footer-logo.png',
+    'cover_prepared_by_name' => 'Show Override Person',
+]);
+
+$lineStmt = db()->prepare('SELECT rent_quantity, spare_quantity, total_quantity, action, line_note, pickup_date, return_date FROM revision_items WHERE revision_id = ? AND inventory_item_id = ?');
+$lineStmt->execute([$nextRevisionId, $fixtureItemId]);
+$clonedLine = $lineStmt->fetch() ?: [];
+assert_true((int) ($clonedLine['rent_quantity'] ?? 0) === 6, 'Expected next revision to clone rent quantity.');
+assert_true((int) ($clonedLine['spare_quantity'] ?? 0) === 2, 'Expected next revision to clone spare quantity.');
+assert_true((int) ($clonedLine['total_quantity'] ?? 0) === 8, 'Expected next revision to clone total quantity.');
+assert_true(($clonedLine['action'] ?? '') === '', 'Expected next revision to reset action markers back to blank.');
+assert_true(($clonedLine['line_note'] ?? '') === 'Clone this into the next revision.', 'Expected next revision to clone notes.');
+assert_true(($clonedLine['pickup_date'] ?? '') === '2026-10-01', 'Expected next revision to clone pickup date.');
+assert_true(($clonedLine['return_date'] ?? '') === '2026-10-15', 'Expected next revision to clone return date.');
+assert_true(export_row_action_class($nextRevision, ['is_spacer' => 0], $clonedLine) === '', 'Expected carried-forward lines in a new revision to reset to blank export styling.');
+assert_true(export_row_action_class(find_revision($initialRevisionId) ?: [], ['is_spacer' => 0], ['action' => 'add']) === '', 'Expected initial revision lines to avoid revised export coloring.');
+assert_true(export_row_action_class($nextRevision, ['is_spacer' => 1], ['action' => 'add']) === '', 'Expected spacer rows to avoid revised export coloring.');
+
+save_revision_lines($nextRevisionId, [
+    $fixtureItemId => [
+        'rent_quantity' => 7,
+        'spare_quantity' => 2,
+        'action' => 'exchange',
+        'line_note' => 'Latest revision should clone from here.',
+        'pickup_date' => '2026-10-02',
+        'return_date' => '2026-10-16',
+    ],
+    $orderingSpacerId => [
+        'rent_quantity' => 4,
+        'spare_quantity' => 0,
+        'action' => 'add',
+    ],
+    $lateAddedItemId => [
+        'rent_quantity' => 3,
+        'spare_quantity' => 1,
+        'action' => '',
+        'line_note' => 'Changed without an explicit action.',
+    ],
+    $noteOnlyItemId => [
+        'rent_quantity' => 0,
+        'spare_quantity' => 0,
+        'action' => 'note',
+        'line_note' => 'Blue clip light line note should print on notes page.',
+    ],
+]);
+$bulkRevisionLines = [];
+for ($bulkIndex = 1; $bulkIndex <= 72; $bulkIndex++) {
+    $bulkItemId = ensure_catalog_item('Fixtures', 'Paged Fixture ' . $bulkIndex, 5, 'ea', '', 'Paged export test item');
+    $bulkRevisionLines[$bulkItemId] = [
+        'rent_quantity' => 1,
+        'spare_quantity' => 0,
+        'action' => 'add',
+    ];
+}
+save_revision_lines($nextRevisionId, $bulkRevisionLines);
+$previousGet = $_GET;
+$_GET = [
+    'show_id' => $showId,
+    'revision_id' => $nextRevisionId,
+    'type' => 'order',
+];
+ob_start();
+require $repoRoot . '/export.php';
+$exportHtml = ob_get_clean();
+$_GET = $previousGet;
+$notesSectionStart = strpos($exportHtml, '<div class="notes-section">');
+$notesSectionEnd = $notesSectionStart === false ? false : strpos($exportHtml, '</div>', $notesSectionStart);
+$notesSectionHtml = ($notesSectionStart === false || $notesSectionEnd === false) ? '' : substr($exportHtml, $notesSectionStart, ($notesSectionEnd - $notesSectionStart) + 6);
+assert_true(!str_contains($exportHtml, 'Spacer Break'), 'Expected spacer rows to stay out of final paperwork.');
+assert_true(!str_contains($exportHtml, 'col-summary-notes'), 'Expected revision summary export to omit the notes column.');
+assert_true(str_contains($exportHtml, 'Pull 10/02/26'), 'Expected equipment breakdown notes to include item-specific pull dates in mm/dd/yy format.');
+assert_true(str_contains($exportHtml, 'Return 10/16/26'), 'Expected equipment breakdown notes to include item-specific return dates in mm/dd/yy format.');
+assert_true(str_contains($exportHtml, 'Latest revision should clone from here.'), 'Expected order or revision line notes to print on the breakdown paperwork.');
+assert_true((bool) preg_match('/<li>Show note override one<\/li>.*?<li>Show note override two<\/li>/s', $notesSectionHtml), 'Expected the notes page to use show-level notes when present.');
+assert_true(!str_contains($notesSectionHtml, 'Default note one'), 'Expected show-level notes to override the global default notes.');
+assert_true(!str_contains($notesSectionHtml, 'Latest revision should clone from here.'), 'Expected line-item notes to stay off the notes page.');
+assert_true(!str_contains($notesSectionHtml, 'Changed without an explicit action.'), 'Expected changed line-item notes to stay off the notes page.');
+assert_true(!str_contains($notesSectionHtml, 'Blue clip light line note should print on notes page.'), 'Expected note-only line-item notes to stay off the notes page.');
+assert_true(!str_contains($exportHtml, 'Profile moving light'), 'Expected settings-only item note content to stay out of the paperwork notes section.');
+assert_true(!str_contains($exportHtml, 'Late note'), 'Expected default inventory notes to stay out of the paperwork notes section.');
+assert_true(!str_contains($exportHtml, 'Workbox detail should stay hidden'), 'Expected workbox-style inventory default notes to stay out of the paperwork notes section.');
+assert_true(str_contains($exportHtml, '<p class="cover-show-title">Revision Clone Test</p>'), 'Expected the cover page to show the title above the cover image area when enabled.');
+assert_true(str_contains($exportHtml, '<p class="cover-venue-name">Mainstage</p>'), 'Expected the cover page to show the theatre name on its own line.');
+assert_true(str_contains($exportHtml, '<p class="cover-venue-address">123 Theatre Way</p>'), 'Expected the cover page to show the theatre address on a separate line.');
+assert_true(str_contains($exportHtml, 'LIGHTING SHOP ORDER'), 'Expected the cover page to label the paperwork as a lighting shop order.');
+assert_true(str_contains($exportHtml, '&gt;&gt; REVISION 1.1 - 09/15/2026 &lt;&lt;'), 'Expected the cover page to highlight the current revision with arrows and a mm/dd/yyyy date.');
+assert_true(str_contains($exportHtml, 'INITIAL ORDER - 09/01/2026'), 'Expected the cover page to list past revision dates in mm/dd/yyyy format.');
+assert_true(str_contains($exportHtml, '<p class="details-page-heading">CREW &amp; NOTES</p>'), 'Expected the second paperwork page to contain the crew and notes section.');
+assert_true(str_contains($exportHtml, '09/20/2026'), 'Expected show schedule dates to use mm/dd/yyyy formatting.');
+assert_true(str_contains($exportHtml, 'margin-bottom: 0.730in;'), 'Expected the cover title-to-revision spacing to use the saved layout setting.');
+assert_true(str_contains($exportHtml, '.notes-section {') && str_contains($exportHtml, 'margin-top: 0.456in;'), 'Expected notes spacing to use the show-level layout setting.');
+assert_true(str_contains($exportHtml, 'line-height: 1.55;'), 'Expected the cover page to add more vertical space between lines.');
+assert_true(str_contains($exportHtml, 'cover-footer-logo') && str_contains($exportHtml, 'footer-logo.png'), 'Expected the cover page footer to support a centered personal logo.');
+assert_true(str_contains($exportHtml, 'Prepared by: Show Override Person'), 'Expected the cover page footer to use the show-level prepared-by name.');
+assert_true(!str_contains($exportHtml, 'Prepared by: Caleb Tester'), 'Expected the global prepared-by default to be overridden per show.');
+assert_true(str_contains($exportHtml, '.cover-footer-logo {') && str_contains($exportHtml, 'justify-content: center;'), 'Expected the cover footer logo wrapper to center the logo.');
+assert_true(str_contains($exportHtml, 'show-footer-logo.png'), 'Expected the cover page footer to use the show-level logo override.');
+assert_true(str_contains($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>'), 'Expected revision summary heading without the revision code.');
+assert_true(substr_count($exportHtml, '<p class="page-heading">REVISION SUMMARY</p>') >= 2, 'Expected long revision summaries to spill onto as many additional pages as needed.');
+assert_true(str_contains($exportHtml, '<p class="page-heading">LIGHTING EQUIPMENT BREAKDOWN</p>'), 'Expected equipment breakdown heading to include the show domain without the revision code.');
+assert_true(str_contains($exportHtml, 'Only lines with changed counts or explicit revision actions are listed here.'), 'Expected revision summary copy to explain the changed-lines filter.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="col-total">PREV\.<\/td>.*?<td class="col-total">TOTAL<\/td>.*?<td class="col-action">ACTION<\/td>.*?<td class="col-notes">NOTES<\/td>/s', $exportHtml), 'Expected revision summary to use previous total, total, action, and notes columns.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">SolaFrame 3000<\/td>.*?<td class="description-cell">Fixtures<\/td>.*?<td class="total-cell">8<\/td>.*?<span class="delta delta-positive">\(\+1\)<\/span>.*?<td class="action-cell">EXCHANGE<\/td>.*?Latest revision should clone from here\./s', $exportHtml), 'Expected revision summary to show category, previous total, total deltas, explicit action, and notes in separate columns.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<td class="item-cell">Late Added Feeder<\/td>.*?<td class="action-cell">CHANGE<\/td>.*?Changed without an explicit action\./s', $exportHtml), 'Expected revision summary rows without an explicit action to display CHANGE.');
+assert_true((bool) preg_match('/<p class="page-heading">REVISION SUMMARY<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected revision summary to include category headers followed by repeated table headers.');
+assert_true(str_contains($exportHtml, 'table.word-table.revision-summary-table'), 'Expected the revision summary table to have its own centered table styling.');
+assert_true(str_contains($exportHtml, '.delta-positive { color: #000; }'), 'Expected export delta styling to stay black.');
+assert_true((bool) preg_match('/>\s*9\s*<span class="delta delta-positive">\(\+1\)<\/span>/', $exportHtml), 'Expected equipment breakdown totals to show total-quantity deltas in black text.');
+assert_true(str_contains($exportHtml, 'size: Letter portrait;'), 'Expected export stylesheet to force letter-size pages.');
+assert_true(export_row_style(0, $nextRevision, ['is_spacer' => 0], ['action' => ''], '#BBBBBB') === 'background:#BBBBBB;', 'Expected export zebra striping to use the configured gray.');
+assert_true(!str_contains($exportHtml, 'Manager Contact'), 'Expected export cover to remove the extra shop info box above the show title.');
+assert_true(substr_count($exportHtml, '<p class="page-heading">LIGHTING EQUIPMENT BREAKDOWN</p>') >= 3, 'Expected long equipment breakdowns to spill onto as many additional pages as needed.');
+assert_true(str_contains($exportHtml, 'Paged Fixture 72'), 'Expected the export to include later line items instead of stopping early.');
+assert_true((bool) preg_match('/<p class="page-heading">LIGHTING EQUIPMENT BREAKDOWN<\/p>.*?<tr class="category-header-row">\s*<td colspan="7">Fixtures<\/td>.*?<tr class="category-column-header-row">\s*<td class="col-line">LINE<\/td>/s', $exportHtml), 'Expected equipment breakdown to include category header rows followed by repeated table headers.');
+assert_true(str_contains($exportHtml, '<tr class="category-gap-row"><td colspan="7"></td></tr>'), 'Expected export tables to include spacing rows between categories.');
+assert_true(substr_count($exportHtml, 'class="page-header-bar"') >= 3, 'Expected non-cover export pages to include the old top header block.');
+assert_true(str_contains($exportHtml, '<strong>Page</strong> 2 of '), 'Expected page headers to include page numbering on non-cover pages.');
+assert_true(str_contains($exportHtml, '<strong>Revision</strong> 1.1'), 'Expected page headers to include the current revision.');
+assert_true(str_contains($exportHtml, 'background: #ABCDEF;'), 'Expected export header rows to use the saved header color.');
+assert_true(str_contains($exportHtml, 'background: #FEDCBA;'), 'Expected export category rows to use the saved category color.');
+assert_true(str_contains($exportHtml, 'width: 2.500%;'), 'Expected export line-number column width to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'table.word-table.revision-summary-table {') && str_contains($exportHtml, 'width: 91.5%;'), 'Expected revision summary table width to use its dedicated layout setting.');
+assert_true((bool) preg_match('/<table class="word-table equipment-table revision-summary-table">.*?<colgroup>.*?<col style="width: 3\.500%;">.*?<col style="width: 38\.500%;">.*?<col style="width: 30\.500%;">.*?<col style="width: 6\.500%;">.*?<col style="width: 7\.500%;">.*?<col style="width: 8\.500%;">.*?<col style="width: 11\.500%;">/s', $exportHtml), 'Expected revision summary markup to include dedicated configured column widths for every summary column.');
+assert_true((bool) preg_match('/<table class="word-table equipment-table">.*?<colgroup>.*?<col style="width: 2\.500%;">.*?<col style="width: 45\.000%;">.*?<col style="width: 23\.000%;">.*?<col style="width: 5\.000%;">.*?<col style="width: 5\.000%;">.*?<col style="width: 6\.000%;">.*?<col style="width: 12\.000%;">/s', $exportHtml), 'Expected equipment breakdown markup to include explicit configured column widths.');
+assert_true(str_contains($exportHtml, 'font-size: 5.75pt;'), 'Expected line-number font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 8.25pt;'), 'Expected item font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 6.60pt;'), 'Expected description font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 7.10pt;'), 'Expected used font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 7.20pt;'), 'Expected spare font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 7.80pt;'), 'Expected total font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 8.60pt;'), 'Expected action font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'font-size: 6.40pt;'), 'Expected notes font size to use the saved layout setting.');
+assert_true(str_contains($exportHtml, 'table.word-table thead tr {') && str_contains($exportHtml, 'height: 0.280in;'), 'Expected export header rows to apply the saved height at the row level.');
+assert_true(str_contains($exportHtml, 'height: 0.280in;'), 'Expected export header rows to use the saved header row height.');
+assert_true(str_contains($exportHtml, '.category-header-row {') && str_contains($exportHtml, 'height: 0.360in;'), 'Expected category rows to apply the saved height at the row level.');
+assert_true(str_contains($exportHtml, 'height: 0.360in;'), 'Expected export category rows to use the saved category row height.');
+assert_true((bool) preg_match('/table\\.word-table tbody tr:not\\(\\.category-gap-row\\):not\\(\\.category-header-row\\):not\\(\\.category-column-header-row\\) td \\{[^}]*line-height: 1\\.10;/s', $exportHtml), 'Expected normal row line height to be applied only to non-header, non-category rows.');
+assert_true(!(bool) preg_match('/table\\.word-table\\.equipment-table \\{[^}]*line-height:/s', $exportHtml), 'Expected table-level line height to stay off the whole equipment table so header/category line heights remain separate.');
+assert_true(str_contains($exportHtml, 'padding: 0.222in 0 0;'), 'Expected category spacing above each section to use the saved layout setting.');
+assert_true((bool) preg_match('/<section class="page cover-page">.*?<div class="footer cover-footer">.*?Prepared by: Show Override Person(?!.*?<span>Prepared by: Show Override Person<\/span>).*?<\/div>/s', $exportHtml), 'Expected the cover footer to show the show-level prepared-by name only once.');
+assert_true(substr_count($exportHtml, 'Prepared by: Show Override Person') >= 3, 'Expected the show-level prepared-by name to be used across paperwork footers.');
+$coverSectionEnd = strpos($exportHtml, '</section>');
+$coverSection = $coverSectionEnd === false ? $exportHtml : substr($exportHtml, 0, $coverSectionEnd);
+assert_true(!str_contains($coverSection, 'class="page-header-bar"'), 'Expected the cover page to omit the restored paperwork header.');
+$syntheticLayout = export_layout_settings();
+$syntheticLayout['layout.equipment_min_rows_per_page'] = '4';
+$syntheticLayout['layout.equipment_max_rows_per_page'] = '2';
+$syntheticRows = [];
+for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
+    $syntheticRows[] = [
+        'category' => 'Fixtures',
+        'item' => ['name' => 'Synthetic Item ' . $syntheticIndex, 'default_note' => ''],
+        'line' => ['line_note' => '', 'pickup_date' => null, 'return_date' => null],
+    ];
+}
+$syntheticPages = export_equipment_pages($syntheticRows, $syntheticLayout);
+assert_true(count($syntheticPages) === 3, 'Expected configured max rows per page to cap equipment pagination.');
+assert_true(count($syntheticPages[0]) === 2 && count($syntheticPages[1]) === 2 && count($syntheticPages[2]) === 1, 'Expected synthetic page chunking to preserve row limits.');
+$pageResetStyles = [];
+foreach ($syntheticPages as $pageRows) {
+    foreach ($pageRows as $pageRowIndex => $pageRow) {
+        $pageResetStyles[] = export_row_style($pageRowIndex, $nextRevision, ['is_spacer' => 0], ['action' => ''], '#BBBBBB');
+    }
+}
+assert_true($pageResetStyles === ['background:#BBBBBB;', 'background:#FFFFFF;', 'background:#BBBBBB;', 'background:#FFFFFF;', 'background:#BBBBBB;'], 'Expected each equipment page to restart row striping with gray then white.');
+$syntheticMinOnlyLayout = export_layout_settings();
+$syntheticMinOnlyLayout['layout.equipment_min_rows_per_page'] = '4';
+$syntheticMinOnlyLayout['layout.equipment_max_rows_per_page'] = '0';
+$tallSyntheticRows = [];
+for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
+    $tallSyntheticRows[] = [
+        'category' => 'Very Long Category Label ' . str_repeat('Alpha ', 30),
+        'item' => ['name' => 'Tall Synthetic Item ' . $syntheticIndex, 'default_note' => ''],
+        'line' => ['line_note' => str_repeat('This is a very long export note to force wrapping. ', 20), 'pickup_date' => null, 'return_date' => null],
+    ];
+}
+$syntheticAutoPages = export_equipment_pages($tallSyntheticRows, export_layout_settings());
+$syntheticMinPages = export_equipment_pages($tallSyntheticRows, $syntheticMinOnlyLayout);
+assert_true(count($syntheticAutoPages[0]) < 4, 'Expected automatic pagination to break tall rows before four items.');
+assert_true(count($syntheticMinPages[0]) === 4 && count($syntheticMinPages[1]) === 1, 'Expected equipment minimum rows per page to take priority over automatic pagination.');
+$syntheticSummaryLayout = export_layout_settings();
+$syntheticSummaryLayout['layout.revision_summary_min_rows_per_page'] = '4';
+$syntheticSummaryLayout['layout.revision_summary_max_rows_per_page'] = '2';
+$syntheticSummaryRows = [];
+for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
+    $syntheticSummaryRows[] = [
+        'category' => 'Fixtures',
+        'description' => 'Fixtures',
+        'item' => ['id' => $syntheticIndex + 1, 'name' => 'Synthetic Summary Item ' . $syntheticIndex, 'default_note' => ''],
+        'line' => ['total_quantity' => 1, 'action' => 'add', 'line_note' => ''],
+    ];
+}
+$syntheticSummaryPages = export_summary_pages($syntheticSummaryRows, $syntheticSummaryLayout);
+assert_true(count($syntheticSummaryPages) === 3, 'Expected configured max rows per page to cap revision summary pagination.');
+assert_true(count($syntheticSummaryPages[0]) === 2 && count($syntheticSummaryPages[1]) === 2 && count($syntheticSummaryPages[2]) === 1, 'Expected synthetic revision summary page chunking to preserve row limits.');
+$syntheticSummaryMinOnlyLayout = export_layout_settings();
+$syntheticSummaryMinOnlyLayout['layout.revision_summary_min_rows_per_page'] = '4';
+$syntheticSummaryMinOnlyLayout['layout.revision_summary_max_rows_per_page'] = '0';
+$tallSyntheticSummaryRows = [];
+for ($syntheticIndex = 0; $syntheticIndex < 5; $syntheticIndex++) {
+    $tallSyntheticSummaryRows[] = [
+        'category' => 'Very Long Category Label ' . str_repeat('Alpha ', 30),
+        'description' => 'Very Long Description ' . str_repeat('Beta ', 25),
+        'item' => ['id' => $syntheticIndex + 10, 'name' => 'Tall Synthetic Summary Item ' . $syntheticIndex, 'default_note' => ''],
+        'line' => ['total_quantity' => 1, 'action' => 'note', 'line_note' => str_repeat('This is a very long revision summary note to force wrapping. ', 20)],
+    ];
+}
+$syntheticSummaryAutoPages = export_summary_pages($tallSyntheticSummaryRows, export_layout_settings());
+$syntheticSummaryMinPages = export_summary_pages($tallSyntheticSummaryRows, $syntheticSummaryMinOnlyLayout);
+assert_true(count($syntheticSummaryAutoPages[0]) < 4, 'Expected automatic revision summary pagination to break tall rows before four items.');
+assert_true(count($syntheticSummaryMinPages[0]) === 4 && count($syntheticSummaryMinPages[1]) === 1, 'Expected revision summary minimum rows per page to take priority over automatic pagination.');
+
+$thirdRevisionId = create_next_revision($showId);
+$thirdRevision = find_revision($thirdRevisionId);
+assert_true(($thirdRevision['revision_code'] ?? '') === '1.2', 'Expected second follow-up revision code to increment to 1.2.');
+$lineStmt->execute([$thirdRevisionId, $fixtureItemId]);
+$thirdLine = $lineStmt->fetch() ?: [];
+assert_true((int) ($thirdLine['rent_quantity'] ?? 0) === 7, 'Expected later revisions to clone rent quantity from the most recent revision.');
+assert_true((int) ($thirdLine['spare_quantity'] ?? 0) === 2, 'Expected later revisions to clone spare quantity from the most recent revision.');
+assert_true(($thirdLine['action'] ?? '') === '', 'Expected later revisions to reset the latest action marker back to blank.');
+assert_true(($thirdLine['line_note'] ?? '') === 'Latest revision should clone from here.', 'Expected later revisions to clone the latest note.');
+
+$deleteRevisionResult = delete_show_revision($thirdRevisionId);
+assert_true($deleteRevisionResult['ok'] === true, 'Expected deleting a saved revision to succeed.');
+assert_true(find_revision($thirdRevisionId) === null, 'Expected deleted revision to be removed.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM revision_items WHERE revision_id = ' . (int) $thirdRevisionId)->fetchColumn() === 0, 'Expected deleting a revision to remove related revision lines.');
+assert_true(delete_show_revision($initialRevisionId)['ok'] === false, 'Expected initial revision deletion to be blocked.');
+
+$resourceFolderResult = create_resource_folder('Packets');
+assert_true($resourceFolderResult['ok'] === true, 'Expected resource folder creation to succeed.');
+$resourceFolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Packets' AND parent_id IS NULL")->fetchColumn();
+assert_true($resourceFolderId > 0, 'Expected resource folder id.');
+$resourceSubfolderResult = create_resource_folder('Notes', $resourceFolderId);
+assert_true($resourceSubfolderResult['ok'] === true, 'Expected resource subfolder creation to succeed.');
+$resourceSubfolderId = (int) db()->query("SELECT id FROM resource_folders WHERE name = 'Notes' AND parent_id = " . $resourceFolderId)->fetchColumn();
+assert_true($resourceSubfolderId > 0, 'Expected resource subfolder id.');
+$resourceFolders = fetch_resource_folders();
+$draftsFolder = null;
+foreach ($resourceFolders as $folderRow) {
+    if ((int) ($folderRow['id'] ?? 0) === $resourceSubfolderId) {
+        $draftsFolder = $folderRow;
+        break;
+    }
+}
+assert_true(($draftsFolder['full_path'] ?? '') === 'Packets / Notes', 'Expected resource subfolders to report their full path.');
+db()->prepare(
+    'INSERT INTO resources (title, original_name, stored_name, mime_type, file_size, folder_id)
+     VALUES (?, ?, ?, ?, ?, ?)'
+)->execute(['Console Cheat Sheet', 'console.pdf', '20260923000000-abcdefabcdef.pdf', 'application/pdf', 1234, $resourceSubfolderId]);
+$resourceId = (int) db()->lastInsertId();
+$folderResources = fetch_resources($resourceSubfolderId);
+assert_true(count($folderResources) === 1, 'Expected folder-filtered resources to include the inserted PDF.');
+assert_true(($folderResources[0]['folder_name'] ?? '') === 'Notes', 'Expected fetched resource rows to include the immediate folder name.');
+assert_true(($folderResources[0]['folder_path'] ?? '') === 'Packets / Notes', 'Expected fetched resources to include full folder paths.');
+assert_true(delete_resource_folder($resourceFolderId)['ok'] === false, 'Expected parent folder deletion to be blocked while subfolders exist.');
+assert_true(move_resource_to_folder($resourceId, null)['ok'] === true, 'Expected moving a resource back to the root library to succeed.');
+assert_true(delete_resource_folder($resourceSubfolderId)['ok'] === true, 'Expected deleting an empty resource subfolder to succeed.');
+assert_true(delete_resource_folder($resourceFolderId)['ok'] === true, 'Expected deleting an empty resource folder to succeed.');
+
+$uploadFailure = store_resource_upload([
+    'error' => UPLOAD_ERR_CANT_WRITE,
+    'tmp_name' => '',
+    'name' => 'broken.pdf',
+]);
+assert_true($uploadFailure['ok'] === false, 'Expected failed PHP upload errors to be rejected.');
+assert_true(($uploadFailure['message'] ?? '') === 'Choose a PDF or image file to upload.', 'Expected failed PHP upload errors to surface the missing upload warning.');
+
+$createRuleResult = save_rule([
+    'trigger_item_id' => $fixtureItemId,
+    'trigger_quantity' => 2,
+    'required_item_id' => $adapterItemId,
+    'required_quantity' => 3,
+    'note' => 'Initial rule note',
+]);
+assert_true($createRuleResult['ok'] === true, 'Expected rule creation to succeed.');
+$ruleId = (int) db()->query('SELECT id FROM system_rules ORDER BY id DESC LIMIT 1')->fetchColumn();
+assert_true($ruleId > 0, 'Expected created rule id.');
+
+$blockingWarnings = revision_validation_warnings([
+    $fixtureItemId => [
+        'rent_quantity' => 6,
+        'spare_quantity' => 7,
+        'action' => 'add',
+    ],
+    $adapterItemId => [
+        'rent_quantity' => 3,
+        'spare_quantity' => 0,
+        'action' => 'add',
+    ],
+]);
+assert_true(count($blockingWarnings) === 2, 'Expected stock and rule warnings to block invalid revision saves.');
+assert_true($blockingWarnings[0]['type'] === 'stock', 'Expected stock warning to be reported first.');
+assert_true($blockingWarnings[1]['type'] === 'rule', 'Expected missing required rule item warning to be reported.');
+
+$updateRuleResult = save_rule([
+    'rule_id' => $ruleId,
+    'trigger_item_id' => $fixtureItemId,
+    'trigger_quantity' => 4,
+    'required_item_id' => $adapterItemId,
+    'required_quantity' => 5,
+    'note' => 'Updated rule note',
+]);
+assert_true($updateRuleResult['ok'] === true, 'Expected rule update to succeed.');
+$ruleStmt = db()->prepare('SELECT trigger_quantity, required_quantity, note FROM system_rules WHERE id = ?');
+$ruleStmt->execute([$ruleId]);
+$updatedRule = $ruleStmt->fetch() ?: [];
+assert_true((int) ($updatedRule['trigger_quantity'] ?? 0) === 4, 'Expected updated rule trigger quantity.');
+assert_true((int) ($updatedRule['required_quantity'] ?? 0) === 5, 'Expected updated rule required quantity.');
+assert_true(($updatedRule['note'] ?? '') === 'Updated rule note', 'Expected updated rule note.');
+assert_true(save_rule(['trigger_quantity' => 1, 'required_quantity' => 1])['ok'] === false, 'Expected missing rule item ids to be rejected.');
+assert_true(save_rule([
+    'trigger_item_id' => 999999,
+    'trigger_quantity' => 1,
+    'required_item_id' => $adapterItemId,
+    'required_quantity' => 1,
+])['ok'] === false, 'Expected nonexistent trigger items to be rejected.');
+assert_true(save_rule([
+    'trigger_item_id' => $fixtureItemId,
+    'trigger_quantity' => 1,
+    'required_item_id' => 999999,
+    'required_quantity' => 1,
+])['ok'] === false, 'Expected nonexistent required items to be rejected.');
+assert_true(save_rule([
+    'trigger_item_id' => $fixtureItemId,
+    'trigger_quantity' => 1,
+    'required_item_id' => $soundMicItemId,
+    'required_quantity' => 1,
+])['ok'] === false, 'Expected cross-domain rules to be rejected.');
+$deactivateStmt = db()->prepare('UPDATE inventory_items SET is_active = 0 WHERE id = ?');
+$deactivateStmt->execute([$adapterItemId]);
+assert_true(save_rule([
+    'trigger_item_id' => $fixtureItemId,
+    'trigger_quantity' => 1,
+    'required_item_id' => $adapterItemId,
+    'required_quantity' => 1,
+])['ok'] === false, 'Expected inactive required items to be rejected.');
+$reactivateStmt = db()->prepare('UPDATE inventory_items SET is_active = 1 WHERE id = ?');
+$reactivateStmt->execute([$adapterItemId]);
+
+$deleteRuleResult = delete_rule($ruleId);
+assert_true($deleteRuleResult['ok'] === true, 'Expected rule delete to succeed.');
+$ruleStmt->execute([$ruleId]);
+assert_true($ruleStmt->fetch() === false, 'Expected deleted rule to be removed from storage.');
+
+$bootstrapAdminResult = bootstrap_admin_user([
+    'display_name' => 'Admin Owner',
+    'email' => 'admin-owner@example.com',
+    'password' => 'strong-password',
+    'password_confirmation' => 'strong-password',
+    'concentration' => 'lighting',
+]);
+assert_true($bootstrapAdminResult['ok'] === true, 'Expected bootstrap admin creation to succeed in ownership tests.');
+$adminUser = current_user();
+$adminShowResult = save_show_record([
+    'show_name' => 'Admin Owned Show',
+    'concentration' => 'lighting',
+    'theatre_name' => 'Admin Theatre',
+    'shop_name' => 'Admin Shop',
+    'ld_name' => 'Admin LD',
+    'ld_email' => 'admin-ld@example.com',
+    'ld_phone' => '606-606-6060',
+    'assistant_ld_name' => 'Admin ALD',
+    'assistant_ld_email' => 'admin-ald@example.com',
+    'assistant_ld_phone' => '707-707-7070',
+    'production_electrician_name' => 'Admin PE',
+    'production_electrician_email' => 'admin-pe@example.com',
+    'production_electrician_phone' => '808-808-8080',
+    'shop_manager_name' => 'Admin SM',
+    'shop_manager_email' => 'admin-sm@example.com',
+    'shop_manager_phone' => '909-909-9090',
+    'assistant_shop_manager_name' => 'Admin ASM',
+    'assistant_shop_manager_email' => 'admin-asm@example.com',
+    'assistant_shop_manager_phone' => '010-010-0101',
+]);
+assert_true($adminShowResult['errors'] === [], 'Expected admin-owned show creation to succeed.');
+assert_true((int) ($adminShowResult['show']['owner_user_id'] ?? 0) === (int) ($adminUser['id'] ?? 0), 'Expected admin-created shows to default to the current admin owner when no explicit owner is provided.');
+$userInsert = db()->prepare('
+    INSERT INTO users (display_name, email, password_hash, role, concentration, must_change_password, avatar_seed, is_active, created_by_user_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 0, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+');
+$userInsert->execute([
+    'Sound User',
+    'sound-user@example.com',
+    password_hash('sound-password', PASSWORD_DEFAULT),
+    'user',
+    'sound',
+    'sound-user-seed',
+    (int) ($adminUser['id'] ?? 0),
+]);
+$soundUser = find_user_by_email('sound-user@example.com');
+assert_true(!empty($soundUser), 'Expected sound-domain user to be created for ownership tests.');
+
+$_SESSION['user_id'] = (int) $soundUser['id'];
+$soundShowResult = save_show_record([
+    'show_name' => 'Sound Shop Order',
+    'concentration' => 'sound',
+    'theatre_name' => 'Soundstage',
+    'shop_name' => 'Audio Shop',
+    'ld_name' => 'Audio LD',
+    'ld_email' => 'audio-ld@example.com',
+    'ld_phone' => '101-101-1010',
+    'assistant_ld_name' => 'Audio ALD',
+    'assistant_ld_email' => 'audio-ald@example.com',
+    'assistant_ld_phone' => '202-202-2020',
+    'production_electrician_name' => 'Audio PE',
+    'production_electrician_email' => 'audio-pe@example.com',
+    'production_electrician_phone' => '303-303-3030',
+    'shop_manager_name' => 'Audio SM',
+    'shop_manager_email' => 'audio-sm@example.com',
+    'shop_manager_phone' => '404-404-4040',
+    'assistant_shop_manager_name' => 'Audio ASM',
+    'assistant_shop_manager_email' => 'audio-asm@example.com',
+    'assistant_shop_manager_phone' => '505-505-5050',
+]);
+assert_true($soundShowResult['errors'] === [], 'Expected sound-domain show creation to succeed for a non-admin owner.');
+$soundShowId = (int) ($soundShowResult['show']['id'] ?? 0);
+assert_true($soundShowId > 0, 'Expected sound-domain show to be created.');
+assert_true((int) ($soundShowResult['show']['owner_user_id'] ?? 0) === (int) $soundUser['id'], 'Expected non-admin show saves to assign ownership to the current user.');
+$ownedShows = list_shows();
+assert_true(count($ownedShows) === 1 && ($ownedShows[0]['show_name'] ?? '') === 'Sound Shop Order', 'Expected non-admin show listing to return only the current user\'s shows.');
+$soundRevisionId = create_initial_revision($soundShowId);
+$soundRevisionCatalog = catalog_for_revision($soundRevisionId);
+$soundRevisionItems = [];
+foreach ($soundRevisionCatalog as $category) {
+    foreach ($category['items'] as $item) {
+        $soundRevisionItems[] = (string) ($item['name'] ?? '');
+    }
+}
+assert_true(in_array('Wireless Vocal Mic', $soundRevisionItems, true), 'Expected sound-domain revisions to include sound inventory.');
+assert_true(!in_array('SolaFrame 3000', $soundRevisionItems, true), 'Expected sound-domain revisions to exclude lighting inventory.');
+
+$_SESSION['user_id'] = (int) $adminUser['id'];
+$adminShows = list_shows();
+assert_true(count($adminShows) >= 2, 'Expected admins to see every show after ownership scoping is enabled.');
+
+$layoutDefaults = export_layout_settings();
+assert_true(array_key_exists('layout.organization_text', $layoutDefaults), 'Expected export layout defaults to include organization text.');
+assert_true(array_key_exists('layout.export_notes', $layoutDefaults), 'Expected export layout defaults to include export notes.');
+assert_true(array_key_exists('layout.equipment_table_width', $layoutDefaults), 'Expected export layout defaults to include equipment table sizing.');
+assert_true(array_key_exists('layout.equipment_min_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment min rows per page.');
+assert_true(array_key_exists('layout.equipment_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include equipment max rows per page.');
+assert_true(array_key_exists('layout.revision_summary_table_width', $layoutDefaults), 'Expected export layout defaults to include revision summary table width.');
+assert_true(array_key_exists('layout.revision_summary_min_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include revision summary min rows per page.');
+assert_true(array_key_exists('layout.revision_summary_max_rows_per_page', $layoutDefaults), 'Expected export layout defaults to include revision summary max rows per page.');
+assert_true(array_key_exists('layout.revision_summary_col_line', $layoutDefaults), 'Expected export layout defaults to include revision summary line-number width.');
+assert_true(array_key_exists('layout.revision_summary_col_item', $layoutDefaults), 'Expected export layout defaults to include revision summary item width.');
+assert_true(array_key_exists('layout.revision_summary_col_description', $layoutDefaults), 'Expected export layout defaults to include revision summary description width.');
+assert_true(array_key_exists('layout.revision_summary_col_previous_total', $layoutDefaults), 'Expected export layout defaults to include revision summary previous-total width.');
+assert_true(array_key_exists('layout.revision_summary_col_total', $layoutDefaults), 'Expected export layout defaults to include revision summary total width.');
+assert_true(array_key_exists('layout.revision_summary_col_action', $layoutDefaults), 'Expected export layout defaults to include revision summary action width.');
+assert_true(array_key_exists('layout.revision_summary_col_notes', $layoutDefaults), 'Expected export layout defaults to include revision summary notes width.');
+assert_true(array_key_exists('layout.equipment_zebra_gray', $layoutDefaults), 'Expected export layout defaults to include equipment zebra gray.');
+assert_true(array_key_exists('layout.equipment_line_height', $layoutDefaults), 'Expected export layout defaults to include equipment line height.');
+assert_true(array_key_exists('layout.equipment_col_line', $layoutDefaults), 'Expected export layout defaults to include line-number width.');
+assert_true(array_key_exists('layout.equipment_font_item', $layoutDefaults), 'Expected export layout defaults to include per-column font sizes.');
+assert_true(!array_key_exists('layout.equipment_header_line_height', $layoutDefaults), 'Expected export layout defaults to stop exposing the old header line-height setting.');
+assert_true(!array_key_exists('layout.equipment_category_line_height', $layoutDefaults), 'Expected export layout defaults to stop exposing the old category line-height setting.');
+save_export_layout([
+    'header_text' => 'Custom Header',
+    'organization_text' => 'Top Right Copy',
+    'footer_text' => 'Custom Footer',
+    'export_notes' => "One\nTwo",
+    'show_page_numbers' => '1',
+    'show_revision_summary' => '0',
+    'equipment_table_width' => '132.40',
+    'equipment_min_rows_per_page' => '111',
+    'equipment_max_rows_per_page' => '222',
+    'revision_summary_table_width' => '93.25',
+    'revision_summary_min_rows_per_page' => '333',
+    'revision_summary_max_rows_per_page' => '444',
+    'revision_summary_col_line' => '12.5',
+    'revision_summary_col_item' => '55.5',
+    'revision_summary_col_description' => '34.4',
+    'revision_summary_col_previous_total' => '11.1',
+    'revision_summary_col_total' => '18.3',
+    'revision_summary_col_action' => '16.2',
+    'revision_summary_col_notes' => '22.1',
+    'equipment_zebra_gray' => '#BBBBBB',
+    'equipment_row_padding' => '0.123',
+    'equipment_header_row_padding' => '1.25',
+    'equipment_category_row_padding' => '1.75',
+    'equipment_category_gap' => '2.5',
+    'equipment_font_size' => '22.8',
+    'equipment_line_height' => '4.6',
+    'equipment_col_line' => '18.5',
+    'equipment_col_item' => '88',
+    'equipment_col_description' => '44',
+    'equipment_col_used' => '17',
+    'equipment_col_spare' => '19',
+    'equipment_col_total' => '21',
+    'equipment_col_notes' => '33',
+    'equipment_font_line' => '24.1',
+    'equipment_font_item' => '26.10',
+    'equipment_font_description' => '27.9',
+    'equipment_font_used' => '17.4',
+    'equipment_font_spare' => '18.3',
+    'equipment_font_total' => '19.2',
+    'equipment_font_action' => '20.1',
+    'equipment_font_notes' => '16.8',
+]);
+$savedLayout = export_layout_settings();
+assert_true(($savedLayout['layout.organization_text'] ?? '') === 'Top Right Copy', 'Expected organization text to persist in export layout settings.');
+assert_true(($savedLayout['layout.export_notes'] ?? '') === "One\nTwo", 'Expected export notes to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_table_width'] ?? '') === '132.40', 'Expected equipment table width to persist in export layout settings without reformatting.');
+assert_true(($savedLayout['layout.equipment_min_rows_per_page'] ?? '') === '111', 'Expected equipment min rows per page to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.equipment_max_rows_per_page'] ?? '') === '222', 'Expected equipment max rows per page to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_table_width'] ?? '') === '93.25', 'Expected revision summary table width to persist in export layout settings without reformatting.');
+assert_true(($savedLayout['layout.revision_summary_min_rows_per_page'] ?? '') === '333', 'Expected revision summary min rows per page to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_max_rows_per_page'] ?? '') === '444', 'Expected revision summary max rows per page to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_line'] ?? '') === '12.5', 'Expected revision summary line-number width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_item'] ?? '') === '55.5', 'Expected revision summary item width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_description'] ?? '') === '34.4', 'Expected revision summary description width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_previous_total'] ?? '') === '11.1', 'Expected revision summary previous-total width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_total'] ?? '') === '18.3', 'Expected revision summary total width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_action'] ?? '') === '16.2', 'Expected revision summary action width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.revision_summary_col_notes'] ?? '') === '22.1', 'Expected revision summary notes width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.equipment_zebra_gray'] ?? '') === '#BBBBBB', 'Expected equipment zebra gray to persist in export layout settings.');
+assert_true(($savedLayout['layout.equipment_line_height'] ?? '') === '4.6', 'Expected equipment line height to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.equipment_col_line'] ?? '') === '18.5', 'Expected line-number width to persist in export layout settings without limits.');
+assert_true(($savedLayout['layout.equipment_font_item'] ?? '') === '26.10', 'Expected per-column font sizes to persist in export layout settings without reformatting.');
+
+$deleteItemResult = delete_inventory_item($adapterItemId);
+assert_true($deleteItemResult['ok'] === true, 'Expected inventory delete to hard-delete the row.');
+$stmt->execute(['Stagepin to True1 Adapter']);
+assert_true($stmt->fetch() === false, 'Expected deleted inventory item to be removed from storage.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM revision_items WHERE inventory_item_id = ' . (int) $adapterItemId)->fetchColumn() === 0, 'Expected deleted inventory item to remove related revision lines.');
+
+$fixtureMetaStmt = db()->prepare('SELECT category_id, sort_order FROM inventory_items WHERE id = ?');
+$fixtureMetaStmt->execute([$fixtureItemId]);
+$fixtureMeta = $fixtureMetaStmt->fetch() ?: ['category_id' => 0, 'sort_order' => 0];
+$originalFixtureSortOrder = (int) ($fixtureMeta['sort_order'] ?? 0);
+$fixtureCategoryId = (int) ($fixtureMeta['category_id'] ?? 0);
+
+$spacerAboveResult = create_spacer_near_inventory_item($fixtureItemId, 'above');
+assert_true($spacerAboveResult['ok'] === true, 'Expected spacer-above action to succeed.');
+$spacerLookup = db()->prepare('SELECT is_spacer FROM inventory_items WHERE category_id = ? AND sort_order = ? ORDER BY id DESC LIMIT 1');
+$spacerLookup->execute([$fixtureCategoryId, $originalFixtureSortOrder]);
+$spacerAbove = $spacerLookup->fetch() ?: [];
+assert_true(($spacerAbove['is_spacer'] ?? 0) == 1, 'Expected spacer-above action to create a spacer row.');
+
+$fixtureMetaStmt->execute([$fixtureItemId]);
+$fixtureMetaAfterAbove = $fixtureMetaStmt->fetch() ?: ['sort_order' => 0];
+$fixtureSortOrderAfterAbove = (int) ($fixtureMetaAfterAbove['sort_order'] ?? 0);
+$spacerBelowResult = create_spacer_near_inventory_item($fixtureItemId, 'below');
+assert_true($spacerBelowResult['ok'] === true, 'Expected spacer-below action to succeed.');
+$spacerLookup->execute([$fixtureCategoryId, $fixtureSortOrderAfterAbove + 1]);
+$spacerBelow = $spacerLookup->fetch() ?: [];
+assert_true(($spacerBelow['is_spacer'] ?? 0) == 1, 'Expected spacer-below action to create a spacer row directly after the item.');
+
+$clearCatalogItemId = ensure_catalog_item('Accessories', 'Cable Crate', 8, 'ea');
+$clearInventoryResult = clear_inventory_items();
+assert_true($clearInventoryResult['ok'] === true, 'Expected clear inventory action to succeed.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM inventory_items')->fetchColumn() === 0, 'Expected clear inventory action to remove all items.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM inventory_categories')->fetchColumn() === 0, 'Expected clear inventory action to remove all categories.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM system_rules')->fetchColumn() === 0, 'Expected clear inventory action to cascade-delete related rules.');
+assert_true((int) db()->query('SELECT COUNT(*) FROM revision_items')->fetchColumn() === 0, 'Expected clear inventory action to remove related revision lines.');
+assert_true($clearCatalogItemId > 0, 'Expected clear-inventory test item creation to succeed before clearing.');
+
+$invalidCsv = tempnam(sys_get_temp_dir(), 'pew-invalid-');
+file_put_contents($invalidCsv, "label,qty\nBad Item,1\n");
+$invalidResult = import_inventory_csv($invalidCsv);
+assert_true($invalidResult['ok'] === false, 'Expected invalid CSV import to fail.');
+assert_true(str_contains($invalidResult['message'], 'unsupported headers') || str_contains($invalidResult['message'], 'category and name columns'), 'Expected schema validation message.');
+
+$emptyCsv = tempnam(sys_get_temp_dir(), 'pew-empty-');
+file_put_contents($emptyCsv, '');
+$emptyResult = import_inventory_csv($emptyCsv);
+assert_true($emptyResult['ok'] === false, 'Expected empty CSV import to fail.');
+assert_true(str_contains($emptyResult['message'], 'empty'), 'Expected empty CSV message.');
+
+$emptyPasteResult = import_inventory_csv_text('');
+assert_true($emptyPasteResult['ok'] === false, 'Expected empty pasted CSV import to fail.');
+assert_true(($emptyPasteResult['message'] ?? '') === 'Paste CSV rows to import.', 'Expected empty pasted CSV warning message.');
+
+$missingPathResult = import_inventory_csv('/tmp/does-not-exist-' . uniqid('', true) . '.csv');
+assert_true($missingPathResult['ok'] === false, 'Expected unreadable CSV import to fail.');
+assert_true(str_contains($missingPathResult['message'], 'Unable to read'), 'Expected unreadable-file message.');
+
+@unlink($validCsv);
+@unlink($invalidCsv);
+@unlink($dynamicCsv);
+@unlink($excelCsv);
+@unlink($utf16Csv);
+@unlink($emptyCsv);
+csv_test_cleanup();
+
+echo "csv import tests passed\n";
