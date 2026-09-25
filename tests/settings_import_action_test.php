@@ -585,8 +585,15 @@ $brandingCommand = sprintf(
 exec($brandingCommand, $brandingOutput, $brandingStatus);
 $brandingHeaders = is_file($brandingHeadersPath) ? file_get_contents($brandingHeadersPath) : '';
 $brandingBody = is_file($brandingResponsePath) ? file_get_contents($brandingResponsePath) : '';
-$brandingLogoStoredName = (string) fetch_setting('app.logo_upload_name', '');
-$brandingLogoMimeType = (string) fetch_setting('app.logo_upload_mime_type', '');
+$brandingDb = new PDO('sqlite:' . $testDbPath, null, null, [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+]);
+$brandingSettingStmt = $brandingDb->prepare('SELECT value FROM app_settings WHERE `key` = ? LIMIT 1');
+$brandingSettingStmt->execute(['app.logo_upload_name']);
+$brandingLogoStoredName = (string) ($brandingSettingStmt->fetchColumn() ?: '');
+$brandingSettingStmt->execute(['app.logo_upload_mime_type']);
+$brandingLogoMimeType = (string) ($brandingSettingStmt->fetchColumn() ?: '');
 if ($brandingLogoStoredName !== '') {
     $testPaths[] = upload_dir('branding') . '/' . $brandingLogoStoredName;
 }
