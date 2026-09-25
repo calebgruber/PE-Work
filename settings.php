@@ -10,8 +10,8 @@ require_login();
 $user = current_user();
 $isAdmin = is_admin($user);
 $tab = $_GET['tab'] ?? 'inventory';
-if (!in_array($tab, ['inventory', 'resources', 'rules', 'layout', 'migrations'], true)) {
-    $tab = $isAdmin ? 'inventory' : 'resources';
+if (!in_array($tab, ['branding', 'inventory', 'resources', 'rules', 'layout', 'migrations'], true)) {
+    $tab = $isAdmin ? 'branding' : 'resources';
 }
 if (!$isAdmin && $tab !== 'resources') {
     flash('warning', 'Only admins can access system settings.');
@@ -58,6 +58,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             save_inventory_batch($_POST['items'] ?? []);
             flash('success', 'Inventory updates saved.');
             header('Location: ' . url_for('settings?tab=inventory'));
+            exit;
+        }
+
+        if ($action === 'save_branding') {
+            save_branding_settings($_POST);
+            flash('success', 'Branding settings saved.');
+            header('Location: ' . url_for('settings?tab=branding'));
             exit;
         }
 
@@ -212,6 +219,7 @@ $migrationFiles = migration_files();
 $resourceFolders = schema_ready() ? fetch_resource_folders() : [];
 $resources = schema_ready() ? fetch_resources($selectedResourceFolderId) : [];
 $ruleCatalog = [];
+$branding = branding_settings();
 foreach ($catalog as $category) {
     $filteredItems = array_values(array_filter($category['items'], static fn (array $item): bool => empty($item['is_spacer'])));
     if ($filteredItems) {
@@ -220,24 +228,58 @@ foreach ($catalog as $category) {
     }
 }
 
-ui_head('Settings', '', APP_NAME, 'settings');
-ui_sidebar(APP_NAME, 'settings', nav_items($tab === 'resources' ? 'resources' : 'settings'));
+ui_head('Settings', '', app_display_name(), 'settings');
+ui_sidebar(app_display_name(), 'settings', nav_items($tab === 'resources' ? 'resources' : 'settings'));
 ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage inventory, rules, layout defaults, and database migrations.' : 'Browse shared shop resources.', '');
 ?>
 <div class="page-body">
   <?php ui_flash(); ?>
 
-  <nav class="tabs" aria-label="Settings sections">
+  <ul class="nav nav-bordered mb-4" aria-label="Settings sections">
     <?php if ($isAdmin): ?>
-    <a class="tab<?= $tab === 'inventory' ? ' active' : '' ?>"<?= $tab === 'inventory' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=inventory')) ?>"><span class="material-symbols-outlined">inventory_2</span>Inventory</a>
-    <a class="tab<?= $tab === 'rules' ? ' active' : '' ?>"<?= $tab === 'rules' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=rules')) ?>"><span class="material-symbols-outlined">rule</span>Rules</a>
-    <a class="tab<?= $tab === 'layout' ? ' active' : '' ?>"<?= $tab === 'layout' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=layout')) ?>"><span class="material-symbols-outlined">dashboard_customize</span>Layout</a>
-    <a class="tab<?= $tab === 'migrations' ? ' active' : '' ?>"<?= $tab === 'migrations' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=migrations')) ?>"><span class="material-symbols-outlined">database</span>Migrations</a>
+    <li class="nav-item"><a class="nav-link<?= $tab === 'branding' ? ' active' : '' ?>"<?= $tab === 'branding' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=branding')) ?>"><span class="material-symbols-outlined">branding_watermark</span>Branding</a></li>
+    <li class="nav-item"><a class="nav-link<?= $tab === 'inventory' ? ' active' : '' ?>"<?= $tab === 'inventory' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=inventory')) ?>"><span class="material-symbols-outlined">inventory_2</span>Inventory</a></li>
+    <li class="nav-item"><a class="nav-link<?= $tab === 'rules' ? ' active' : '' ?>"<?= $tab === 'rules' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=rules')) ?>"><span class="material-symbols-outlined">rule</span>Rules</a></li>
+    <li class="nav-item"><a class="nav-link<?= $tab === 'layout' ? ' active' : '' ?>"<?= $tab === 'layout' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=layout')) ?>"><span class="material-symbols-outlined">dashboard_customize</span>Layout</a></li>
+    <li class="nav-item"><a class="nav-link<?= $tab === 'migrations' ? ' active' : '' ?>"<?= $tab === 'migrations' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=migrations')) ?>"><span class="material-symbols-outlined">database</span>Migrations</a></li>
     <?php endif; ?>
-    <a class="tab<?= $tab === 'resources' ? ' active' : '' ?>"<?= $tab === 'resources' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=resources')) ?>"><span class="material-symbols-outlined">folder</span>Resources</a>
-  </nav>
+    <li class="nav-item"><a class="nav-link<?= $tab === 'resources' ? ' active' : '' ?>"<?= $tab === 'resources' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('settings?tab=resources')) ?>"><span class="material-symbols-outlined">folder</span>Resources</a></li>
+  </ul>
 
-  <?php if ($tab === 'inventory'): ?>
+  <?php if ($tab === 'branding'): ?>
+    <?php ui_card_open('branding_watermark', 'Branding'); ?>
+      <form method="post" class="stack">
+        <?= csrf_input() ?>
+        <input type="hidden" name="action" value="save_branding">
+        <div class="card-grid">
+          <div class="form-group">
+            <label for="app_name">Application Name</label>
+            <input class="form-control" id="app_name" name="app_name" value="<?= h($branding['app.name'] ?? app_display_name()) ?>" required>
+            <div class="helper-text">This name appears in the navbar, auth screens, browser titles, and invite emails.</div>
+          </div>
+          <div class="form-group">
+            <label for="app_logo_svg_path">SVG Logo Path</label>
+            <input class="form-control" id="app_logo_svg_path" name="app_logo_svg_path" placeholder="images/backline-logo.svg" value="<?= h($branding['app.logo_svg_path'] ?? '') ?>">
+            <div class="helper-text">Use a local SVG path inside the cPanel directory so it can render in the navbar and auth screens.</div>
+          </div>
+        </div>
+        <?php if (!empty($branding['app.logo_svg_path'])): ?>
+        <div class="summary-block">
+          <strong>Logo Preview</strong>
+          <div class="mt-3">
+            <?= app_logo_markup('brand-settings-logo', app_display_name() . ' logo') ?>
+          </div>
+        </div>
+        <?php endif; ?>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <span class="material-symbols-outlined">save</span>
+            Save Branding
+          </button>
+        </div>
+      </form>
+    <?php ui_card_close(); ?>
+  <?php elseif ($tab === 'inventory'): ?>
     <?php if (!schema_ready()): ?>
       <?php ui_card_open('database', 'Apply Migrations First'); ?>
         <div class="empty-state">
@@ -276,7 +318,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
           <?php foreach ($catalog as $category): ?>
           <section class="inventory-accordion" data-inventory-category data-category-id="<?= h((string) $category['id']) ?>" data-category-name="<?= h(strtolower($category['name'])) ?>">
             <button type="button" class="inventory-accordion-trigger" data-accordion-trigger aria-expanded="false">
-              <span><?= h($category['name']) ?> <span class="badge badge-neutral"><?= h(concentration_label($category['concentration'] ?? 'lighting')) ?></span></span>
+              <span><?= h($category['name']) ?> <?= ui_badge(concentration_label($category['concentration'] ?? 'lighting'), 'neutral') ?></span>
               <span class="material-symbols-outlined">expand_more</span>
             </button>
             <div class="inventory-accordion-panel hidden" data-accordion-panel>
@@ -736,7 +778,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
         <p class="helper-text">Run the starter migration before saving rules.</p>
       <?php else: ?>
         <div class="table-wrap">
-          <table>
+          <table class="table table-vcenter">
             <thead>
               <tr>
                 <th>Domain</th>
@@ -848,12 +890,12 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
       <form method="post">
         <?= csrf_input() ?>
         <input type="hidden" name="action" value="save_layout">
-        <div class="pill-row settings-layout-nav">
-          <a class="tab" href="#layout-general">General</a>
-          <a class="tab" href="#layout-cover">Cover</a>
-          <a class="tab" href="#layout-summary">Revision Summary</a>
-          <a class="tab" href="#layout-equipment">Equipment Breakdown</a>
-        </div>
+        <ul class="nav nav-pills settings-layout-nav">
+          <li class="nav-item"><a class="nav-link" href="#layout-general">General</a></li>
+          <li class="nav-item"><a class="nav-link" href="#layout-cover">Cover</a></li>
+          <li class="nav-item"><a class="nav-link" href="#layout-summary">Revision Summary</a></li>
+          <li class="nav-item"><a class="nav-link" href="#layout-equipment">Equipment Breakdown</a></li>
+        </ul>
 
         <section class="settings-layout-section" id="layout-general">
           <div class="section-label">Default General Paperwork Settings</div>
@@ -876,11 +918,11 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
             <label for="export_notes">Default Important Notes</label>
             <textarea class="form-control" id="export_notes" name="export_notes" rows="8"><?= h($layout['layout.export_notes'] ?? '') ?></textarea>
           </div>
-          <div class="pill-row" style="margin-top:1rem;">
-            <label class="tab"><input type="checkbox" name="show_image" value="1" <?= $layout['layout.show_image'] === '1' ? 'checked' : '' ?>> Show image on exports</label>
-            <label class="tab"><input type="checkbox" name="cover_show_title" value="1" <?= ($layout['layout.cover_show_title'] ?? '1') === '1' ? 'checked' : '' ?>> Show title above cover image</label>
-            <label class="tab"><input type="checkbox" name="show_page_numbers" value="1" <?= $layout['layout.show_page_numbers'] === '1' ? 'checked' : '' ?>> Page X of X</label>
-            <label class="tab"><input type="checkbox" name="show_revision_summary" value="1" <?= $layout['layout.show_revision_summary'] === '1' ? 'checked' : '' ?>> Revision summary block</label>
+          <div class="row g-3" style="margin-top:1rem;">
+            <div class="col-md-6 col-xl-3"><label class="form-check"><input class="form-check-input" type="checkbox" name="show_image" value="1" <?= $layout['layout.show_image'] === '1' ? 'checked' : '' ?>><span class="form-check-label">Show image on exports</span></label></div>
+            <div class="col-md-6 col-xl-3"><label class="form-check"><input class="form-check-input" type="checkbox" name="cover_show_title" value="1" <?= ($layout['layout.cover_show_title'] ?? '1') === '1' ? 'checked' : '' ?>><span class="form-check-label">Show title above cover image</span></label></div>
+            <div class="col-md-6 col-xl-3"><label class="form-check"><input class="form-check-input" type="checkbox" name="show_page_numbers" value="1" <?= $layout['layout.show_page_numbers'] === '1' ? 'checked' : '' ?>><span class="form-check-label">Page X of X</span></label></div>
+            <div class="col-md-6 col-xl-3"><label class="form-check"><input class="form-check-input" type="checkbox" name="show_revision_summary" value="1" <?= $layout['layout.show_revision_summary'] === '1' ? 'checked' : '' ?>><span class="form-check-label">Revision summary block</span></label></div>
           </div>
         </section>
 
@@ -1114,7 +1156,7 @@ ui_page_header($isAdmin ? 'System Settings' : 'Resources', $isAdmin ? 'Manage in
       <?php endif; ?>
 
       <div class="table-wrap" style="margin-top:1rem;">
-        <table>
+        <table class="table table-vcenter">
           <thead>
             <tr>
               <th>Migration</th>

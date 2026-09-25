@@ -57,6 +57,7 @@ function _alert_accent(string $type): array
 
 function ui_head(string $pageTitle, string $appSlug = '', string $appHeading = '', string $headerIcon = 'home'): void
 {
+    $brandName = app_display_name();
     ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -64,7 +65,7 @@ function ui_head(string $pageTitle, string $appSlug = '', string $appHeading = '
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title><?= h($pageTitle) ?> | <?= h(APP_NAME) ?></title>
+  <title><?= h($pageTitle) ?> | <?= h($brandName) ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.5.1/dist/css/tabler.min.css">
@@ -85,23 +86,27 @@ function ui_head(string $pageTitle, string $appSlug = '', string $appHeading = '
 
 function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, string $userLogoutUrl = ''): void
 {
-    _ui_context($appHeading, $headerIcon);
+    $brandName = app_display_name();
+    _ui_context($brandName, $headerIcon);
     $user = current_user();
     $profileUrl = url_for('profile');
     $logoutUrl = $userLogoutUrl !== '' ? $userLogoutUrl : url_for('logout');
+    $brandLogo = app_logo_markup('navbar-brand-image brand-logo-image', $brandName . ' logo');
     ?>
-  <header class="topbar navbar navbar-expand-md d-print-none">
+  <header class="navbar navbar-expand-md d-print-none border-bottom bg-body topbar">
     <div class="container-xl topbar-shell">
-      <div class="topbar-branding">
-        <a href="<?= h(url_for('')) ?>" class="navbar-brand navbar-brand-autodark topbar-app topbar-app-link">
+      <a href="<?= h(url_for('')) ?>" class="navbar-brand navbar-brand-autodark topbar-app topbar-app-link">
+        <?php if ($brandLogo !== ''): ?>
+          <?= $brandLogo ?>
+        <?php else: ?>
           <span class="material-symbols-outlined"><?= h($headerIcon) ?></span>
-          <?= h($appHeading) ?>
-        </a>
-      </div>
-      <nav class="navbar-nav top-nav" aria-label="Primary">
+        <?php endif; ?>
+        <?= h($brandName) ?>
+      </a>
+      <nav class="navbar-nav top-nav ms-md-4" aria-label="Primary">
 <?php foreach ($navItems as $item): ?>
 <?php if (!isset($item['section'])): ?>
-        <a href="<?= h($item['href'] ?? '#') ?>" class="nav-link top-nav-item<?= !empty($item['active']) ? ' active' : '' ?>">
+        <a href="<?= h($item['href'] ?? '#') ?>" class="nav-link top-nav-item<?= !empty($item['active']) ? ' active' : '' ?>"<?= !empty($item['active']) ? ' aria-current="page"' : '' ?>>
           <span class="material-symbols-outlined"><?= h($item['icon'] ?? 'circle') ?></span>
           <?= h($item['label'] ?? '') ?>
         </a>
@@ -109,9 +114,9 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
 <?php endforeach; ?>
       </nav>
 
-      <div class="navbar-nav flex-row topbar-right">
+      <div class="navbar-nav flex-row align-items-center gap-2 topbar-right">
       <?php if ($user): ?>
-        <a href="<?= h($profileUrl) ?>" class="topbar-user" style="text-decoration:none;">
+        <a href="<?= h($profileUrl) ?>" class="nav-link topbar-user text-decoration-none">
           <span class="topbar-avatar">
             <img src="<?= h((string) ($user['avatar_url'] ?? user_avatar_url($user))) ?>" alt="" class="topbar-avatar-image">
           </span>
@@ -120,18 +125,18 @@ function ui_sidebar(string $appHeading, string $headerIcon, array $navItems, str
             <span class="topbar-user-role"><?= h(role_label((string) ($user['role'] ?? 'user'))) ?></span>
           </span>
         </a>
-        <a href="<?= h($profileUrl) ?>" class="topbar-btn" title="Profile" aria-label="Profile">
+        <a href="<?= h($profileUrl) ?>" class="btn btn-icon btn-ghost-secondary" title="Profile" aria-label="Profile">
           <span class="material-symbols-outlined">person</span>
         </a>
         <form method="post" action="<?= h($logoutUrl) ?>" class="topbar-inline-form" data-start-loader>
           <?= csrf_input() ?>
-          <button type="submit" class="topbar-btn" title="Logout" aria-label="Logout">
+          <button type="submit" class="btn btn-icon btn-ghost-secondary" title="Logout" aria-label="Logout">
             <span class="material-symbols-outlined">logout</span>
             <span class="visually-hidden">Logout</span>
           </button>
         </form>
       <?php endif; ?>
-        <button id="theme-toggle" class="topbar-btn" type="button" title="Toggle theme" aria-label="Toggle theme" aria-pressed="false">
+        <button id="theme-toggle" class="btn btn-icon btn-ghost-secondary" type="button" title="Toggle theme" aria-label="Toggle theme" aria-pressed="false">
           <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
         </button>
       </div>
@@ -147,14 +152,14 @@ function ui_page_header(string $title, string $breadcrumb = '', string $extraHtm
 {
     $ctx = _ui_context();
     ?>
-    <div class="page-header">
-      <div>
+    <div class="page-header d-flex flex-wrap align-items-start justify-content-between gap-3">
+      <div class="page-pretitle">
         <?php if ($ctx['heading']): ?>
         <div class="page-app-name">
           <?= h($ctx['heading']) ?>
         </div>
         <?php endif; ?>
-        <h1><?= h($title) ?></h1>
+        <h1 class="page-title"><?= h($title) ?></h1>
         <?php if ($breadcrumb): ?>
         <div class="breadcrumb"><?= h($breadcrumb) ?></div>
         <?php endif; ?>
@@ -247,5 +252,13 @@ function ui_end(): void
 
 function ui_badge(string $text, string $type = 'neutral'): string
 {
-    return '<span class="badge badge-' . h($type) . '">' . h($text) . '</span>';
+    $classMap = [
+        'success' => 'bg-green-lt text-green-fg',
+        'warning' => 'bg-yellow-lt text-yellow-fg',
+        'danger' => 'bg-red-lt text-red-fg',
+        'info' => 'bg-blue-lt text-blue-fg',
+        'neutral' => 'bg-secondary-lt text-secondary-fg',
+    ];
+
+    return '<span class="badge ' . h($classMap[$type] ?? $classMap['neutral']) . '">' . h($text) . '</span>';
 }

@@ -102,7 +102,7 @@ return [
         )',
         'INSERT OR IGNORE INTO app_settings (`key`, value) VALUES
             (\'layout.header_text\', \'Production Electrician Shop Order\'),
-            (\'layout.footer_text\', \'Prepared in PE Work\'),
+            (\'layout.footer_text\', \'Prepared in Backline\'),
             (\'layout.show_image\', \'1\'),
             (\'layout.show_page_numbers\', \'1\'),
             (\'layout.show_revision_summary\', \'1\')',
@@ -207,7 +207,7 @@ return [
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4',
         'INSERT IGNORE INTO app_settings (`key`, value) VALUES
             (\'layout.header_text\', \'Production Electrician Shop Order\'),
-            (\'layout.footer_text\', \'Prepared in PE Work\'),
+            (\'layout.footer_text\', \'Prepared in Backline\'),
             (\'layout.show_image\', \'1\'),
             (\'layout.show_page_numbers\', \'1\'),
             (\'layout.show_revision_summary\', \'1\')',

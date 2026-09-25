@@ -79,10 +79,10 @@ ui_page_header('Shop Order Dashboard', is_admin($user) ? 'Manage every user\'s s
       <div class="stack">
         <?php foreach ($showGroups as $group): ?>
           <?php $owner = $group['user']; ?>
-          <?php ui_card_open('checklist', (string) ($owner['display_name'] ?? 'Unassigned'), '<span class="badge badge-neutral">' . h(concentration_label($owner['concentration'] ?? 'lighting')) . '</span>'); ?>
+          <?php ui_card_open('checklist', (string) ($owner['display_name'] ?? 'Unassigned'), ui_badge(concentration_label($owner['concentration'] ?? 'lighting'), 'neutral')); ?>
             <div class="helper-text" style="margin-bottom:1rem;"><?= h((string) ($owner['email'] ?? '')) ?></div>
             <div class="table-wrap">
-              <table>
+              <table class="table table-vcenter">
                 <thead>
                   <tr>
                     <th>Show</th>
@@ -126,7 +126,7 @@ ui_page_header('Shop Order Dashboard', is_admin($user) ? 'Manage every user\'s s
     <?php ui_card_open('checklist', 'My Shows'); ?>
       <?php if ($shows): ?>
       <div class="table-wrap">
-        <table>
+        <table class="table table-vcenter">
           <thead>
             <tr>
               <th>Show</th>

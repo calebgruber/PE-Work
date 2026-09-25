@@ -33,6 +33,8 @@ if (is_logged_in() && !auth_password_change_required()) {
 
 $error = '';
 $email = trim((string) ($_POST['email'] ?? ''));
+$brandName = app_display_name();
+$brandLogo = app_logo_markup('auth-brand-logo', $brandName . ' logo');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
@@ -56,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>Login | <?= h(APP_NAME) ?></title>
+  <title>Login | <?= h($brandName) ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.5.1/dist/css/tabler.min.css">
@@ -104,7 +106,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="card-body">
           <div class="login-header">
             <span class="material-symbols-outlined logo-icon">login</span>
-            <h1>Sign in to <?= h(APP_NAME) ?></h1>
+            <?php if ($brandLogo !== ''): ?>
+            <div class="mb-3"><?= $brandLogo ?></div>
+            <?php endif; ?>
+            <h1>Sign in to <?= h($brandName) ?></h1>
             <p>Use the invite email address and password issued by an admin.</p>
           </div>
           <div class="login-body">

@@ -107,6 +107,27 @@
   align-items: center;
 }
 
+.brand-logo-image {
+  width: auto;
+  height: 2rem;
+  max-width: 10rem;
+  object-fit: contain;
+}
+
+.auth-brand-logo {
+  width: auto;
+  height: 3rem;
+  max-width: 14rem;
+  object-fit: contain;
+}
+
+.brand-settings-logo {
+  width: auto;
+  height: 3rem;
+  max-width: 18rem;
+  object-fit: contain;
+}
+
 .topbar-app {
   color: var(--text);
   font-size: 0.95rem;

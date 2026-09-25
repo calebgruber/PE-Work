@@ -185,11 +185,11 @@ function render_show_paperwork_form(array $layout): void
             <label for="export_notes">Important Notes</label>
             <textarea class="form-control" id="export_notes" name="export_notes" rows="8"><?= h($layout['layout.export_notes'] ?? '') ?></textarea>
           </div>
-          <div class="pill-row" style="margin-top:1rem;">
-            <label class="tab"><input type="hidden" name="show_image" value="0"><input type="checkbox" name="show_image" value="1" <?= ($layout['layout.show_image'] ?? '1') === '1' ? 'checked' : '' ?>> Show image on exports</label>
-            <label class="tab"><input type="hidden" name="cover_show_title" value="0"><input type="checkbox" name="cover_show_title" value="1" <?= ($layout['layout.cover_show_title'] ?? '1') === '1' ? 'checked' : '' ?>> Show title above cover image</label>
-            <label class="tab"><input type="hidden" name="show_page_numbers" value="0"><input type="checkbox" name="show_page_numbers" value="1" <?= ($layout['layout.show_page_numbers'] ?? '1') === '1' ? 'checked' : '' ?>> Page X of X</label>
-            <label class="tab"><input type="hidden" name="show_revision_summary" value="0"><input type="checkbox" name="show_revision_summary" value="1" <?= ($layout['layout.show_revision_summary'] ?? '1') === '1' ? 'checked' : '' ?>> Revision summary block</label>
+          <div class="row g-3" style="margin-top:1rem;">
+            <div class="col-md-6 col-xl-3"><label class="form-check"><input type="hidden" name="show_image" value="0"><input class="form-check-input" type="checkbox" name="show_image" value="1" <?= ($layout['layout.show_image'] ?? '1') === '1' ? 'checked' : '' ?>><span class="form-check-label">Show image on exports</span></label></div>
+            <div class="col-md-6 col-xl-3"><label class="form-check"><input type="hidden" name="cover_show_title" value="0"><input class="form-check-input" type="checkbox" name="cover_show_title" value="1" <?= ($layout['layout.cover_show_title'] ?? '1') === '1' ? 'checked' : '' ?>><span class="form-check-label">Show title above cover image</span></label></div>
+            <div class="col-md-6 col-xl-3"><label class="form-check"><input type="hidden" name="show_page_numbers" value="0"><input class="form-check-input" type="checkbox" name="show_page_numbers" value="1" <?= ($layout['layout.show_page_numbers'] ?? '1') === '1' ? 'checked' : '' ?>><span class="form-check-label">Page X of X</span></label></div>
+            <div class="col-md-6 col-xl-3"><label class="form-check"><input type="hidden" name="show_revision_summary" value="0"><input class="form-check-input" type="checkbox" name="show_revision_summary" value="1" <?= ($layout['layout.show_revision_summary'] ?? '1') === '1' ? 'checked' : '' ?>><span class="form-check-label">Revision summary block</span></label></div>
           </div>
         </section>
 
@@ -244,7 +244,7 @@ function render_revision_history_table(int $showId, array $revisions, ?int $acti
     }
     ?>
     <div class="table-wrap revision-history-wrap">
-      <table class="revision-history-table">
+      <table class="table table-vcenter revision-history-table">
         <thead>
           <tr>
             <th>Revision</th>
@@ -269,7 +269,7 @@ function render_revision_history_table(int $showId, array $revisions, ?int $acti
             <td>
               <div class="revision-history-code">
                 <strong><?= h(revision_display_code($revision)) ?></strong>
-                <?php if ($isCurrent): ?><span class="badge badge-info">Open</span><?php endif; ?>
+                <?php if ($isCurrent): ?><?= ui_badge('Open', 'info') ?><?php endif; ?>
               </div>
             </td>
             <td><?= ui_badge(revision_stage_label($revision), !empty($revision['is_initial']) ? 'neutral' : 'info') ?></td>
@@ -655,7 +655,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
             </button>
             <div class="inventory-accordion-panel hidden" data-accordion-panel>
               <div class="table-wrap revision-sheet-wrap">
-                <table class="revision-sheet">
+                <table class="table table-vcenter revision-sheet">
                   <thead>
                     <tr>
                       <th>Item</th>
@@ -745,24 +745,12 @@ if ($mode === 'edit' && $showId && $currentRevision) {
       <?php endif; ?>
     <?php ui_card_close(); ?>
   <?php else: ?>
-    <nav class="pill-row workspace-tabs" aria-label="Show workspace sections">
-      <a class="tab<?= $tab === 'info' ? ' active' : '' ?>"<?= $tab === 'info' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=info')) ?>">
-        <span class="material-symbols-outlined">badge</span>
-        Show Information
-      </a>
-      <a class="tab<?= $tab === 'paperwork' ? ' active' : '' ?>"<?= $tab === 'paperwork' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=paperwork')) ?>">
-        <span class="material-symbols-outlined">description</span>
-        Paperwork
-      </a>
-      <a class="tab<?= $tab === 'orders' ? ' active' : '' ?>"<?= $tab === 'orders' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=orders')) ?>">
-        <span class="material-symbols-outlined">assignment</span>
-        Orders
-      </a>
-      <a class="tab<?= $tab === 'revisions' ? ' active' : '' ?>"<?= $tab === 'revisions' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=revisions')) ?>">
-        <span class="material-symbols-outlined">history</span>
-        Revisions
-      </a>
-    </nav>
+    <ul class="nav nav-bordered mb-4 workspace-tabs" aria-label="Show workspace sections">
+      <li class="nav-item"><a class="nav-link<?= $tab === 'info' ? ' active' : '' ?>"<?= $tab === 'info' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=info')) ?>"><span class="material-symbols-outlined">badge</span>Show Information</a></li>
+      <li class="nav-item"><a class="nav-link<?= $tab === 'paperwork' ? ' active' : '' ?>"<?= $tab === 'paperwork' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=paperwork')) ?>"><span class="material-symbols-outlined">description</span>Paperwork</a></li>
+      <li class="nav-item"><a class="nav-link<?= $tab === 'orders' ? ' active' : '' ?>"<?= $tab === 'orders' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=orders')) ?>"><span class="material-symbols-outlined">assignment</span>Orders</a></li>
+      <li class="nav-item"><a class="nav-link<?= $tab === 'revisions' ? ' active' : '' ?>"<?= $tab === 'revisions' ? ' aria-current="page"' : '' ?> href="<?= h(url_for('show?show_id=' . $showId . '&tab=revisions')) ?>"><span class="material-symbols-outlined">history</span>Revisions</a></li>
+    </ul>
 
     <?php if ($tab === 'info'): ?>
       <?php ui_card_open('theater_comedy', 'Show Information'); ?>

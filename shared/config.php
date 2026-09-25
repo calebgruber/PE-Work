@@ -39,7 +39,7 @@ function app_secret_value(): string
     return $secret;
 }
 
-defined('APP_NAME') || define('APP_NAME', getenv('APP_NAME') ?: 'PE Work');
+defined('APP_NAME') || define('APP_NAME', getenv('APP_NAME') ?: 'Backline');
 defined('APP_VERSION') || define('APP_VERSION', '0.1.0');
 defined('APP_TIMEZONE') || define('APP_TIMEZONE', getenv('APP_TIMEZONE') ?: 'America/New_York');
 defined('APP_BASE_URL') || define('APP_BASE_URL', rtrim((string) (getenv('APP_BASE_URL') ?: ''), '/'));

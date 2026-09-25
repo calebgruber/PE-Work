@@ -321,7 +321,7 @@ db()->prepare('UPDATE show_revisions SET revision_date = ? WHERE id = ?')->execu
 save_export_layout([
     'header_text' => 'Production Electrician Shop Order',
     'organization_text' => '',
-    'footer_text' => 'Prepared in PE Work',
+    'footer_text' => 'Prepared in Backline',
     'export_notes' => "Default note one\nDefault note two",
     'cover_show_title' => '1',
     'show_page_numbers' => '1',

@@ -5,6 +5,28 @@ function h(?string $value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+function app_display_name(): string
+{
+    $value = fetch_setting('app.name', APP_NAME);
+    $value = trim((string) $value);
+    return $value !== '' ? $value : APP_NAME;
+}
+
+function app_logo_svg_path(): string
+{
+    return sanitize_local_asset_path(fetch_setting('app.logo_svg_path', '')) ?? '';
+}
+
+function app_logo_markup(string $class = 'app-logo-image', string $alt = ''): string
+{
+    $path = app_logo_svg_path();
+    if ($path === '') {
+        return '';
+    }
+
+    return '<img src="' . h(asset_url($path)) . '" alt="' . h($alt) . '" class="' . h($class) . '">';
+}
+
 function fetch_show_settings_by_prefix(int $showId, string $prefix): array
 {
     if ($showId <= 0 || !table_exists('show_settings')) {
@@ -464,9 +486,10 @@ function send_invite_email(array $user, string $temporaryPassword): array
 {
     $siteUrl = app_site_url();
     $loginUrl = $siteUrl !== '' ? rtrim($siteUrl, '/') . url_for('login') : url_for('login');
-    $subject = APP_NAME . ' account invite';
+    $brandName = app_display_name();
+    $subject = $brandName . ' account invite';
     $bodyLines = [
-        'You have been invited to ' . APP_NAME . '.',
+        'You have been invited to ' . $brandName . '.',
         '',
         'Sign in here: ' . $loginUrl,
         'Email: ' . (string) ($user['email'] ?? ''),
@@ -476,7 +499,7 @@ function send_invite_email(array $user, string $temporaryPassword): array
     ];
     $headers = ['Content-Type: text/plain; charset=UTF-8'];
     if (APP_EMAIL_FROM_ADDRESS !== '') {
-        $fromName = APP_EMAIL_FROM_NAME !== '' ? APP_EMAIL_FROM_NAME : APP_NAME;
+        $fromName = APP_EMAIL_FROM_NAME !== '' ? APP_EMAIL_FROM_NAME : $brandName;
         $headers[] = 'From: ' . sprintf('%s <%s>', str_replace(["\r", "\n"], '', $fromName), str_replace(["\r", "\n"], '', APP_EMAIL_FROM_ADDRESS));
     }
 
@@ -2981,12 +3004,34 @@ function delete_resource(int $resourceId): array
     return ['ok' => true, 'message' => 'Resource removed.'];
 }
 
+function branding_settings_defaults(): array
+{
+    return [
+        'app.name' => APP_NAME,
+        'app.logo_svg_path' => '',
+    ];
+}
+
+function branding_settings(): array
+{
+    return array_merge(branding_settings_defaults(), fetch_settings_by_prefix('app.'));
+}
+
+function save_branding_settings(array $input): void
+{
+    $name = trim((string) ($input['app_name'] ?? APP_NAME));
+    $logoPath = sanitize_local_asset_path((string) ($input['app_logo_svg_path'] ?? '')) ?? '';
+
+    save_setting('app.name', $name !== '' ? $name : APP_NAME);
+    save_setting('app.logo_svg_path', $logoPath);
+}
+
 function export_layout_defaults(): array
 {
     return [
         'layout.header_text' => 'Production Electrician Shop Order',
         'layout.organization_text' => '',
-        'layout.footer_text' => 'Prepared in PE Work',
+        'layout.footer_text' => 'Prepared in Backline',
         'layout.export_notes' => "Unless otherwise noted, all units to come with lamp, c-clamp, safety cable and black color frame.\nAll hardware, perishables, cable lengths and power distribution requirements as per electrician.\nAbsolutely no substitutions without written permission of Designer.\nAny revisions or substitutions must be fully disclosed.\nShop assumes responsibility for any additional materials that are required on site due to rental shop oversight or error.\nAll PAR cans to have interior protective screening.\nColor scrolls to be made and loaded by shop. A list of required colors will be provided.",
         'layout.show_image' => '1',
         'layout.cover_show_title' => '1',
@@ -3126,7 +3171,7 @@ function export_layout_sanitized_values(array $input): array
     return [
         'layout.header_text' => trim((string) ($input['header_text'] ?? 'Production Electrician Shop Order')),
         'layout.organization_text' => trim((string) ($input['organization_text'] ?? '')),
-        'layout.footer_text' => trim((string) ($input['footer_text'] ?? 'Prepared in PE Work')),
+        'layout.footer_text' => trim((string) ($input['footer_text'] ?? 'Prepared in Backline')),
         'layout.export_notes' => trim((string) ($input['export_notes'] ?? '')),
         'layout.show_image' => !empty($input['show_image']) ? '1' : '0',
         'layout.cover_show_title' => !empty($input['cover_show_title']) ? '1' : '0',

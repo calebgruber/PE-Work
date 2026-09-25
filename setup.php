@@ -40,13 +40,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $dbReady = schema_ready();
 $needsBootstrap = $dbReady && auth_tables_ready() && user_bootstrap_required();
 $usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
+$brandName = app_display_name();
+$brandLogo = app_logo_markup('auth-brand-logo', $brandName . ' logo');
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Setup | <?= h(APP_NAME) ?></title>
+  <title>Setup | <?= h($brandName) ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.5.1/dist/css/tabler.min.css">
@@ -94,7 +96,10 @@ $usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
         <div class="card-body">
           <div class="login-header">
             <span class="material-symbols-outlined logo-icon">construction</span>
-            <h1><?= h(APP_NAME) ?> Setup</h1>
+            <?php if ($brandLogo !== ''): ?>
+            <div class="mb-3"><?= $brandLogo ?></div>
+            <?php endif; ?>
+            <h1><?= h($brandName) ?> Setup</h1>
             <p>Apply migrations, keep local config intact, and bootstrap the first admin account.</p>
           </div>
           <div class="login-body">
@@ -185,7 +190,7 @@ $usersReady = $dbReady && auth_tables_ready() && !$needsBootstrap;
       <?php if ($logs): ?>
       <div class="section-label">Migration Results</div>
       <div class="table-wrap">
-        <table>
+        <table class="table table-vcenter">
           <caption>Migration execution results</caption>
           <thead>
             <tr>

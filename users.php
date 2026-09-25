@@ -98,7 +98,7 @@ ui_page_header('Users', 'Invite-only account management for admins.', '');
 
   <?php ui_card_open('group', 'Existing Users'); ?>
     <div class="table-wrap">
-      <table>
+      <table class="table table-vcenter">
         <thead>
           <tr>
             <th>User</th>
