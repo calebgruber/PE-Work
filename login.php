@@ -72,37 +72,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body class="tabler-shell">
 <div class="login-page">
-  <div class="container-xl auth-shell">
-    <section class="auth-intro">
-      <div class="auth-intro-badge">Powered by Tabler</div>
-      <h1>Modern shop orders for every production.</h1>
-      <p>Track shows, revisions, exports, and paperwork from one clean workspace built for theatre crews.</p>
-      <div class="auth-intro-points">
-        <div class="auth-intro-point">
-          <span class="material-symbols-outlined">theater_comedy</span>
-          <div>
-            <strong>Show-based workflow</strong>
-            <span>Create and revise orders per production.</span>
-          </div>
-        </div>
-        <div class="auth-intro-point">
-          <span class="material-symbols-outlined">inventory_2</span>
-          <div>
-            <strong>Inventory-aware</strong>
-            <span>Keep pulls, returns, and spares organized.</span>
-          </div>
-        </div>
-        <div class="auth-intro-point">
-          <span class="material-symbols-outlined">picture_as_pdf</span>
-          <div>
-            <strong>Export ready</strong>
-            <span>Generate polished paperwork for the shop.</span>
-          </div>
-        </div>
-      </div>
-    </section>
+  <div class="container-xl auth-shell auth-shell-compact">
     <section class="auth-panel">
-      <div class="card login-card">
+      <div class="card login-card login-card-compact">
         <div class="card-body">
           <div class="login-header">
             <?php if ($brandLogo === ''): ?>
@@ -115,41 +87,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p>Use the invite email address and password issued by an admin.</p>
           </div>
           <div class="login-body">
-      <?php ui_flash(); ?>
-      <?php if ($error !== ''): ?>
-      <div class="alerts">
-        <div class="alert alert-danger" style="--alert-accent:#ef4444;--alert-accent-rgb:239,68,68;--alert-text-on-solid:#ffffff">
-          <span class="material-symbols-outlined">error</span>
-          <span class="alert-text"><?= h($error) ?></span>
-        </div>
-      </div>
-      <?php endif; ?>
-      <form method="post" class="stack">
-        <?= csrf_input() ?>
-        <input type="hidden" name="return_to" value="<?= h($returnTo) ?>">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input class="form-control" id="email" type="email" name="email" required autofocus value="<?= h($email) ?>">
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input class="form-control" id="password" type="password" name="password" required>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">
-            <span class="material-symbols-outlined">login</span>
-            Sign In
-          </button>
-          <a class="btn btn-ghost" href="<?= h(url_for('setup')) ?>">
-            <span class="material-symbols-outlined">construction</span>
-            Setup
-          </a>
-        </div>
-      </form>
+            <?php ui_flash(); ?>
+            <?php if ($error !== ''): ?>
+            <div class="alerts">
+              <div class="alert alert-danger" style="--alert-accent:#ef4444;--alert-accent-rgb:239,68,68;--alert-text-on-solid:#ffffff">
+                <span class="material-symbols-outlined">error</span>
+                <span class="alert-text"><?= h($error) ?></span>
+              </div>
+            </div>
+            <?php endif; ?>
+            <form method="post" class="stack">
+              <?= csrf_input() ?>
+              <input type="hidden" name="return_to" value="<?= h($returnTo) ?>">
+              <div class="form-group">
+                <label for="email">Email</label>
+                <input class="form-control" id="email" type="email" name="email" required autofocus value="<?= h($email) ?>">
+              </div>
+              <div class="form-group">
+                <label for="password">Password</label>
+                <input class="form-control" id="password" type="password" name="password" required>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  <span class="material-symbols-outlined">login</span>
+                  Sign In
+                </button>
+                <a class="btn btn-ghost" href="<?= h(url_for('setup')) ?>">
+                  <span class="material-symbols-outlined">construction</span>
+                  Setup
+                </a>
+              </div>
+            </form>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.5.1/dist/js/tabler.min.js"></script>

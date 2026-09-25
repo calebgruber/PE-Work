@@ -15,7 +15,7 @@ $showGroups = is_admin($user) ? list_shows_grouped_by_owner() : [];
 ui_head('Dashboard', '', APP_NAME, 'theater_comedy');
 ui_sidebar(APP_NAME, 'theater_comedy', nav_items('dashboard'));
 
-$actions = '<a class="btn btn-primary" href="' . h(url_for('show')) . '"><span class="material-symbols-outlined">add</span>New Show</a>';
+$actions = '<a class="btn btn-primary" href="' . h(url_for('show')) . '"><span class="material-symbols-outlined">add</span>New Order</a>';
 if (is_admin($user)) {
     $actions .= '<a class="btn btn-ghost" href="' . h(url_for('settings')) . '"><span class="material-symbols-outlined">settings</span>System Settings</a>';
 }
@@ -104,7 +104,7 @@ ui_page_header('Shop Order Dashboard', is_admin($user) ? 'Manage every user\'s s
                     <td><?= h($show['theatre_name']) ?></td>
                     <td><?= $show['latest_revision_code'] ? ui_badge($show['latest_revision_code'], 'info') : ui_badge('No Revision', 'neutral') ?></td>
                     <td><?= h($show['latest_revision_date'] ?: '—') ?></td>
-                    <td><a class="btn btn-sm btn-ghost" href="<?= h(url_for('show?show_id=' . (int) $show['id'])) ?>">Open</a></td>
+                    <td><a class="btn btn-sm btn-primary" href="<?= h(url_for('show?show_id=' . (int) $show['id'])) ?>"><span class="material-symbols-outlined">arrow_forward</span>Open Order</a></td>
                   </tr>
                   <?php endforeach; ?>
                 </tbody>
@@ -148,7 +148,7 @@ ui_page_header('Shop Order Dashboard', is_admin($user) ? 'Manage every user\'s s
               <td><?= h($show['theatre_name']) ?></td>
               <td><?= $show['latest_revision_code'] ? ui_badge($show['latest_revision_code'], 'info') : ui_badge('No Revision', 'neutral') ?></td>
               <td><?= h($show['latest_revision_date'] ?: '—') ?></td>
-              <td><a class="btn btn-sm btn-ghost" href="<?= h(url_for('show?show_id=' . (int) $show['id'])) ?>">Open</a></td>
+              <td><a class="btn btn-sm btn-primary" href="<?= h(url_for('show?show_id=' . (int) $show['id'])) ?>"><span class="material-symbols-outlined">arrow_forward</span>Open Order</a></td>
             </tr>
             <?php endforeach; ?>
           </tbody>

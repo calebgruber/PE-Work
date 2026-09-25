@@ -724,8 +724,8 @@ function nav_items(string $active = 'dashboard'): array
     $user = current_user();
     $items = [
         ['icon' => 'home', 'label' => 'Dashboard', 'href' => url_for(''), 'active' => $active === 'dashboard'],
-        ['icon' => 'theater_comedy', 'label' => 'Shows', 'href' => url_for('show'), 'active' => $active === 'shows'],
-        ['icon' => 'folder', 'label' => 'Resources', 'href' => url_for('settings?tab=resources'), 'active' => $active === 'resources'],
+        ['icon' => 'theater_comedy', 'label' => 'Orders', 'href' => url_for('show'), 'active' => $active === 'shows'],
+        ['icon' => 'folder', 'label' => 'Files', 'href' => url_for('settings?tab=resources'), 'active' => $active === 'resources'],
     ];
 
     if (is_admin($user)) {
