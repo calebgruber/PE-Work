@@ -720,7 +720,7 @@ if ($mode === 'edit' && $showId && $currentRevision) {
                           </button>
                           <?php endif; ?>
                         </div>
-                        <div class="revision-inline-warning<?= $currentTotal > $shopQuantity ? '' : ' hidden' ?>" data-stock-warning>
+                        <div class="revision-inline-warning<?= $currentTotal > $shopQuantity ? '' : ' hidden' ?>" data-stock-warning role="status" aria-live="polite">
                           Over shop stock.
                         </div>
                       </td>

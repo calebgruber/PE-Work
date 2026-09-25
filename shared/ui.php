@@ -70,6 +70,7 @@ function ui_head(string $pageTitle, string $appSlug = '', string $appHeading = '
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
   <link rel="stylesheet" href="<?= h(asset_url('shared/assets/style.css')) ?>">
   <link rel="stylesheet" href="<?= h(asset_url('shared/assets/pe-work.css')) ?>">
@@ -232,7 +233,7 @@ function ui_end(): void
   </main>
 </div>
 <div id="note-modal" class="modal hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="note-modal-title" tabindex="-1">
-  <div class="modal-panel">
+  <div class="modal-panel" tabindex="-1">
     <div class="modal-header">
       <h3 id="note-modal-title">Item Note</h3>
       <button type="button" class="btn btn-ghost btn-sm" data-close-modal aria-label="Close note dialog">

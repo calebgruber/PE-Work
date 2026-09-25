@@ -467,9 +467,8 @@
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
         button.setAttribute('aria-expanded', 'true');
-        const focusables = focusableElements();
-        if (focusables.length) {
-          focusables[0].focus();
+        if (panel) {
+          panel.focus();
         } else {
           modal.focus();
         }

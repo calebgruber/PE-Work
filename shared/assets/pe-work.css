@@ -105,7 +105,7 @@
 
 .top-nav-item .material-symbols-outlined {
   font-size: 1rem;
-  color: var(--primary);
+  color: currentColor;
 }
 
 .topbar-branding {
@@ -884,10 +884,6 @@
 }
 
 @media (max-width: 768px) {
-  .app {
-    padding-top: 5.5rem;
-  }
-
   .topbar {
     flex-wrap: wrap;
     height: auto;

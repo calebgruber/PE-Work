@@ -47,6 +47,7 @@
   --shadow-md:       0 4px 10px rgb(15 23 42 / 0.06), 0 16px 40px rgb(15 23 42 / 0.08);
 
   --font:            'Inter', system-ui, -apple-system, sans-serif;
+  --font-heading:    'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
   --transition:      150ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -207,7 +208,7 @@ img { max-width: 100%; }
 
 .top-nav-item .material-symbols-outlined {
   font-size: 1rem;
-  color: var(--sidebar-accent);
+  color: currentColor;
 }
 
 .topbar-user {
@@ -416,6 +417,7 @@ nav { padding: 0.5rem 0.5rem; flex: 1; }
   letter-spacing: -0.04em;
   color: var(--text);
   line-height: 1.15;
+  font-family: var(--font-heading);
 }
 
 .page-header .breadcrumb {
@@ -572,6 +574,7 @@ nav { padding: 0.5rem 0.5rem; flex: 1; }
   font-weight: 600;
   white-space: nowrap;
   color: var(--card-text-on-solid, #ffffff);
+  font-family: var(--font-heading);
 }
 
 /* Dark mode: icon + text = accent color */
@@ -950,6 +953,7 @@ tbody tr:hover td { background: color-mix(in srgb, var(--bg) 78%, white 22%); }
   letter-spacing: -0.05em;
   color: #fff;
   margin-bottom: 1rem;
+  font-family: var(--font-heading);
 }
 
 .auth-intro p {
@@ -1049,6 +1053,7 @@ tbody tr:hover td { background: color-mix(in srgb, var(--bg) 78%, white 22%); }
   letter-spacing: -0.03em;
   line-height: 1.15;
   margin-bottom: 1rem;
+  font-family: var(--font-heading);
 }
 
 .login-banner-content p {
@@ -1098,6 +1103,7 @@ tbody tr:hover td { background: color-mix(in srgb, var(--bg) 78%, white 22%); }
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.025em;
+  font-family: var(--font-heading);
   color: var(--text);
   margin-bottom: 0.375rem;
 }
@@ -1157,6 +1163,7 @@ tbody tr:hover td { background: color-mix(in srgb, var(--bg) 78%, white 22%); }
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.02em;
+  font-family: var(--font-heading);
 }
 
 .login-header .logo-icon {
@@ -1293,7 +1300,7 @@ tbody tr:hover td { background: color-mix(in srgb, var(--bg) 78%, white 22%); }
 }
 
 .empty-state .material-symbols-outlined { font-size: 3rem; opacity: 0.35; }
-.empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--text); }
+.empty-state h3 { font-size: 1rem; font-weight: 600; color: var(--text); font-family: var(--font-heading); }
 .empty-state p  { font-size: 0.875rem; max-width: 280px; line-height: 1.6; }
 
 /* ── Color class chips ───────────────────────────── */
