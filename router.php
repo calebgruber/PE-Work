@@ -3,6 +3,7 @@
 $requestPath = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
 $segments = array_values(array_filter(explode('/', $requestPath), static fn ($segment) => $segment !== ''));
 $publicAssetPrefixes = ['/shared/assets/'];
+$publicAssetExtensions = ['css', 'gif', 'ico', 'jpeg', 'jpg', 'js', 'png', 'svg', 'webp', 'woff', 'woff2'];
 $publicPhpEntrypoints = [
     '/export.php',
     '/index.php',
@@ -50,6 +51,12 @@ if (preg_match('#^/(db|storage|tests)(/|$)#', $path) || (str_starts_with($path, 
 if ($requestPath !== '/' && file_exists($fullPath) && !is_dir($fullPath)) {
     foreach ($publicAssetPrefixes as $prefix) {
         if (str_starts_with($requestPath, $prefix)) {
+            $extension = strtolower(pathinfo($requestPath, PATHINFO_EXTENSION));
+            if (!in_array($extension, $publicAssetExtensions, true)) {
+                http_response_code(404);
+                echo 'Not Found';
+                return true;
+            }
             return false;
         }
     }

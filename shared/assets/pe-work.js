@@ -77,6 +77,7 @@
     let autosaveTimer = null;
     let latestAutosaveRun = 0;
     let latestRevisionVersion = 0;
+    let latestPersistedRevisionVersion = 0;
     let hasPendingAutosave = false;
     let hasDirtyRevisionChanges = false;
     let pendingAutosaveRun = 0;
@@ -245,6 +246,9 @@
           });
         })
         .then(function (payload) {
+          if (revisionVersion > latestPersistedRevisionVersion) {
+            latestPersistedRevisionVersion = revisionVersion;
+          }
           if (autosaveRun !== latestAutosaveRun || revisionVersion !== latestRevisionVersion || autosaveQueued) {
             return;
           }
@@ -252,7 +256,7 @@
             hasPendingAutosave = false;
             pendingAutosaveRun = 0;
           }
-          hasDirtyRevisionChanges = false;
+          hasDirtyRevisionChanges = latestPersistedRevisionVersion < latestRevisionVersion;
           renderWarnings(Array.isArray(payload?.warnings) ? payload.warnings : []);
           renderTotals(payload?.totals || null);
           renderAutosaveStatus('All changes saved.', 'saved');
@@ -268,7 +272,7 @@
             hasPendingAutosave = false;
             pendingAutosaveRun = 0;
           }
-          hasDirtyRevisionChanges = true;
+          hasDirtyRevisionChanges = latestPersistedRevisionVersion < latestRevisionVersion;
           renderAutosaveStatus(error?.message || 'Autosave failed. Use Save Changes.', 'error');
         })
         .finally(function () {
@@ -390,6 +394,7 @@
         })
         .then(function (payload) {
           manualSaveInFlight = false;
+          latestPersistedRevisionVersion = latestRevisionVersion;
           hasPendingAutosave = false;
           hasDirtyRevisionChanges = false;
           pendingAutosaveRun = 0;

@@ -432,6 +432,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             || (int) $revision['show_id'] !== (int) $showId
             || !$revisionShow
             || (int) ($revisionShow['id'] ?? 0) !== (int) $showId
+            || !can_access_show($revisionShow, $currentUser)
         ) {
             flash('warning', 'Revision not found for this show.');
         } else {

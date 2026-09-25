@@ -175,6 +175,17 @@ function migration_files(): array
     return $files;
 }
 
+function migration_contains_callable_steps(array $statements): bool
+{
+    foreach ($statements as $statement) {
+        if (is_callable($statement)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function run_pending_migrations(): array
 {
     ensure_migration_tracking_table();
@@ -215,7 +226,15 @@ function run_pending_migrations(): array
 
         try {
             $startedTransaction = false;
-            if (!db()->inTransaction() && (db_driver() !== 'mysql' || !migration_has_implicit_commit_statements($statements))) {
+            $wrapInTransaction = !db()->inTransaction()
+                && (
+                    db_driver() !== 'mysql'
+                    || (
+                        !migration_contains_callable_steps($statements)
+                        && !migration_has_implicit_commit_statements($statements)
+                    )
+                );
+            if ($wrapInTransaction) {
                 db()->beginTransaction();
                 $startedTransaction = true;
             }

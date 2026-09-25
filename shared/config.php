@@ -81,12 +81,17 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
         }
     }
     $cookiePath = APP_BASE_URL === '' || APP_BASE_URL === '/' ? '/' : rtrim(APP_BASE_URL, '/') . '/';
-    session_set_cookie_params([
+    $cookieParams = [
         'path' => $cookiePath,
         'httponly' => true,
         'secure' => $httpsEnabled,
         'samesite' => 'Lax',
-    ]);
+    ];
+    $siteHost = strtolower((string) parse_url(APP_SITE_URL, PHP_URL_HOST));
+    if ($siteHost !== '' && filter_var($siteHost, FILTER_VALIDATE_IP) === false && $siteHost !== 'localhost') {
+        $cookieParams['domain'] = $siteHost;
+    }
+    session_set_cookie_params($cookieParams);
     session_name(SESSION_NAME);
     session_start();
 }
