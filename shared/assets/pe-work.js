@@ -53,7 +53,12 @@
       stockWarning.classList.toggle('hidden', !overStock);
       row.classList.toggle('has-stock-warning', overStock);
       if (overStock) {
+        stockWarning.setAttribute('role', 'status');
+        stockWarning.setAttribute('aria-live', 'polite');
         stockWarning.textContent = 'This line currently exceeds shop stock.';
+      } else {
+        stockWarning.removeAttribute('role');
+        stockWarning.removeAttribute('aria-live');
       }
     }
   }

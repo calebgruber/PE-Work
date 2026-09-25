@@ -160,7 +160,7 @@
       if (!(form instanceof HTMLFormElement)) return;
       var submitter = e.submitter instanceof HTMLElement ? e.submitter : null;
       var shouldStartLoader = (submitter && submitter.matches('[data-start-loader]'))
-        || (form.matches('[data-start-loader]') && String(form.method || 'get').toLowerCase() === 'get');
+        || form.matches('[data-start-loader]');
       if (!shouldStartLoader) return;
       if (form.matches('[data-revision-editor], [data-no-loader]')) return;
       startLoader();

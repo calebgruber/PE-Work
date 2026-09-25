@@ -923,10 +923,6 @@
     display: grid;
   }
 
-  .content {
-    width: calc(100% - 1rem);
-  }
-
   .resource-frame {
     min-height: 240px;
   }
