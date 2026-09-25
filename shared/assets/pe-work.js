@@ -246,11 +246,11 @@
           });
         })
         .then(function (payload) {
-          if (revisionVersion > latestPersistedRevisionVersion) {
-            latestPersistedRevisionVersion = revisionVersion;
-          }
           if (autosaveRun !== latestAutosaveRun || revisionVersion !== latestRevisionVersion || autosaveQueued) {
             return;
+          }
+          if (revisionVersion > latestPersistedRevisionVersion) {
+            latestPersistedRevisionVersion = revisionVersion;
           }
           if (pendingAutosaveRun === autosaveRun) {
             hasPendingAutosave = false;
