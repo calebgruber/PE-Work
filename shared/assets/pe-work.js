@@ -453,7 +453,9 @@
       modal.setAttribute('aria-hidden', 'true');
       if (lastTrigger) {
         lastTrigger.setAttribute('aria-expanded', 'false');
-        lastTrigger.focus();
+        if (lastTrigger.isConnected && typeof lastTrigger.focus === 'function' && !lastTrigger.hasAttribute('disabled')) {
+          lastTrigger.focus();
+        }
       }
     }
 
