@@ -159,7 +159,9 @@
       var form = e.target;
       if (!(form instanceof HTMLFormElement)) return;
       var submitter = e.submitter instanceof HTMLElement ? e.submitter : null;
-      if (!form.matches('[data-start-loader]') && !(submitter && submitter.matches('[data-start-loader]'))) return;
+      var shouldStartLoader = (submitter && submitter.matches('[data-start-loader]'))
+        || (form.matches('[data-start-loader]') && String(form.method || 'get').toLowerCase() === 'get');
+      if (!shouldStartLoader) return;
       if (form.matches('[data-revision-editor], [data-no-loader]')) return;
       startLoader();
     });

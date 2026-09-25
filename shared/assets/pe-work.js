@@ -256,10 +256,6 @@
         })
         .catch(function (error) {
           if (abortController.signal.aborted) {
-            if (pendingAutosaveRun === autosaveRun && autosaveRun === latestAutosaveRun) {
-              hasPendingAutosave = false;
-              pendingAutosaveRun = 0;
-            }
             return;
           }
           if (autosaveRun !== latestAutosaveRun) {
