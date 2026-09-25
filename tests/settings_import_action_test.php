@@ -553,8 +553,9 @@ $badResourceCommand = sprintf(
 exec($badResourceCommand, $badResourceOutput, $badResourceStatus);
 $badResourceHeaders = is_file($badResourceHeadersPath) ? file_get_contents($badResourceHeadersPath) : '';
 $badResourceBody = is_file($badResourceResponsePath) ? file_get_contents($badResourceResponsePath) : '';
-$resourceStmt->execute(['Bad Resource']);
-$badStoredName = $resourceStmt->fetchColumn();
+$badResourceStmt = $freshDb->prepare('SELECT stored_name FROM resources WHERE title = ? ORDER BY id DESC LIMIT 1');
+$badResourceStmt->execute(['Bad Resource']);
+$badStoredName = $badResourceStmt->fetchColumn();
 
 settings_assert($badResourceStatus === 0, 'Expected invalid resource upload curl request to succeed.', $repoRoot, $process, $pipes, $testPaths);
 settings_assert(str_contains($badResourceHeaders, 'Location: /settings?tab=resources'), 'Expected invalid resource upload action to redirect back to the resources tab.', $repoRoot, $process, $pipes, $testPaths);

@@ -18,17 +18,17 @@ $publicPhpEntrypoints = [
     '/users.php',
 ];
 $publicRoutes = [
-    '/',
-    '/branding_logo',
-    '/export',
-    '/login',
-    '/logout',
-    '/profile',
-    '/resource_file',
-    '/settings',
-    '/setup',
-    '/show',
-    '/users',
+    '/' => '/index.php',
+    '/branding_logo' => '/branding_logo.php',
+    '/export' => '/export.php',
+    '/login' => '/login.php',
+    '/logout' => '/logout.php',
+    '/profile' => '/profile.php',
+    '/resource_file' => '/resource_file.php',
+    '/settings' => '/settings.php',
+    '/setup' => '/setup.php',
+    '/show' => '/show.php',
+    '/users' => '/users.php',
 ];
 foreach ($segments as $segment) {
     if ($segment === '.' || $segment === '..') {
@@ -78,8 +78,9 @@ if ($path === '/') {
     return true;
 }
 
-$phpTarget = __DIR__ . $path . '.php';
-if (in_array($path, $publicRoutes, true) && file_exists($phpTarget)) {
+$mappedEntrypoint = $publicRoutes[$path] ?? null;
+if ($mappedEntrypoint !== null && is_file(__DIR__ . $mappedEntrypoint)) {
+    $phpTarget = __DIR__ . $mappedEntrypoint;
     require $phpTarget;
     return true;
 }
